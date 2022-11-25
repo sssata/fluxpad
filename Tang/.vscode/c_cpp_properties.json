@@ -1,0 +1,26 @@
+{
+    "configurations": [
+        {
+            "name": "rp2040",
+            "includePath": [
+                "${workspaceFolder}/**",
+                "${PICO_SDK_PATH}/**"
+            ],
+            "defines": [
+                "_DEBUG",
+                "UNICODE",
+                "_UNICODE"
+            ],
+            "windowsSdkVersion": "10.0.22000.0",
+            "compilerPath": "C:/VSARM/armcc/12.2 mpacbti-bet1/bin/arm-none-eabi-gcc.exe",
+            "cStandard": "c17",
+            "cppStandard": "c++17",
+            "intelliSenseMode": "gcc-arm",
+            "configurationProvider": "ms-vscode.cmake-tools",
+            "forcedInclude": [
+                "${PICO_SDK_PATH}/src/rp2_common/pico_multicore/**"
+            ]
+        }
+    ],
+    "version": 4
+}

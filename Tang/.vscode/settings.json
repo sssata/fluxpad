@@ -1,0 +1,25 @@
+{
+    "cmake.generator": "MinGW Makefiles",
+    "cmake.buildTask": false,
+    "terminal.integrated.defaultProfile.windows": "Git Bash",
+    "files.associations": {
+        "stdlib.h": "c",
+        "stdio.h": "c",
+        "pico.h": "c",
+        "config.h": "c",
+        "elf.h": "c",
+        "tusb.h": "c",
+        "rapid_trigger.h": "c",
+        "sensor_task.h": "c",
+        "binary_info.h": "c",
+        "time.h": "c",
+        "tle493d.h": "c",
+        "gpio.h": "c",
+        "irq.h": "c",
+        "stdio_usb.h": "c",
+        "multicore.h": "c"
+    },
+    "cmake.configureOnOpen": false,
+    "makefile.makePath": "make",
+    "C_Cpp.formatting": "clangFormat"
+}

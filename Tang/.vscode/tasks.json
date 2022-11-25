@@ -1,0 +1,13 @@
+{
+    "version": "2.0.0",
+    "tasks": [
+      {
+        "label": "Upload to MCU",
+        "command": "cp",
+        "args": ["build/blink.uf2", "/d/"],
+        "options": {
+          "cwd": "${workspaceFolder}"
+        }
+      },
+    ]
+}
