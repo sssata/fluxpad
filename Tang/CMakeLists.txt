@@ -25,6 +25,7 @@ target_sources(${PROJECT_NAME} PUBLIC
     ${CMAKE_CURRENT_LIST_DIR}/sensor_task.c
     ${CMAKE_CURRENT_LIST_DIR}/rapid_trigger.c
     ${CMAKE_CURRENT_LIST_DIR}/TLE493D.c
+    ${CMAKE_CURRENT_LIST_DIR}/sensor_adc.c
 )
 
 # Make sure TinyUSB can find tusb_config.h
@@ -42,6 +43,7 @@ target_link_libraries(${PROJECT_NAME} PUBLIC
     tinyusb_board
     hardware_i2c
     pico_multicore
+    hardware_adc
 )
 
 # Enable usb output, disable uart output

@@ -84,28 +84,3 @@ int tle493d_read_blocking(TLE493D_t* tle493d){
 
     return ret;
 }
-
-int tle493d_reset(TLE493D_t* tle493d){
-    printf("tle reset\n");
-    int ret;
-
-    ret = i2c_read_timeout_us(tle493d->i2c, tle493d->i2c_address, (uint8_t*) &data_in_buf, sizeof(0), false, 1000u);
-
-    if (ret < 0){
-        printf("ret: %d\n", ret);
-        return ret;
-    }
-    printf("id: %x\n",data_in_buf.id);
-    printf("temp_hi: %x\n",data_in_buf.temp_hi);
-    printf("temp_lo: %x\n",data_in_buf.temp_lo);
-    printf("diag: %x\n", data_in_buf.diag);
-
-    tle493d->bx_raw = data_in_buf.bx_hi << 4 & data_in_buf.bx_lo;
-    tle493d->by_raw = data_in_buf.by_hi << 4 & data_in_buf.by_lo;
-    tle493d->bz_raw = data_in_buf.bz_hi << 4 & data_in_buf.bz_lo;
-    tle493d->temp_raw = data_in_buf.temp_hi << 4 & data_in_buf.temp_lo;
-    printf("bz_raw: %d\n", tle493d->bz_raw);
-    printf("by_raw: %d\n", tle493d->by_raw);
-
-    return ret;
-}

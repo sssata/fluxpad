@@ -6,6 +6,7 @@
 #include "pico/multicore.h"
 #include "pico/stdio_usb.h"
 #include "hardware/irq.h"
+#include "sensor_adc.h"
 
 int main() {
 
@@ -18,16 +19,18 @@ int main() {
     stdio_init_all();
 
     // sensor_task_init();
-    multicore_launch_core1(sensor_task_run);
+    // multicore_launch_core1(sensor_task_run);
+    multicore_launch_core1(adc_speed_test);
     // Loop forever
     while (true) {
+        // adc_speed_test();
 
         // sensor_task();  //read sensors task
-        rapid_trigger_step();
-        // sensor_task();
-        hid_task();
+        // rapid_trigger_step();
+        // // sensor_task();
+        // hid_task();
         tud_task(); // tinyusb device task
-        // hid_task(); // hid device task
+        hid_task(); // hid device task
 
         // // Blink LED
         // printf("Blinking!\r\n");
