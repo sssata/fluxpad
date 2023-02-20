@@ -3,6 +3,7 @@
 #pragma once
 
 #include <stddef.h> // size_t
+#include <stdlib.h>
 
 template <class T>
 constexpr T abs_diff(const T &a, const T &b) {

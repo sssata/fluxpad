@@ -1,0 +1,37 @@
+
+{
+    "cmd": "W",
+    "map": [
+        {
+            "n": 1,
+            "code": 123,
+            "type": 123
+        },
+        {
+            "n": 2,
+            "code": 123,
+            "type": 123
+        },
+        {
+            "n": 3,
+            "code": 123,
+            "type": 123
+        },
+        {
+            "n": 4,
+            "code": 123,
+            "type": 123
+        }
+    ],
+    "d_s": {
+        "d_p": 123,  // press debounce
+        "d_r": 123  // release debounce
+    },
+    "a_s": {
+        "t_a": 123, // actuation threshold
+        "t_r": 123, // release threshold
+        "p_a": 123, // actuation point
+        "p_r": 123, // release point
+        "s": 20  // samples
+    }
+}
