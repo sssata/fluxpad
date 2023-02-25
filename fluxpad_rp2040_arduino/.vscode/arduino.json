@@ -1,0 +1,7 @@
+{
+    "sketch": "fluxpad_rp2040_arduino.ino",
+    "output": "build",
+    "configuration": "flash=2097152_0,freq=133,opt=Small,rtti=Disabled,stackprotect=Disabled,exceptions=Disabled,dbgport=Disabled,dbglvl=None,usbstack=picosdk,ipstack=ipv4only",
+    "board": "rp2040:rp2040:seeed_xiao_rp2040",
+    "port": "COM1"
+}

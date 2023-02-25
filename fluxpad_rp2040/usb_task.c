@@ -136,18 +136,18 @@ static void send_hid_report(uint8_t report_id, uint32_t btn)
   }
 }
 
-// Every 10ms, we will sent 1 report for each HID profile (keyboard, mouse etc ..)
+// Every 1ms, we will sent 1 report for each HID profile (keyboard, mouse etc ..)
 // tud_hid_report_complete_cb() is used to send the next report after previous one is complete
-void hid_task(void)
+void hid_task(const uint32_t is_key_pressed)
 {
   // Poll every 10ms
-  const uint32_t interval_us = 10000;
+  const uint32_t interval_us = 1000;
   static uint32_t start_us = 0;
 
   if ( time_us_64() - start_us < interval_us) return; // not enough time
   start_us += interval_us;
 
-  uint32_t const btn = gpio_get(1);
+  uint32_t const btn = is_key_pressed;
 
   // Remote wakeup
   if ( tud_suspended() && btn )
