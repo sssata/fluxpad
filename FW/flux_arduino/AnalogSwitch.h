@@ -23,15 +23,15 @@ typedef uint32_t q22_10_t;
 #define ADC_BITS 12
 #define LUT_BITS 2
 const q22_10_t adc_to_dist_lut[] = {
-    FLOAT_TO_Q22_10(20),    // 0
-    FLOAT_TO_Q22_10(9),     // 512
-    FLOAT_TO_Q22_10(4.6),   // 1024
-    FLOAT_TO_Q22_10(3.2),   // 1536
-    FLOAT_TO_Q22_10(2.569), // 2048
-    FLOAT_TO_Q22_10(2.171), // 2560
-    FLOAT_TO_Q22_10(1.892), // 3072
-    FLOAT_TO_Q22_10(1.677), // 3584
-    FLOAT_TO_Q22_10(1.504), // 4096
+    FLOAT_TO_Q22_10(11.0),    // 0
+    FLOAT_TO_Q22_10(10.0),     // 512
+    FLOAT_TO_Q22_10(5.6),   // 1024
+    FLOAT_TO_Q22_10(3.45),   // 1536
+    FLOAT_TO_Q22_10(2.7), // 2048
+    FLOAT_TO_Q22_10(2.2), // 2560
+    FLOAT_TO_Q22_10(2.0), // 3072
+    FLOAT_TO_Q22_10(1.7), // 3584
+    FLOAT_TO_Q22_10(1.5), // 4096
 };
 
 typedef struct {
@@ -105,8 +105,8 @@ class AnalogSwitch {
 
             // Check if should press
             if (max_distance_mm - current_distance_mm >
-                    settings.press_hysteresis_mm ||
-                current_distance_mm < settings.actuation_point_mm) {
+                    settings.press_hysteresis_mm &&
+                current_distance_mm < settings.release_point_mm) {
                 is_pressed = true;
                 resetMinMaxDistance();
                 min_distance_mm = current_distance_mm;
@@ -120,8 +120,8 @@ class AnalogSwitch {
             }
 
             if (current_distance_mm - min_distance_mm >
-                    settings.release_hysteresis_mm ||
-                current_distance_mm > settings.release_point_mm) {
+                    settings.release_hysteresis_mm &&
+                current_distance_mm > settings.actuation_point_mm) {
                 is_pressed = false;
                 resetMinMaxDistance();
                 max_distance_mm = current_distance_mm;

@@ -28,8 +28,8 @@
         "d_r": 123  // release debounce
     },
     "a_s": {
-        "t_a": 123, // actuation threshold
-        "t_r": 123, // release threshold
+        "h_a": 123, // actuation hysteresis
+        "h_r": 123, // release hysteresis
         "p_a": 123, // actuation point
         "p_r": 123, // release point
         "s": 20  // samples
