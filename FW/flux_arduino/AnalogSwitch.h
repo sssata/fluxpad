@@ -21,17 +21,17 @@ typedef uint32_t q22_10_t;
 
 // ADC to Distance(mm) LUT
 #define ADC_BITS 12
-#define LUT_BITS 2
+#define LUT_BITS 3
 const q22_10_t adc_to_dist_lut[] = {
-    FLOAT_TO_Q22_10(11.0),    // 0
-    FLOAT_TO_Q22_10(10.0),     // 512
-    FLOAT_TO_Q22_10(5.6),   // 1024
-    FLOAT_TO_Q22_10(3.45),   // 1536
-    FLOAT_TO_Q22_10(2.7), // 2048
-    FLOAT_TO_Q22_10(2.2), // 2560
-    FLOAT_TO_Q22_10(2.0), // 3072
-    FLOAT_TO_Q22_10(1.7), // 3584
-    FLOAT_TO_Q22_10(1.5), // 4096
+    FLOAT_TO_Q22_10(13.0),    // 0
+    FLOAT_TO_Q22_10(12.0),     // 512
+    FLOAT_TO_Q22_10(6),   // 1024
+    FLOAT_TO_Q22_10(3.7),   // 1536
+    FLOAT_TO_Q22_10(3.0), // 2048
+    FLOAT_TO_Q22_10(2.5), // 2560
+    FLOAT_TO_Q22_10(2.15), // 3072
+    FLOAT_TO_Q22_10(1.83), // 3584
+    FLOAT_TO_Q22_10(1.55), // 4096
 };
 
 typedef struct {
@@ -46,8 +46,8 @@ typedef struct {
 
 class AnalogSwitch {
   public:
-    uint32_t pin = 0;
-    uint32_t id = 0;
+    const uint32_t pin = 0;
+    const uint32_t id = 0;
 
     q22_10_t current_reading = 0;
     q22_10_t current_distance_mm = 0;
@@ -60,11 +60,17 @@ class AnalogSwitch {
 
     AnalogSwitchSettings_t settings;
 
-    AnalogSwitch(uint32_t _pin, uint32_t _id) : pin(_pin), id(_id) {}
+    AnalogSwitch(uint32_t pin, uint32_t id) : pin(pin), id(id) {}
 
     void setup() {
         pinMode(pin, INPUT);
         setADCConversionTime(128, 0);
+        // analogReference(AR_INTERNAL2V23);
+        ADC->REFCTRL.bit.REFCOMP = 1;
+        while (ADC->STATUS.bit.SYNCBUSY);
+
+        loadADCFactoryCalibration();
+
         resetMinMaxDistance();
         is_pressed = false;
         is_setup = true;
@@ -240,6 +246,21 @@ class AnalogSwitch {
     q22_10_t adcCountsToDistanceMM(q22_10_t counts) { return lut(counts); }
 
   private:
+
+    void loadADCFactoryCalibration(){
+        uint32_t bias = (*((uint32_t *) ADC_FUSES_BIASCAL_ADDR) & ADC_FUSES_BIASCAL_Msk) >> ADC_FUSES_BIASCAL_Pos;
+        uint32_t linearity = (*((uint32_t *) ADC_FUSES_LINEARITY_0_ADDR) & ADC_FUSES_LINEARITY_0_Msk) >> ADC_FUSES_LINEARITY_0_Pos;
+        linearity |= ((*((uint32_t *) ADC_FUSES_LINEARITY_1_ADDR) & ADC_FUSES_LINEARITY_1_Msk) >> ADC_FUSES_LINEARITY_1_Pos) << 5;
+
+        /* Wait for bus synchronization. */
+        while (ADC->STATUS.bit.SYNCBUSY) {};
+
+        /* Write the calibration data. */
+        ADC->CALIB.reg = ADC_CALIB_BIAS_CAL(bias) | ADC_CALIB_LINEARITY_CAL(linearity);
+
+        while (ADC->STATUS.bit.SYNCBUSY) {};
+    }
+    
     void resetMinMaxDistance() {
         min_distance_mm = UINT32_MAX;
         max_distance_mm = 0;

@@ -19,17 +19,22 @@
 // #define SAMPLE_FREQ_HZ 1000
 // #define SAMPLE_PERIOD_US 1000000 / SAMPLE_FREQ_HZ
 
-#define ENC_A_PIN 1
-#define ENC_B_PIN 0
-#define KEY0_PIN 3
-#define KEY1_PIN 9
-#define KEY2_PIN 6
-#define KEY3_PIN 8
+#define ENC_A_PIN 1u
+#define ENC_B_PIN 0u
+#define KEY0_PIN 3u
+#define KEY1_PIN 9u
+#define KEY2_PIN 6u
+#define KEY3_PIN 8u
 
-#define ENC_UP_KEY_ID 4
-#define ENC_DOWN_KEY_ID 5
+#define KEY0_LIGHT_PIN 4u
+#define KEY1_LIGHT_PIN 7u
+#define KEY2_LIGHT_PIN 5u
+#define KEY3_LIGHT_PIN 10u
 
-#define LED_PIN 13
+#define ENC_UP_KEY_ID 4u
+#define ENC_DOWN_KEY_ID 5u
+
+#define LED_PIN 13u
 
 bool debug_mode = false;
 
@@ -61,6 +66,7 @@ typedef struct {
 
     AnalogSwitchSettings_t analogSettings;
     DigitalSwitchSettings_t digitalSettings;
+    KeyLightingSettings_t lightingSettings[4];
 
     uint64_t first_write_timestamp = 0;
     uint64_t last_write_timestamp = 0;
@@ -80,11 +86,18 @@ AnalogSwitch analogKeys[] = {
     AnalogSwitch(KEY3_PIN, 3),
 };
 
+KeyLighting keyLighting[] = {
+    KeyLighting(KEY0_LIGHT_PIN, &(digitalKeys[0].is_pressed)),
+    KeyLighting(KEY1_LIGHT_PIN, &(digitalKeys[1].is_pressed)),
+    KeyLighting(KEY2_LIGHT_PIN, &(analogKeys[0].is_pressed)),
+    KeyLighting(KEY3_LIGHT_PIN, &(analogKeys[1].is_pressed)),
+};
+
 StaticJsonDocument<512> json_doc_incoming;
 StaticJsonDocument<512> json_doc_outgoing;
 
 void setup() {
-    pinMode(LED_BUILTIN, OUTPUT);
+    // pinMode(LED_BUILTIN, OUTPUT);
 
     // DISABLE UART RX TX LEDS
     pinMode(PIN_LED2, INPUT_PULLUP);
@@ -97,8 +110,6 @@ void setup() {
     Keyboard.begin();
     Consumer.begin();
 
-    // encoder.begin(2, 3); // using pins 2 and 3 to connect encoder; make sure
-    // they are interrupt capable encoder.attach_interrupt
     encoder.begin(ENC_A_PIN, ENC_B_PIN, EncoderTool::CountMode::quarter,
                   INPUT_PULLUP);
 
@@ -114,6 +125,16 @@ void setup() {
         key.applySettings(&(storage_vars.analogSettings));
     }
 
+    int i = 0;
+    for (KeyLighting &lighting : keyLighting) {
+        lighting.setup();
+        lighting.applySettings(&(storage_vars.lightingSettings[i]));
+        i++;
+    }
+
+    pinMode(2, INPUT);
+
+    // delay(1000);
     last_time_us = micros();
 }
 
@@ -145,21 +166,13 @@ void loop() {
         }
 
         if (key.is_pressed) {
-            // Keyboard.add(storage_vars.keymap[key.id].keycode);
             pressHIDKey(&(storage_vars.keymap[key.id]));
         } else {
-            // Keyboard.remove(storage_vars.keymap[key.id].keycode);
             releaseHIDKey(&(storage_vars.keymap[key.id]));
         }
     }
     if (debug_mode) {
         Serial.printf("\n");
-    }
-
-    if (analogKeys[1].is_pressed) {
-        digitalWrite(LED_BUILTIN, LOW);
-    } else {
-        digitalWrite(LED_BUILTIN, HIGH);
     }
 
     // Scan digital keys
@@ -191,6 +204,16 @@ void loop() {
             break;
         }
         encoder.setValue(0);
+    }
+
+    // Run Lighting
+    int i = 0;
+    for (KeyLighting &lighting : keyLighting) {
+        // if (i == 0 || i == 1){
+            lighting.lightingTask(curr_time_us);
+            // Serial.printf("i: %d, a: %d, b: %d, p: %d\n", i, lighting.pressed_p, *(lighting.pressed_p), lighting.pin);
+        // }
+        i++;
     }
 
     Keyboard.send();
@@ -318,15 +341,25 @@ bool loadFlashStorage(StorageVars_t *storage_vars) {
     storage_vars->analogSettings = {
         .press_hysteresis_mm = FLOAT_TO_Q22_10(0.3),
         .release_hysteresis_mm = FLOAT_TO_Q22_10(0.3),
-        .actuation_point_mm = FLOAT_TO_Q22_10(4),
-        .release_point_mm = FLOAT_TO_Q22_10(9),
+        .actuation_point_mm = FLOAT_TO_Q22_10(2.2),
+        .release_point_mm = FLOAT_TO_Q22_10(5.8),
         .press_debounce_ms = 0,
         .release_debounce_ms = 0,
         .samples = 22,
     };
 
+    for (KeyLightingSettings_t &keyLightingSettings :
+         storage_vars->lightingSettings) {
+        keyLightingSettings = {
+            .mode = LIGHTING_MODE_FADE,
+            .fade_half_life_us = 20 * 1000,
+            .flash_duration_us = 1000 * 1000,
+            .static_duty_cycle = 50,
+        };
+    };
+
     // Write to Flash
-    // saveFlashStorage(*storage_vars);
+    saveFlashStorage(*storage_vars);
 
     return false;
 }
@@ -531,25 +564,3 @@ void read_serial() {
     // Reply with json doc
     serializeJson(json_doc_outgoing, Serial);
 }
-
-// void read_serial() {
-//     if (Serial.available()) {
-//         DeserializationError err = deserializeJson(json_doc_incoming,
-//         Serial1); if (err == DeserializationError::Ok) {
-//             // Print the values
-//             // (we must use as<T>() to resolve the ambiguity)
-//             Serial.print("timestamp = ");
-//             Serial.println(json_doc_incoming["timestamp"].as<long>());
-//             Serial.print("value = ");
-//             Serial.println(json_doc_incoming["value"].as<int>());
-//         } else {
-//             // Print error to the "debug" serial port
-//             Serial.print("deserializeJson() returned ");
-//             Serial.println(err.c_str());
-
-//             // Flush all bytes in the "link" serial port buffer
-//             while (Serial1.available() > 0)
-//                 Serial1.read();
-//         }
-//     }
-// }

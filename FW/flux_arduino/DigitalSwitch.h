@@ -9,23 +9,19 @@ typedef struct {
 
 class DigitalSwitch {
   public:
-    uint32_t pin;
-    uint32_t id;
+    const uint32_t pin;
+    const uint32_t id;
 
     uint32_t last_pressed_time_ms;
     uint32_t last_release_time_ms;
     unsigned long last_toggle_time_ms;
-    bool curr_state;
     bool is_pressed;
     DigitalSwitchSettings_t settings;
 
-    DigitalSwitch(uint32_t _pin, uint32_t _id){
-        curr_state = false;
-        pin = _pin;
-        id = _id;
-    }
+    DigitalSwitch(uint32_t pin, uint32_t id) : pin(pin), id(id){}
 
     void setup(){
+        is_pressed = false;
         pinMode(pin, INPUT_PULLUP);
         last_pressed_time_ms = millis();
         last_release_time_ms = millis();
@@ -37,7 +33,7 @@ class DigitalSwitch {
     }
 
     void mainLoopService(){
-        curr_state = !digitalRead(pin);
+        bool curr_state = !digitalRead(pin);
         unsigned long current_time_ms = millis();
 
         switch (is_pressed) {
