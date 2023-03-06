@@ -12,7 +12,7 @@ The FLUXPAD is a keypad designed for osu! with **2 analog Wooting Lekker switche
   - Adjustable press and release hysteresis
 - **Encoder Knob**
 - **Per Key LED Lighting**
-- **Desktop application** to configure everything about the fluxpad
+- **Desktop application** to configure everything about the fluxpad (Compatible with Windows 10 and 11 only for now)
 
 
 ## Technical Specs
@@ -28,6 +28,7 @@ The FLUXPAD is a keypad designed for osu! with **2 analog Wooting Lekker switche
 - Encoder Knob
   - 24 Pulses per revolution
 - Polling Rate: 1000 Hz
-- MCU: SAMD21
+- USB Type-C Port
+- MCU: SAMD21 (Seeeduino XIAO)
 - Weight: 100g TODO
 - Dimensions (WxLxH): 49x70x30mm. TODO.
