@@ -164,13 +164,13 @@ class Application(ttk.Frame):
         print(event.keysym)
 
 
-def keyboard_callback(event: keyboard.KeyboardEvent):
-    print(event, event.scan_code, event.scan_code)
+# def keyboard_callback(event: keyboard.KeyboardEvent):
+#     print(event, event.scan_code, event.scan_code)
 
 
 if __name__ == "__main__":
 
-    keyboard.hook(callback=keyboard_callback)
+    # keyboard.hook(callback=keyboard_callback)
 
     root = tk.Tk()
     # root.geometry("200x600")
