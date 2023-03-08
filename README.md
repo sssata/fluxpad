@@ -14,6 +14,17 @@ The FLUXPAD is a keypad designed for osu! with **2 analog Wooting Lekker switche
 - **Per Key LED Lighting**
 - **Desktop application** to configure everything about the fluxpad (Compatible with Windows 10 and 11 only for now)
 
+## Gallery
+
+<details><summary><header>Gallery</header></summary>
+<p>
+
+![](assets/top_diagram.png?raw=true)
+
+![](assets/exploded_labeled.png?raw=true)
+
+</p>
+</details>
 
 ## Technical Specs
 
