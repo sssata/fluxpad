@@ -1,4 +1,14 @@
-.stp filter=lfs diff=lfs merge=lfs -text
-.step filter=lfs diff=lfs merge=lfs -text
-.sldprt filter=lfs diff=lfs merge=lfs -text
-.sldasm filter=lfs diff=lfs merge=lfs -text
+.stp filter=lfs diff=lfs merge=lfs
+.step filter=lfs diff=lfs merge=lfs
+.sldprt filter=lfs diff=lfs merge=lfs
+.sldasm filter=lfs diff=lfs merge=lfs
+.STP filter=lfs diff=lfs merge=lfs
+.STEP filter=lfs diff=lfs merge=lfs
+.SLDPRT filter=lfs diff=lfs merge=lfs
+.SLDASM filter=lfs diff=lfs merge=lfs
+.png filter=lfs diff=lfs merge=lfs
+.jpg filter=lfs diff=lfs merge=lfs
+.jpeg filter=lfs diff=lfs merge=lfs
+.PNG filter=lfs diff=lfs merge=lfs
+.JPG filter=lfs diff=lfs merge=lfs
+.JPEG filter=lfs diff=lfs merge=lfs

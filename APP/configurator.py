@@ -2,7 +2,8 @@ import tkinter as tk
 from tkinter import ttk
 from common_enums import KeyType, KeyboardKeycodes, ConsumerKeycodes, keycode_to_string, get_all_key_list
 # import pygame
-import keyboard
+# import keyboard
+import pynput
 
 class EncoderMap(ttk.Labelframe):
     """Class for an encoder keymap gui

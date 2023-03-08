@@ -16,17 +16,14 @@
 
 #define VERSION 1
 
-// #define SAMPLE_FREQ_HZ 1000
-// #define SAMPLE_PERIOD_US 1000000 / SAMPLE_FREQ_HZ
-
 #define ENC_A_PIN 1u
 #define ENC_B_PIN 0u
-#define KEY0_PIN 3u
+#define KEY0_PIN 2u
 #define KEY1_PIN 9u
 #define KEY2_PIN 6u
 #define KEY3_PIN 8u
 
-#define KEY0_LIGHT_PIN 4u
+#define KEY0_LIGHT_PIN 3u
 #define KEY1_LIGHT_PIN 7u
 #define KEY2_LIGHT_PIN 5u
 #define KEY3_LIGHT_PIN 10u
