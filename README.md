@@ -2,31 +2,33 @@
 
 ![](assets/Renders/iso_right_cartoon.png?raw=true)
 
-
-
-The FLUXPAD is a keypad with 2 analog switches, 2 digital switches, and an encoder knob. The analog keys use Wooting Lekker switches and a hall effect sensor to tell exactly how far the switch has been pressed over its full travel with 0.1mm accuracy. Designed with osu! in mind.
-
+The FLUXPAD is a keypad designed for osu! with **2 analog Wooting Lekker switches, 2 digital switches, and an encoder knob**. The analog keys use hall effect sensors to determine how far the switch is pressed over its full travel range with 0.1mm resolution, providing lower latency, adjustable actuation points, and rapid trigger.
 
 
 ## Features
 
-- 2 Analog Keys
-  - **Wooting Lekker** switches
-  - **Rapid Trigger**
+- **Rapid Trigger**
   - Adjustable press and release point
   - Adjustable press and release hysteresis
-
-- 2 Digital Keys
-  - Gateron Red switches
-  - Adjustable debounce
-
-- Encoder Knob
-  - 24 Pulses per revolution
+- **Encoder Knob**
+- **Per Key LED Lighting**
+- **Desktop application** to configure everything about the fluxpad (Compatible with Windows 10 and 11 only for now)
 
 
 ## Technical Specs
+
+- 2 Analog Switchs
+  - Switch Type: Wooting Lekker
+  - Resolution: 0.1 mm
+  - Range: 4mm (full travel)
+  - Lifetime: 100 million presses
+- 2 Digital Switches
+  - Switch Type: Gateron Red
+  - Lifetime: 50 million presses
+- Encoder Knob
+  - 24 Pulses per revolution
 - Polling Rate: 1000 Hz
-- Analog Switch Resolution: 0.1 mm
-- Analog Switch Range: 4mm (full travel)
+- USB Type-C Port
+- MCU: SAMD21 (Seeeduino XIAO)
 - Weight: 100g TODO
-- Dimensions (WxLxH): 49x70x30mm
+- Dimensions (WxLxH): 49x70x30mm. TODO.
