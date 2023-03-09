@@ -1,0 +1,3 @@
+(fp_lib_table
+  (lib (name "Tang")(type "KiCad")(uri "${KIPRJMOD}/Fluxpad.pretty")(options "")(descr ""))
+)
