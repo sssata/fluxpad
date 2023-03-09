@@ -1,9 +1,11 @@
 import tkinter as tk
 from tkinter import ttk
 from common_enums import KeyType, KeyboardKeycodes, ConsumerKeycodes, keycode_to_string, get_all_key_list
+import scancode_to_hid_code
 # import pygame
 # import keyboard
 import pynput
+from typing import Union
 
 class EncoderMap(ttk.Labelframe):
     """Class for an encoder keymap gui
@@ -167,15 +169,25 @@ class Application(ttk.Frame):
 # def keyboard_callback(event: keyboard.KeyboardEvent):
 #     print(event, event.scan_code, event.scan_code)
 
+def on_press(key: Union[pynput.keyboard.Key, pynput.keyboard.KeyCode]):
+    print(scancode_to_hid_code.pynput_event_to_HIDKeycode(key))
+    try:
+        print('alphanumeric key {0} pressed'.format(
+            key.vk))
+    except AttributeError:
+        print('special key {0} pressed'.format(
+            key))
 
 if __name__ == "__main__":
 
     # keyboard.hook(callback=keyboard_callback)
+    listener = pynput.keyboard.Listener(
+        on_press=on_press)
+    listener.start()
 
     root = tk.Tk()
     # root.geometry("200x600")
     root.title("FLUXPAD Config")
     app = Application(master=root)
     app.pack()
-    # root.bind("<Key>", func=app.key_test)
     app.mainloop()
