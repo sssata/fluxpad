@@ -1,6 +1,11 @@
 # FLUXPAD Analog Keypad
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="assets/Branding/LogoDark.png?raw=True" width="400">
+  <img alt="Shows an illustrated sun in light color mode and a moon with stars in dark color mode." src="assets/Branding/LogoDark.png?raw=True" width="400">
+</picture>
+<br>
 
-![](assets/Renders/iso_right_cartoon.png?raw=true)
+<img src="assets/Renders/iso_right_cartoon.png?raw=true" width="600">
 
 The FLUXPAD is a keypad designed for osu! with **2 analog Wooting Lekker switches, 2 digital switches, and an encoder knob**. The analog keys use hall effect sensors to determine how far the switch is pressed over its full travel range with 0.1mm resolution, providing lower latency, adjustable actuation points, and rapid trigger.
 
