@@ -1,7 +1,7 @@
 # FLUXPAD Analog Keypad
 <picture>
-  <source media="(prefers-color-scheme: dark)" srcset="assets/Branding/LogoDark.png?raw=True" width="400">
-  <img alt="Shows an illustrated sun in light color mode and a moon with stars in dark color mode." src="assets/Branding/LogoDark.png?raw=True" width="400">
+  <source media="(prefers-color-scheme: dark)" srcset="assets/Branding/LogoDark.png?raw=True" width="600">
+  <img alt="Shows an illustrated sun in light color mode and a moon with stars in dark color mode." src="assets/Branding/LogoDark.png?raw=True" width="600">
 </picture>
 <br>
 
