@@ -18,7 +18,7 @@
 
 #define ENC_A_PIN 1u
 #define ENC_B_PIN 0u
-#define KEY0_PIN 2u
+#define KEY0_PIN 4u
 #define KEY1_PIN 9u
 #define KEY2_PIN 6u
 #define KEY3_PIN 8u
