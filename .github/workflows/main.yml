@@ -1,0 +1,30 @@
+on:
+  pull_request:
+    branches:
+    - main
+    
+jobs:
+  build-arduino:
+    runs-on: windows-latest
+    steps:
+      - name: Setup Arduino CLI
+        # You may pin to the exact commit or the version.
+        # uses: arduino/setup-arduino-cli@ce2ed333afc8a6aab2e9003d04212f588c710c77
+        uses: arduino/compile-sketches@v1.0.1
+        with:
+          # Version to use. Example: 0.5.0
+          cli-version: 0.31.0
+          fqbn: "Seeeduino:samd:seeed_XIAO_m0"
+          platforms: |
+            - name: "Seeeduino:samd"
+              source-url: "https://files.seeedstudio.com/arduino/package_seeeduino_boards_index.json"
+              
+          libraries: |
+            - name: "FlashStorage_SAMD"
+              version: "1.2.1"
+            - name: "HID-Project"
+              version: "2.8.4"
+            - name: "ArduinoJson"
+              version: "6.20.0"
+          sketch-paths: "FW/flux_arduino/flux_arduino.ino"
+            
