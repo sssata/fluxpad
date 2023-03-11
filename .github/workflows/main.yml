@@ -1,0 +1,30 @@
+on:
+  pull_request:
+    branches:
+    - main
+    
+jobs:
+  build-arduino:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+      - uses: arduino/compile-sketches@v1.0.1
+        with:
+          cli-version: 0.31.0
+          fqbn: Seeeduino:samd:seeed_XIAO_m0:usbstack=arduino,debug=off
+
+          platforms: |
+            - name: Seeeduino:samd
+              source-url: https://files.seeedstudio.com/arduino/package_seeeduino_boards_index.json
+
+          libraries: |
+            - name: FlashStorage_SAMD
+              version: 1.2.1
+            - name: HID-Project
+              version: 2.8.4
+            - name: ArduinoJson
+              version: 6.20.0
+            - name: EncoderTool
+              version: 3.2.0
+          sketch-paths: FW/flux_arduino
+            
