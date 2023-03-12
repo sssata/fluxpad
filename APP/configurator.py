@@ -1,11 +1,12 @@
 import tkinter as tk
 from tkinter import ttk
-from common_enums import KeyType, KeyboardKeycodes, ConsumerKeycodes, keycode_to_string, get_all_key_list
-import scancode_to_hid_code
-# import pygame
-# import keyboard
-import pynput
 from typing import Union
+
+import pynput
+
+from scancode_to_hid_code import (KeyList, ScanCode, get_all_key_list,
+                                  pynput_event_to_HIDKeycode)
+
 
 class EncoderMap(ttk.Labelframe):
     """Class for an encoder keymap gui
@@ -14,15 +15,8 @@ class EncoderMap(ttk.Labelframe):
         super().__init__(master, *args, **kwargs)
         self.configure(text="Encoder")
 
-        self.cw_keycode = tk.IntVar()
-        self.cw_keycode.trace_add("write", self.update_cw_label_callback)
-        self.cw_keytype = tk.IntVar()
-        self.cw_keytype.trace_add("write", self.update_cw_label_callback)
-
-        self.ccw_keycode = tk.IntVar()
-        self.ccw_keycode.trace_add("write", self.update_ccw_label_callback)
-        self.ccw_keytype = tk.IntVar()
-        self.ccw_keytype.trace_add("write", self.update_cw_label_callback)
+        self.cw_scancode: ScanCode = None
+        self.ccw_scancode: ScanCode = None
         
         self.label_cw = ttk.Label(self, text="↻CW")
         self.label_cw.grid(row=1, column=1)
@@ -39,18 +33,16 @@ class EncoderMap(ttk.Labelframe):
         self.btn_ccw_edit = ttk.Button(self, text="Edit")
         self.btn_ccw_edit.grid(row=2, column=3)
 
-        # init keycodes to invoke trace callback
-        # self.cw_keycode.set(0)
-        # self.cw_keytype.set(0)
-        # self.ccw_keycode.set(0)
-        # self.ccw_keytype.set(0)
+    def set_cw_keycode(self, scancode: ScanCode):
+        assert isinstance(scancode, ScanCode), f"bruh {type(scancode)}"
+        self.cw_scancode = scancode
+        self.label_cw_key.configure(text=self.cw_scancode.Key_Name)
 
-    
-    def update_cw_label_callback(self, var: str, index: str, mode: str):
-        self.label_cw_key.configure(text=keycode_to_string(self.cw_keytype.get(), self.cw_keycode.get()))
-    
-    def update_ccw_label_callback(self, var: str, index: str, mode: str):
-        self.label_ccw_key.configure(text=keycode_to_string(self.ccw_keytype.get(), self.ccw_keycode.get()))
+    def set_ccw_keycode(self, scancode: ScanCode):
+        assert isinstance(scancode, ScanCode)
+        self.ccw_scancode = scancode
+        self.label_ccw_key.configure(text=self.ccw_scancode.Key_Name)
+
 
 class KeyMap(ttk.Labelframe):
     """Class for an encoder keymap gui
@@ -58,20 +50,16 @@ class KeyMap(ttk.Labelframe):
     def __init__(self, master, *args, **kwargs):
         super().__init__(master, *args, **kwargs)
 
-        self.keycode = tk.IntVar()
-        self.keycode.trace_add("write", self.update_label_callback)
-        self.keytype = tk.IntVar()
-        self.keytype.trace_add("write", self.update_label_callback)
+        self.scancode: ScanCode = None
 
         self.label_key = ttk.Label(self, text="None")
         self.label_key.pack()
         self.btn_edit = ttk.Button(self, text="Edit")
         self.btn_edit.pack()
 
-        # self.keycode.set(0)
-
-    def update_label_callback(self, var: str, index: str, mode: str):
-        self.label_key.configure(text=keycode_to_string(self.keytype.get(), self.keycode.get()))
+    def set_keycode(self, scancode: ScanCode):
+        self.scancode = scancode
+        self.label_key.configure(text=self.scancode.Key_Name)
 
 
 class MapEditFrame(ttk.Labelframe):
@@ -99,31 +87,25 @@ class KeymapFrame(ttk.Frame):
         # Create encoder map
         self.lf_encoder = EncoderMap(self)
         self.lf_encoder.grid(row=1, column=1, columnspan=2)
-        self.lf_encoder.ccw_keytype.set(KeyType.CONSUMER.value)
-        self.lf_encoder.cw_keycode.set(ConsumerKeycodes.VOL_UP.value)
-        self.lf_encoder.cw_keytype.set(KeyType.CONSUMER.value)
-        self.lf_encoder.ccw_keycode.set(ConsumerKeycodes.VOL_DOWN.value)
+        self.lf_encoder.set_cw_keycode(KeyList.CONSUMER_0x00E9.value)
+        self.lf_encoder.set_ccw_keycode(KeyList.CONSUMER_0x00EA.value)
 
         # Create key map
         self.lf_key1 = KeyMap(self, text="Digital Key 1")
         self.lf_key1.grid(row=2, column=1)
-        self.lf_key1.keytype.set(KeyType.KEYBOARD.value)
-        self.lf_key1.keycode.set(KeyboardKeycodes.A.value)
+        self.lf_key1.set_keycode(KeyList.KEY_A.value)
         
         self.lf_key2 = KeyMap(self, text="Digital Key 2")
         self.lf_key2.grid(row=2, column=2)
-        self.lf_key2.keytype.set(KeyType.KEYBOARD.value)
-        self.lf_key2.keycode.set(KeyboardKeycodes.S.value)
+        self.lf_key2.set_keycode(KeyList.KEY_S.value)
 
         self.lf_key3 = KeyMap(self, text="Analog Key 1")
         self.lf_key3.grid(row=3, column=1)
-        self.lf_key3.keytype.set(KeyType.KEYBOARD.value)
-        self.lf_key3.keycode.set(KeyboardKeycodes.Z.value)
+        self.lf_key3.set_keycode(KeyList.KEY_Z.value)
         
         self.lf_key4 = KeyMap(self, text="Analog Key 2")
         self.lf_key4.grid(row=3, column=2)
-        self.lf_key4.keytype.set(KeyType.KEYBOARD.value)
-        self.lf_key4.keycode.set(KeyboardKeycodes.X.value)
+        self.lf_key4.set_keycode(KeyList.KEY_X.value)
 
         # Create Map Edit Frame
         self.lf_mapedit = MapEditFrame(self)
@@ -170,7 +152,7 @@ class Application(ttk.Frame):
 #     print(event, event.scan_code, event.scan_code)
 
 def on_press(key: Union[pynput.keyboard.Key, pynput.keyboard.KeyCode]):
-    print(scancode_to_hid_code.pynput_event_to_HIDKeycode(key))
+    print(pynput_event_to_HIDKeycode(key))
     try:
         print('alphanumeric key {0} pressed'.format(
             key.vk))

@@ -10,14 +10,23 @@ class KeyType(enum.IntEnum):
     CONSUMER = 2
 
 
-class ScanCode(NamedTuple):
-    HID_Usage_Page: int
-    HID_Usage_ID: int
-    PS2_Set_1_Make: Union[int, None]
-    Pynput_Keycode: Union[int, pynput.keyboard.Key, None]
-    Key_Name: str
+class ScanCode:
 
-usb_ps2_map = [
+    def __init__(self,
+            HID_Usage: int,
+            HID_Keycode: int,
+            PS2_Set_1_Make: Union[int, None],
+            Pynput_Keycode: Union[int, pynput.keyboard.Key, None],
+            Key_Name: str
+        ):
+        self.HID_Usage = HID_Usage
+        self.HID_Keycode = HID_Keycode
+        self.PS2_Set_1_Make = PS2_Set_1_Make
+        self.Pynput_Keycode = Pynput_Keycode
+        self.Key_Name = Key_Name
+
+
+class KeyList(enum.Enum):
     # ScanCode(0x01, 0x81, 0xE05E, pynput.keyboard.Key, 'System Power'),
     # ScanCode(0x01, 0x82, 0xE05F, 'System Sleep'),
     # ScanCode(0x01, 0x83, 0xE063, 'System Wake'),
@@ -25,215 +34,223 @@ usb_ps2_map = [
     # ScanCode(0x07, 0x01, 0xFF, 'Overrun Error'),
     # ScanCode(0x07, 0x02, 0xFC, 'POST Fail'),
     # ScanCode(0x07, 0x03, None, 'ErrorUndefined'),
-    ScanCode(KeyType.KEYBOARD, 0x04, 0x1E, None, 'A'),
-    ScanCode(KeyType.KEYBOARD, 0x05, 0x30, None, 'B'),
-    ScanCode(KeyType.KEYBOARD, 0x06, 0x2E, None, 'C'),
-    ScanCode(KeyType.KEYBOARD, 0x07, 0x20, None, 'D'),
-    ScanCode(KeyType.KEYBOARD, 0x08, 0x12, None, 'E'),
-    ScanCode(KeyType.KEYBOARD, 0x09, 0x21, None, 'F'),
-    ScanCode(KeyType.KEYBOARD, 0x0A, 0x22, None, 'G'),
-    ScanCode(KeyType.KEYBOARD, 0x0B, 0x23, None, 'H'),
-    ScanCode(KeyType.KEYBOARD, 0x0C, 0x17, None, 'I'),
-    ScanCode(KeyType.KEYBOARD, 0x0D, 0x24, None, 'J'),
-    ScanCode(KeyType.KEYBOARD, 0x0E, 0x25, None, 'K'),
-    ScanCode(KeyType.KEYBOARD, 0x0F, 0x26, None, 'L'),
-    ScanCode(KeyType.KEYBOARD, 0x10, 0x32, None, 'M'),
-    ScanCode(KeyType.KEYBOARD, 0x11, 0x31, None, 'N'),
-    ScanCode(KeyType.KEYBOARD, 0x12, 0x18, None, 'O'),
-    ScanCode(KeyType.KEYBOARD, 0x13, 0x19, None, 'P'),
-    ScanCode(KeyType.KEYBOARD, 0x14, 0x10, None, 'Q'),
-    ScanCode(KeyType.KEYBOARD, 0x15, 0x13, None, 'R'),
-    ScanCode(KeyType.KEYBOARD, 0x16, 0x1F, None, 'S'),
-    ScanCode(KeyType.KEYBOARD, 0x17, 0x14, None, 'T'),
-    ScanCode(KeyType.KEYBOARD, 0x18, 0x16, None, 'U'),
-    ScanCode(KeyType.KEYBOARD, 0x19, 0x2F, None, 'V'),
-    ScanCode(KeyType.KEYBOARD, 0x1A, 0x11, None, 'W'),
-    ScanCode(KeyType.KEYBOARD, 0x1B, 0x2D, None, 'X'),
-    ScanCode(KeyType.KEYBOARD, 0x1C, 0x15, None, 'Y'),
-    ScanCode(KeyType.KEYBOARD, 0x1D, 0x2C, None, 'Z'),
-    ScanCode(KeyType.KEYBOARD, 0x1E, 0x02, None, '1'),
-    ScanCode(KeyType.KEYBOARD, 0x1F, 0x03, None, '2'),
-    ScanCode(KeyType.KEYBOARD, 0x20, 0x04, None, '3'),
-    ScanCode(KeyType.KEYBOARD, 0x21, 0x05, None, '4'),
-    ScanCode(KeyType.KEYBOARD, 0x22, 0x06, None, '5'),
-    ScanCode(KeyType.KEYBOARD, 0x23, 0x07, None, '6'),
-    ScanCode(KeyType.KEYBOARD, 0x24, 0x08, None, '7'),
-    ScanCode(KeyType.KEYBOARD, 0x25, 0x09, None, '8'),
-    ScanCode(KeyType.KEYBOARD, 0x26, 0x0A, None, '9'),
-    ScanCode(KeyType.KEYBOARD, 0x27, 0x0B, None, '0'),
-    ScanCode(KeyType.KEYBOARD, 0x28, 0x1C, pynput.keyboard.Key.enter, 'Return'),
-    ScanCode(KeyType.KEYBOARD, 0x29, 0x01, pynput.keyboard.Key.esc,'Escape'),
-    ScanCode(KeyType.KEYBOARD, 0x2A, 0x0E, pynput.keyboard.Key.backspace, 'Backspace'),
-    ScanCode(KeyType.KEYBOARD, 0x2B, 0x0F, pynput.keyboard.Key.tab, 'Tab'),
-    ScanCode(KeyType.KEYBOARD, 0x2C, 0x39, pynput.keyboard.Key.space, 'Space'),
-    ScanCode(KeyType.KEYBOARD, 0x2D, 0x0C, 189, '- _'),
-    ScanCode(KeyType.KEYBOARD, 0x2E, 0x0D, 187, '= +'),
-    ScanCode(KeyType.KEYBOARD, 0x2F, 0x1A, 219, '[ {'),
-    ScanCode(KeyType.KEYBOARD, 0x30, 0x1B, 221, '] }'),
-    ScanCode(KeyType.KEYBOARD, 0x31, 0x2B, 220, '\\ |'),
-    ScanCode(KeyType.KEYBOARD, 0x32, 0x2B, None, 'Non-US # ~'),
-    ScanCode(KeyType.KEYBOARD, 0x33, 0x27, 186, '; :'),
-    ScanCode(KeyType.KEYBOARD, 0x34, 0x28, 222, '\' "'),
-    ScanCode(KeyType.KEYBOARD, 0x35, 0x29, 192, '` ~'),
-    ScanCode(KeyType.KEYBOARD, 0x36, 0x33, 188, ', <'),
-    ScanCode(KeyType.KEYBOARD, 0x37, 0x34, 190, '. >'),
-    ScanCode(KeyType.KEYBOARD, 0x38, 0x35, 191, '/ ?'),
-    ScanCode(KeyType.KEYBOARD, 0x39, 0x3A, pynput.keyboard.Key.caps_lock, 'Caps Lock'),
-    ScanCode(KeyType.KEYBOARD, 0x3A, 0x3B, pynput.keyboard.Key.f1, 'F1'),
-    ScanCode(KeyType.KEYBOARD, 0x3B, 0x3C, pynput.keyboard.Key.f2, 'F2'),
-    ScanCode(KeyType.KEYBOARD, 0x3C, 0x3D, pynput.keyboard.Key.f3, 'F3'),
-    ScanCode(KeyType.KEYBOARD, 0x3D, 0x3E, pynput.keyboard.Key.f4, 'F4'),
-    ScanCode(KeyType.KEYBOARD, 0x3E, 0x3F, pynput.keyboard.Key.f5, 'F5'),
-    ScanCode(KeyType.KEYBOARD, 0x3F, 0x40, pynput.keyboard.Key.f6, 'F6'),
-    ScanCode(KeyType.KEYBOARD, 0x40, 0x41, pynput.keyboard.Key.f7, 'F7'),
-    ScanCode(KeyType.KEYBOARD, 0x41, 0x42, pynput.keyboard.Key.f8, 'F8'),
-    ScanCode(KeyType.KEYBOARD, 0x42, 0x43, pynput.keyboard.Key.f9, 'F9'),
-    ScanCode(KeyType.KEYBOARD, 0x43, 0x44, pynput.keyboard.Key.f10, 'F10'),
-    ScanCode(KeyType.KEYBOARD, 0x44, 0x57, pynput.keyboard.Key.f11, 'F11'),
-    ScanCode(KeyType.KEYBOARD, 0x45, 0x58, pynput.keyboard.Key.f12, 'F12'),
-    ScanCode(KeyType.KEYBOARD, 0x46, 0xE037, pynput.keyboard.Key.print_screen, 'Print Screen'),
-    ScanCode(KeyType.KEYBOARD, 0x47, 0x46, pynput.keyboard.Key.scroll_lock, 'Scroll Lock'),
-    ScanCode(KeyType.KEYBOARD, 0x48, 0xE046E0C6, None, 'Break'),
-    ScanCode(KeyType.KEYBOARD, 0x48, 0xE11D45E19DC5, pynput.keyboard.Key.pause, 'Pause'),
-    ScanCode(KeyType.KEYBOARD, 0x49, 0xE052, pynput.keyboard.Key.insert, 'Insert'),
-    ScanCode(KeyType.KEYBOARD, 0x4A, 0xE047, pynput.keyboard.Key.home, 'Home'),
-    ScanCode(KeyType.KEYBOARD, 0x4B, 0xE049, pynput.keyboard.Key.page_up, 'Page Up'),
-    ScanCode(KeyType.KEYBOARD, 0x4C, 0xE053, pynput.keyboard.Key.delete, 'Delete'),
-    ScanCode(KeyType.KEYBOARD, 0x4D, 0xE04F, pynput.keyboard.Key.end, 'End'),
-    ScanCode(KeyType.KEYBOARD, 0x4E, 0xE051, pynput.keyboard.Key.page_down, 'Page Down'),
-    ScanCode(KeyType.KEYBOARD, 0x4F, 0xE04D, pynput.keyboard.Key.right, 'Right Arrow'),
-    ScanCode(KeyType.KEYBOARD, 0x50, 0xE04B, pynput.keyboard.Key.left, 'Left Arrow'),
-    ScanCode(KeyType.KEYBOARD, 0x51, 0xE050, pynput.keyboard.Key.down, 'Down Arrow'),
-    ScanCode(KeyType.KEYBOARD, 0x52, 0xE048, pynput.keyboard.Key.up, 'Up Arrow'),
-    ScanCode(KeyType.KEYBOARD, 0x53, 0x45, pynput.keyboard.Key.num_lock, 'Num Lock'),
-    ScanCode(KeyType.KEYBOARD, 0x54, 0xE035, 111, 'Keypad /'),
-    ScanCode(KeyType.KEYBOARD, 0x55, 0x37, 106, 'Keypad *'),
-    ScanCode(KeyType.KEYBOARD, 0x56, 0x4A, 109, 'Keypad -'),
-    ScanCode(KeyType.KEYBOARD, 0x57, 0x4E, 107, 'Keypad +'),
-    ScanCode(KeyType.KEYBOARD, 0x58, 0xE01C, None,'Keypad Enter'),
-    ScanCode(KeyType.KEYBOARD, 0x59, 0x4F, 97,'Keypad 1 End'),
-    ScanCode(KeyType.KEYBOARD, 0x5A, 0x50, 98,'Keypad 2 Down'),
-    ScanCode(KeyType.KEYBOARD, 0x5B, 0x51, 99,'Keypad 3 PageDn'),
-    ScanCode(KeyType.KEYBOARD, 0x5C, 0x4B, 100,'Keypad 4 Left'),
-    ScanCode(KeyType.KEYBOARD, 0x5D, 0x4C, 101,'Keypad 5'),
-    ScanCode(KeyType.KEYBOARD, 0x5E, 0x4D, 102,'Keypad 6 Right'),
-    ScanCode(KeyType.KEYBOARD, 0x5F, 0x47, 103,'Keypad 7 Home'),
-    ScanCode(KeyType.KEYBOARD, 0x60, 0x48, 104,'Keypad 8 Up'),
-    ScanCode(KeyType.KEYBOARD, 0x61, 0x49, 105,'Keypad 9 PageUp'),
-    ScanCode(KeyType.KEYBOARD, 0x62, 0x52, 96,'Keypad 0 Insert'),
-    ScanCode(KeyType.KEYBOARD, 0x63, 0x53, 110,'Keypad .'),
-    ScanCode(KeyType.KEYBOARD, 0x64, 0x56, 226,'Non-US \\ |'),
-    # ScanCode(0x07, 0x65, 0xE05D, 'App'),
-    # ScanCode(0x07, 0x66, None, 'Keyboard Power'),
-    ScanCode(KeyType.KEYBOARD, 0x67, 0x59, 12, 'Keypad ='),
-    ScanCode(KeyType.KEYBOARD, 0x68, 0x5D, pynput.keyboard.Key.f13, 'F13'),
-    ScanCode(KeyType.KEYBOARD, 0x69, 0x5E, pynput.keyboard.Key.f14, 'F14'),
-    ScanCode(KeyType.KEYBOARD, 0x6A, 0x5F, pynput.keyboard.Key.f15, 'F15'),
-    ScanCode(0x07, 0x6B, None, pynput.keyboard.Key.f16, 'F16'),
-    ScanCode(0x07, 0x6C, None, pynput.keyboard.Key.f17, 'F17'),
-    ScanCode(0x07, 0x6D, None, pynput.keyboard.Key.f18, 'F18'),
-    ScanCode(0x07, 0x6E, None, pynput.keyboard.Key.f19, 'F19'),
-    ScanCode(0x07, 0x6F, None, pynput.keyboard.Key.f20, 'F20'),
-    ScanCode(0x07, 0x70, None, pynput.keyboard.Key.f21, 'F21'),
-    ScanCode(0x07, 0x71, None, pynput.keyboard.Key.f22, 'F22'),
-    ScanCode(0x07, 0x72, None, pynput.keyboard.Key.f23, 'F23'),
-    ScanCode(0x07, 0x73, None, pynput.keyboard.Key.f24, 'F24'),
-    # ScanCode(0x07, 0x74, None, 'Keyboard Execute'),
-    # ScanCode(0x07, 0x75, None, 'Keyboard Help'),
-    # ScanCode(0x07, 0x76, None, 'Keyboard Menu'),
-    # ScanCode(0x07, 0x77, None, 'Keyboard Select'),
-    # ScanCode(0x07, 0x78, None, 'Keyboard Stop'),
-    # ScanCode(0x07, 0x79, None, 'Keyboard Again'),
-    # ScanCode(0x07, 0x7A, None, 'Keyboard Undo'),
-    # ScanCode(0x07, 0x7B, None, 'Keyboard Cut'),
-    # ScanCode(0x07, 0x7C, None, 'Keyboard Copy'),
-    # ScanCode(0x07, 0x7D, None, 'Keyboard Paste'),
-    # ScanCode(0x07, 0x7E, None, 'Keyboard Find'),
-    # ScanCode(0x07, 0x7F, None, 'Keyboard Mute'),
-    # ScanCode(0x07, 0x80, None, 'Keyboard Volume Up'),
-    # ScanCode(0x07, 0x81, None, 'Keyboard Volume Dn'),
-    # ScanCode(0x07, 0x82, None, 'Keyboard Locking Caps Lock'),
-    # ScanCode(0x07, 0x83, None, 'Keyboard Locking Num Lock'),
-    # ScanCode(0x07, 0x84, None, 'Keyboard Locking Scroll Lock'),
-    # ScanCode(KeyType.KEYBOARD, 0x85, 0x7E, None, 'Keypad , (Brazilian Keypad .)'),
-    # ScanCode(0x07, 0x86, None, 'Keyboard Equal Sign'),
-    ScanCode(KeyType.KEYBOARD, 0x87, 0x73, 193,"ろ (Ro)"),
-    ScanCode(KeyType.KEYBOARD, 0x88, 0x70, 255,"かたかな ひらがな ローマ字 (Katakana/Hiragana)"),
-    ScanCode(KeyType.KEYBOARD, 0x89, 0x7D, None,"￥ (Yen)"),
-    ScanCode(KeyType.KEYBOARD, 0x8A, 0x79, None,"前候補 変換 (次候補) 全候補 (Henkan)"),
-    ScanCode(KeyType.KEYBOARD, 0x8B, 0x7B, 235,"無変換 (Muhenkan)"),
-    ScanCode(KeyType.KEYBOARD, 0x8C, 0x5C, None,"(PC9800 Keypad ,)"),
-    # ScanCode(0x07, 0x8D, None, "Keyboard Int'l 7"),
-    # ScanCode(0x07, 0x8E, None, "Keyboard Int'l 8"),
-    # ScanCode(0x07, 0x8F, None, "Keyboard Int'l 9"),
-    ScanCode(KeyType.KEYBOARD, 0x90, 0xF2, None, '한/영 (Hanguel/English)'),
-    ScanCode(KeyType.KEYBOARD, 0x91, 0xF1, None, '한자 (Hanja)'),
-    ScanCode(KeyType.KEYBOARD, 0x92, 0x78, None, 'かたかな (Katakana)'),
-    ScanCode(KeyType.KEYBOARD, 0x93, 0x77, None, 'ひらがな (Hiragana)'),
-    ScanCode(KeyType.KEYBOARD, 0x94, 0x76, None, '半角/全角 (Zenkaku/Hankaku)'),
-    # ScanCode(0x07, 0x95, None, 'Keyboard Lang 6'),
-    # ScanCode(0x07, 0x96, None, 'Keyboard Lang 7'),
-    # ScanCode(0x07, 0x97, None, 'Keyboard Lang 8'),
-    # ScanCode(0x07, 0x98, None, 'Keyboard Lang 9'),
-    # ScanCode(0x07, 0x99, None, 'Keyboard Alternate Erase'),
-    # ScanCode(0x07, 0x9A, None, 'Keyboard SysReq/Attention'),
-    # ScanCode(0x07, 0x9B, None, 'Keyboard Cancel'),
-    # ScanCode(0x07, 0x9C, None, 'Keyboard Clear'),
-    # ScanCode(0x07, 0x9D, None, 'Keyboard Prior'),
-    # ScanCode(0x07, 0x9E, None, 'Keyboard Return'),
-    # ScanCode(0x07, 0x9F, None, 'Keyboard Separator'),
-    # ScanCode(0x07, 0xA0, None, 'Keyboard Out'),
-    # ScanCode(0x07, 0xA1, None, 'Keyboard Oper'),
-    # ScanCode(0x07, 0xA2, None, 'Keyboard Clear/Again'),
-    # ScanCode(0x07, 0xA3, None, 'Keyboard CrSel/Props'),
-    # ScanCode(0x07, 0xA4, None, 'Keyboard ExSel'),
-    # ScanCode('07', 'A5-DF', (', 'RESERVED',', 'RESERVED'), 'RESERVED'),
-    ScanCode(KeyType.KEYBOARD, 0xE0, 0x1D, pynput.keyboard.Key.ctrl_l, 'Left Control'),
-    ScanCode(KeyType.KEYBOARD, 0xE1, 0x2A, pynput.keyboard.Key.shift_l, 'Left Shift'),
-    ScanCode(KeyType.KEYBOARD, 0xE2, 0x38, pynput.keyboard.Key.alt_l, 'Left Alt'),
-    ScanCode(KeyType.KEYBOARD, 0xE3, 0xE05B, pynput.keyboard.Key.cmd_l, 'Left GUI'),
-    ScanCode(KeyType.KEYBOARD, 0xE4, 0xE01D, pynput.keyboard.Key.ctrl_r, 'Right Control'),
-    ScanCode(KeyType.KEYBOARD, 0xE5, 0x36, pynput.keyboard.Key.shift_r, 'Right Shift'),
-    ScanCode(KeyType.KEYBOARD, 0xE6, 0xE038, pynput.keyboard.Key.alt_r, 'Right Alt'),
-    ScanCode(KeyType.KEYBOARD, 0xE7, 0xE05C, pynput.keyboard.Key.cmd_r, 'Right GUI'),
-    # ScanCode('07', 'E8-FFFF', (', 'RESERVED',', 'RESERVED'), 'RESERVED'),
-    ScanCode(KeyType.CONSUMER, 0x00B5, 0xE019, pynput.keyboard.Key.media_next, 'Scan Next Track'),
-    ScanCode(KeyType.CONSUMER, 0x00B6, 0xE010, pynput.keyboard.Key.media_previous, 'Scan Previous Track'),
-    # ScanCode(0x0C, 0x00B7, 0xE024, pynput.keyboard.Key.media_play_pause, 'Stop'),
-    ScanCode(KeyType.CONSUMER, 0x00CD, 0xE022, pynput.keyboard.Key.media_play_pause, 'Play/ Pause'),
-    ScanCode(KeyType.CONSUMER, 0x00E2, 0xE020, pynput.keyboard.Key.media_volume_mute, 'Mute'),
-    # ScanCode(0x0C, 0x00E5, None, None, 'Bass Boost',
-    # ScanCode(0x0C, 0x00E7, (None, None, 'Loudness'),
-    ScanCode(KeyType.CONSUMER, 0x00E9, 0xE030, pynput.keyboard.Key.media_volume_up, 'Volume Up'),
-    ScanCode(KeyType.CONSUMER, 0x00EA, 0xE02E, pynput.keyboard.Key.media_volume_down, 'Volume Down'),
-    # ScanCode(0x0C, 0x0152, (None, None, 'Bass Up'),
-    # ScanCode(0x0C, 0x0153, (None, None, 'Bass Down'),
-    # ScanCode(0x0C, 0x0154, (None, None, 'Treble Up'),
-    # ScanCode(0x0C, 0x0155, (None, None, 'Treble Down'),
-    ScanCode(KeyType.CONSUMER, 0x0183, 0xE06D, None, 'Media Select'),
-    ScanCode(KeyType.CONSUMER, 0x018A, 0xE06C, 180, 'Mail'),
-    ScanCode(KeyType.CONSUMER, 0x0192, 0xE021, 183, 'Calculator'),
-    ScanCode(KeyType.CONSUMER, 0x0194, 0xE06B, 182, 'My Computer'),
-    ScanCode(KeyType.CONSUMER, 0x0221, 0xE065, 170, 'WWW Search'),
-    ScanCode(KeyType.CONSUMER, 0x0223, 0xE032, 172, 'WWW Home'),
-    ScanCode(KeyType.CONSUMER, 0x0224, 0xE06A, 166, 'WWW Back'),
-    ScanCode(KeyType.CONSUMER, 0x0225, 0xE069, 167, 'WWW Forward'),
-    ScanCode(KeyType.CONSUMER, 0x0226, 0xE068, 169, 'WWW Stop'),
-    ScanCode(KeyType.CONSUMER, 0x0227, 0xE067, 168, 'WWW Refresh'),
-    ScanCode(KeyType.CONSUMER, 0x022A, 0xE066, 171, 'WWW Favorites'),
-]
+    KEY_A = ScanCode(KeyType.KEYBOARD, 0x04, 0x1E, None, 'A')
+    KEY_B = ScanCode(KeyType.KEYBOARD, 0x05, 0x30, None, 'B')
+    KEY_C = ScanCode(KeyType.KEYBOARD, 0x06, 0x2E, None, 'C')
+    KEY_D = ScanCode(KeyType.KEYBOARD, 0x07, 0x20, None, 'D')
+    KEY_E = ScanCode(KeyType.KEYBOARD, 0x08, 0x12, None, 'E')
+    KEY_F = ScanCode(KeyType.KEYBOARD, 0x09, 0x21, None, 'F')
+    KEY_G = ScanCode(KeyType.KEYBOARD, 0x0A, 0x22, None, 'G')
+    KEY_H = ScanCode(KeyType.KEYBOARD, 0x0B, 0x23, None, 'H')
+    KEY_I = ScanCode(KeyType.KEYBOARD, 0x0C, 0x17, None, 'I')
+    KEY_J = ScanCode(KeyType.KEYBOARD, 0x0D, 0x24, None, 'J')
+    KEY_K = ScanCode(KeyType.KEYBOARD, 0x0E, 0x25, None, 'K')
+    KEY_L = ScanCode(KeyType.KEYBOARD, 0x0F, 0x26, None, 'L')
+    KEY_M = ScanCode(KeyType.KEYBOARD, 0x10, 0x32, None, 'M')
+    KEY_N = ScanCode(KeyType.KEYBOARD, 0x11, 0x31, None, 'N')
+    KEY_O = ScanCode(KeyType.KEYBOARD, 0x12, 0x18, None, 'O')
+    KEY_P = ScanCode(KeyType.KEYBOARD, 0x13, 0x19, None, 'P')
+    KEY_Q = ScanCode(KeyType.KEYBOARD, 0x14, 0x10, None, 'Q')
+    KEY_R = ScanCode(KeyType.KEYBOARD, 0x15, 0x13, None, 'R')
+    KEY_S = ScanCode(KeyType.KEYBOARD, 0x16, 0x1F, None, 'S')
+    KEY_T = ScanCode(KeyType.KEYBOARD, 0x17, 0x14, None, 'T')
+    KEY_U = ScanCode(KeyType.KEYBOARD, 0x18, 0x16, None, 'U')
+    KEY_V = ScanCode(KeyType.KEYBOARD, 0x19, 0x2F, None, 'V')
+    KEY_W = ScanCode(KeyType.KEYBOARD, 0x1A, 0x11, None, 'W')
+    KEY_X = ScanCode(KeyType.KEYBOARD, 0x1B, 0x2D, None, 'X')
+    KEY_Y = ScanCode(KeyType.KEYBOARD, 0x1C, 0x15, None, 'Y')
+    KEY_Z = ScanCode(KeyType.KEYBOARD, 0x1D, 0x2C, None, 'Z')
+    KEY_1 = ScanCode(KeyType.KEYBOARD, 0x1E, 0x02, None, '1')
+    KEY_2 = ScanCode(KeyType.KEYBOARD, 0x1F, 0x03, None, '2')
+    KEY_3 = ScanCode(KeyType.KEYBOARD, 0x20, 0x04, None, '3')
+    KEY_4 = ScanCode(KeyType.KEYBOARD, 0x21, 0x05, None, '4')
+    KEY_5 = ScanCode(KeyType.KEYBOARD, 0x22, 0x06, None, '5')
+    KEY_6 = ScanCode(KeyType.KEYBOARD, 0x23, 0x07, None, '6')
+    KEY_7 = ScanCode(KeyType.KEYBOARD, 0x24, 0x08, None, '7')
+    KEY_8 = ScanCode(KeyType.KEYBOARD, 0x25, 0x09, None, '8')
+    KEY_9 = ScanCode(KeyType.KEYBOARD, 0x26, 0x0A, None, '9')
+    KEY_0 = ScanCode(KeyType.KEYBOARD, 0x27, 0x0B, None, '0')
+    Return = ScanCode(KeyType.KEYBOARD, 0x28, 0x1C, pynput.keyboard.Key.enter, 'Return')
+    Escape = ScanCode(KeyType.KEYBOARD, 0x29, 0x01, pynput.keyboard.Key.esc,'Escape')
+    Backspace = ScanCode(KeyType.KEYBOARD, 0x2A, 0x0E, pynput.keyboard.Key.backspace, 'Backspace')
+    Tab = ScanCode(KeyType.KEYBOARD, 0x2B, 0x0F, pynput.keyboard.Key.tab, 'Tab')
+    Space = ScanCode(KeyType.KEYBOARD, 0x2C, 0x39, pynput.keyboard.Key.space, 'Space')
+    MINUS = ScanCode(KeyType.KEYBOARD, 0x2D, 0x0C, 189, '- _')
+    EQUAL = ScanCode(KeyType.KEYBOARD, 0x2E, 0x0D, 187, '= +')
+    OPENBRACKET = ScanCode(KeyType.KEYBOARD, 0x2F, 0x1A, 219, '[ {')
+    CLOSEBRACKET = ScanCode(KeyType.KEYBOARD, 0x30, 0x1B, 221, '] }')
+    KEY_0x31 = ScanCode(KeyType.KEYBOARD, 0x31, 0x2B, 220, '\\ |')
+    KEY_0x32 = ScanCode(KeyType.KEYBOARD, 0x32, 0x2B, None, 'Non-US # ~')
+    KEY_0x33 = ScanCode(KeyType.KEYBOARD, 0x33, 0x27, 186, '; :')
+    KEY_0x34 = ScanCode(KeyType.KEYBOARD, 0x34, 0x28, 222, '\' "')
+    KEY_0x35 = ScanCode(KeyType.KEYBOARD, 0x35, 0x29, 192, '` ~')
+    KEY_0x36 = ScanCode(KeyType.KEYBOARD, 0x36, 0x33, 188, ', <')
+    KEY_0x37 = ScanCode(KeyType.KEYBOARD, 0x37, 0x34, 190, '. >')
+    KEY_0x38 = ScanCode(KeyType.KEYBOARD, 0x38, 0x35, 191, '/ ?')
+    KEY_0x39 = ScanCode(KeyType.KEYBOARD, 0x39, 0x3A, pynput.keyboard.Key.caps_lock, 'Caps Lock')
+    KEY_0x3A = ScanCode(KeyType.KEYBOARD, 0x3A, 0x3B, pynput.keyboard.Key.f1, 'F1')
+    KEY_0x3B = ScanCode(KeyType.KEYBOARD, 0x3B, 0x3C, pynput.keyboard.Key.f2, 'F2')
+    KEY_0x3C = ScanCode(KeyType.KEYBOARD, 0x3C, 0x3D, pynput.keyboard.Key.f3, 'F3')
+    KEY_0x3D = ScanCode(KeyType.KEYBOARD, 0x3D, 0x3E, pynput.keyboard.Key.f4, 'F4')
+    KEY_0x3E = ScanCode(KeyType.KEYBOARD, 0x3E, 0x3F, pynput.keyboard.Key.f5, 'F5')
+    KEY_0x3F = ScanCode(KeyType.KEYBOARD, 0x3F, 0x40, pynput.keyboard.Key.f6, 'F6')
+    KEY_0x40 = ScanCode(KeyType.KEYBOARD, 0x40, 0x41, pynput.keyboard.Key.f7, 'F7')
+    KEY_0x41 = ScanCode(KeyType.KEYBOARD, 0x41, 0x42, pynput.keyboard.Key.f8, 'F8')
+    KEY_0x42 = ScanCode(KeyType.KEYBOARD, 0x42, 0x43, pynput.keyboard.Key.f9, 'F9')
+    KEY_0x43 = ScanCode(KeyType.KEYBOARD, 0x43, 0x44, pynput.keyboard.Key.f10, 'F10')
+    KEY_0x44 = ScanCode(KeyType.KEYBOARD, 0x44, 0x57, pynput.keyboard.Key.f11, 'F11')
+    KEY_0x45 = ScanCode(KeyType.KEYBOARD, 0x45, 0x58, pynput.keyboard.Key.f12, 'F12')
+    KEY_0x46 = ScanCode(KeyType.KEYBOARD, 0x46, 0xE037, pynput.keyboard.Key.print_screen, 'PrintScreen')
+    KEY_0x47 = ScanCode(KeyType.KEYBOARD, 0x47, 0x46, pynput.keyboard.Key.scroll_lock, 'ScrollLock')
+    KEY_0x48 = ScanCode(KeyType.KEYBOARD, 0x48, 0xE046E0C6, pynput.keyboard.Key.pause, 'Pause')
+    KEY_0x49 = ScanCode(KeyType.KEYBOARD, 0x49, 0xE052, pynput.keyboard.Key.insert, 'Insert')
+    KEY_0x4A = ScanCode(KeyType.KEYBOARD, 0x4A, 0xE047, pynput.keyboard.Key.home, 'Home')
+    KEY_0x4B = ScanCode(KeyType.KEYBOARD, 0x4B, 0xE049, pynput.keyboard.Key.page_up, 'PageUp')
+    KEY_0x4C = ScanCode(KeyType.KEYBOARD, 0x4C, 0xE053, pynput.keyboard.Key.delete, 'Delete')
+    KEY_0x4D = ScanCode(KeyType.KEYBOARD, 0x4D, 0xE04F, pynput.keyboard.Key.end, 'End')
+    KEY_0x4E = ScanCode(KeyType.KEYBOARD, 0x4E, 0xE051, pynput.keyboard.Key.page_down, 'PageDown')
+    KEY_0x4F = ScanCode(KeyType.KEYBOARD, 0x4F, 0xE04D, pynput.keyboard.Key.right, 'RightArrow')
+    KEY_0x50 = ScanCode(KeyType.KEYBOARD, 0x50, 0xE04B, pynput.keyboard.Key.left, 'LeftArrow')
+    KEY_0x51 = ScanCode(KeyType.KEYBOARD, 0x51, 0xE050, pynput.keyboard.Key.down, 'DownArrow')
+    KEY_0x52 = ScanCode(KeyType.KEYBOARD, 0x52, 0xE048, pynput.keyboard.Key.up, 'Up Arrow')
+    KEY_0x53 = ScanCode(KeyType.KEYBOARD, 0x53, 0x45, pynput.keyboard.Key.num_lock, 'NumLock')
+    KEY_0x54 = ScanCode(KeyType.KEYBOARD, 0x54, 0xE035, 111, 'Keypad /')
+    KEY_0x55 = ScanCode(KeyType.KEYBOARD, 0x55, 0x37, 106, 'Keypad *')
+    KEY_0x56 = ScanCode(KeyType.KEYBOARD, 0x56, 0x4A, 109, 'Keypad -')
+    KEY_0x57 = ScanCode(KeyType.KEYBOARD, 0x57, 0x4E, 107, 'Keypad +')
+    KEY_0x58 = ScanCode(KeyType.KEYBOARD, 0x58, 0xE01C, None,'Keypad Enter')
+    KEY_0x59 = ScanCode(KeyType.KEYBOARD, 0x59, 0x4F, 97,'Keypad 1')
+    KEY_0x5A = ScanCode(KeyType.KEYBOARD, 0x5A, 0x50, 98,'Keypad 2')
+    KEY_0x5B = ScanCode(KeyType.KEYBOARD, 0x5B, 0x51, 99,'Keypad 3')
+    KEY_0x5C = ScanCode(KeyType.KEYBOARD, 0x5C, 0x4B, 100,'Keypad 4')
+    KEY_0x5D = ScanCode(KeyType.KEYBOARD, 0x5D, 0x4C, 101,'Keypad 5')
+    KEY_0x5E = ScanCode(KeyType.KEYBOARD, 0x5E, 0x4D, 102,'Keypad 6')
+    KEY_0x5F = ScanCode(KeyType.KEYBOARD, 0x5F, 0x47, 103,'Keypad 7')
+    KEY_0x60 = ScanCode(KeyType.KEYBOARD, 0x60, 0x48, 104,'Keypad 8')
+    KEY_0x61 = ScanCode(KeyType.KEYBOARD, 0x61, 0x49, 105,'Keypad 9')
+    KEY_0x62 = ScanCode(KeyType.KEYBOARD, 0x62, 0x52, 96,'Keypad 0')
+    KEY_0x63 = ScanCode(KeyType.KEYBOARD, 0x63, 0x53, 110,'Keypad .')
+    KEY_0x64 = ScanCode(KeyType.KEYBOARD, 0x64, 0x56, 226,'Non-US \\ |')
+    # ScanCode(0x07, 0x65, 0xE05D, 'App')
+    # ScanCode(0x07, 0x66, None, 'Keyboard Power')
+    KEY_0x67 = ScanCode(KeyType.KEYBOARD, 0x67, 0x59, 12, 'Keypad =')
+    KEY_0x68 = ScanCode(KeyType.KEYBOARD, 0x68, 0x5D, pynput.keyboard.Key.f13, 'F13')
+    KEY_0x69 = ScanCode(KeyType.KEYBOARD, 0x69, 0x5E, pynput.keyboard.Key.f14, 'F14')
+    KEY_0x6A = ScanCode(KeyType.KEYBOARD, 0x6A, 0x5F, pynput.keyboard.Key.f15, 'F15')
+    KEY_0x6B = ScanCode(KeyType.KEYBOARD, 0x6B, None, pynput.keyboard.Key.f16, 'F16')
+    KEY_0x6C = ScanCode(KeyType.KEYBOARD, 0x6C, None, pynput.keyboard.Key.f17, 'F17')
+    KEY_0x6D = ScanCode(KeyType.KEYBOARD, 0x6D, None, pynput.keyboard.Key.f18, 'F18')
+    KEY_0x6E = ScanCode(KeyType.KEYBOARD, 0x6E, None, pynput.keyboard.Key.f19, 'F19')
+    KEY_0x6F = ScanCode(KeyType.KEYBOARD, 0x6F, None, pynput.keyboard.Key.f20, 'F20')
+    KEY_0x70 = ScanCode(KeyType.KEYBOARD, 0x70, None, pynput.keyboard.Key.f21, 'F21')
+    KEY_0x71 = ScanCode(KeyType.KEYBOARD, 0x71, None, pynput.keyboard.Key.f22, 'F22')
+    KEY_0x72 = ScanCode(KeyType.KEYBOARD, 0x72, None, pynput.keyboard.Key.f23, 'F23')
+    KEY_0x73 = ScanCode(KeyType.KEYBOARD, 0x73, None, pynput.keyboard.Key.f24, 'F24')
+    # ScanCode(0x07, 0x74, None, 'Keyboard Execute')
+    # ScanCode(0x07, 0x75, None, 'Keyboard Help')
+    # ScanCode(0x07, 0x76, None, 'Keyboard Menu')
+    # ScanCode(0x07, 0x77, None, 'Keyboard Select')
+    # ScanCode(0x07, 0x78, None, 'Keyboard Stop')
+    # ScanCode(0x07, 0x79, None, 'Keyboard Again')
+    # ScanCode(0x07, 0x7A, None, 'Keyboard Undo')
+    # ScanCode(0x07, 0x7B, None, 'Keyboard Cut')
+    # ScanCode(0x07, 0x7C, None, 'Keyboard Copy')
+    # ScanCode(0x07, 0x7D, None, 'Keyboard Paste')
+    # ScanCode(0x07, 0x7E, None, 'Keyboard Find')
+    # ScanCode(0x07, 0x7F, None, 'Keyboard Mute')
+    # ScanCode(0x07, 0x80, None, 'Keyboard Volume Up')
+    # ScanCode(0x07, 0x81, None, 'Keyboard Volume Dn')
+    # ScanCode(0x07, 0x82, None, 'Keyboard Locking Caps Lock')
+    # ScanCode(0x07, 0x83, None, 'Keyboard Locking Num Lock')
+    # ScanCode(0x07, 0x84, None, 'Keyboard Locking Scroll Lock')
+    # ScanCode(KeyType.KEYBOARD, 0x85, 0x7E, None, 'Keypad , (Brazilian Keypad .)')
+    # ScanCode(0x07, 0x86, None, 'Keyboard Equal Sign')
+    KEY_0x87 = ScanCode(KeyType.KEYBOARD, 0x87, 0x73, 193,"ろ (Ro)")
+    KEY_0x88 = ScanCode(KeyType.KEYBOARD, 0x88, 0x70, 255,"かたかな/ひらがな (Katakana/Hiragana)")
+    KEY_0x89 = ScanCode(KeyType.KEYBOARD, 0x89, 0x7D, None,"￥ (Yen)")
+    KEY_0x8A = ScanCode(KeyType.KEYBOARD, 0x8A, 0x79, None,"前候補 変換 (次候補) 全候補 (Henkan)")
+    KEY_0x8B = ScanCode(KeyType.KEYBOARD, 0x8B, 0x7B, 235,"無変換 (Muhenkan)")
+    KEY_0x8C = ScanCode(KeyType.KEYBOARD, 0x8C, 0x5C, None,"(PC9800 Keypad ,)")
+    # ScanCode(0x07, 0x8D, None, "Keyboard Int'l 7")
+    # ScanCode(0x07, 0x8E, None, "Keyboard Int'l 8")
+    # ScanCode(0x07, 0x8F, None, "Keyboard Int'l 9")
+    KEY_0x90 = ScanCode(KeyType.KEYBOARD, 0x90, 0xF2, None, '한/영 (Hanguel/English)')
+    KEY_0x91 = ScanCode(KeyType.KEYBOARD, 0x91, 0xF1, None, '한자 (Hanja)')
+    KEY_0x92 = ScanCode(KeyType.KEYBOARD, 0x92, 0x78, None, 'かたかな (Katakana)')
+    KEY_0x93 = ScanCode(KeyType.KEYBOARD, 0x93, 0x77, None, 'ひらがな (Hiragana)')
+    KEY_0x94 = ScanCode(KeyType.KEYBOARD, 0x94, 0x76, None, '半角/全角 (Zenkaku/Hankaku)')
+    # ScanCode(0x07, 0x95, None, 'Keyboard Lang 6')
+    # ScanCode(0x07, 0x96, None, 'Keyboard Lang 7')
+    # ScanCode(0x07, 0x97, None, 'Keyboard Lang 8')
+    # ScanCode(0x07, 0x98, None, 'Keyboard Lang 9')
+    # ScanCode(0x07, 0x99, None, 'Keyboard Alternate Erase')
+    # ScanCode(0x07, 0x9A, None, 'Keyboard SysReq/Attention')
+    # ScanCode(0x07, 0x9B, None, 'Keyboard Cancel')
+    # ScanCode(0x07, 0x9C, None, 'Keyboard Clear')
+    # ScanCode(0x07, 0x9D, None, 'Keyboard Prior')
+    # ScanCode(0x07, 0x9E, None, 'Keyboard Return')
+    # ScanCode(0x07, 0x9F, None, 'Keyboard Separator')
+    # ScanCode(0x07, 0xA0, None, 'Keyboard Out')
+    # ScanCode(0x07, 0xA1, None, 'Keyboard Oper')
+    # ScanCode(0x07, 0xA2, None, 'Keyboard Clear/Again')
+    # ScanCode(0x07, 0xA3, None, 'Keyboard CrSel/Props')
+    # ScanCode(0x07, 0xA4, None, 'Keyboard ExSel')
+    # ScanCode('07', 'A5-DF', (', 'RESERVED',', 'RESERVED'), 'RESERVED')
+    KEY_0xE0 = ScanCode(KeyType.KEYBOARD, 0xE0, 0x1D, pynput.keyboard.Key.ctrl_l, 'Left Control')
+    KEY_0xE1 = ScanCode(KeyType.KEYBOARD, 0xE1, 0x2A, pynput.keyboard.Key.shift_l, 'Left Shift')
+    KEY_0xE2 = ScanCode(KeyType.KEYBOARD, 0xE2, 0x38, pynput.keyboard.Key.alt_l, 'Left Alt')
+    KEY_0xE3 = ScanCode(KeyType.KEYBOARD, 0xE3, 0xE05B, pynput.keyboard.Key.cmd_l, 'Left GUI')
+    KEY_0xE4 = ScanCode(KeyType.KEYBOARD, 0xE4, 0xE01D, pynput.keyboard.Key.ctrl_r, 'Right Control')
+    KEY_0xE5 = ScanCode(KeyType.KEYBOARD, 0xE5, 0x36, pynput.keyboard.Key.shift_r, 'Right Shift')
+    KEY_0xE6 = ScanCode(KeyType.KEYBOARD, 0xE6, 0xE038, pynput.keyboard.Key.alt_r, 'Right Alt')
+    KEY_0xE7 = ScanCode(KeyType.KEYBOARD, 0xE7, 0xE05C, pynput.keyboard.Key.cmd_r, 'Right GUI')
+    # ScanCode('07', 'E8-FFFF', (', 'RESERVED',', 'RESERVED'), 'RESERVED')
+    CONSUMER_0x00B5 = ScanCode(KeyType.CONSUMER, 0x00B5, 0xE019, pynput.keyboard.Key.media_next, 'Next Track')
+    CONSUMER_0x00B6 = ScanCode(KeyType.CONSUMER, 0x00B6, 0xE010, pynput.keyboard.Key.media_previous, 'Previous Track')
+    CONSUMER_0x00B7 = ScanCode(KeyType.CONSUMER, 0x00B7, 0xE024, None, 'Stop')
+    CONSUMER_0x00CD = ScanCode(KeyType.CONSUMER, 0x00CD, 0xE022, pynput.keyboard.Key.media_play_pause, 'Play/Pause')
+    CONSUMER_0x00E2 = ScanCode(KeyType.CONSUMER, 0x00E2, 0xE020, pynput.keyboard.Key.media_volume_mute, 'Mute')
+    # ScanCode(0x0C, 0x00E5, None, None, 'Bass Boost'
+    # ScanCode(0x0C, 0x00E7, (None, None, 'Loudness')
+    CONSUMER_0x00E9 = ScanCode(KeyType.CONSUMER, 0x00E9, 0xE030, pynput.keyboard.Key.media_volume_up, 'Volume Up')
+    CONSUMER_0x00EA = ScanCode(KeyType.CONSUMER, 0x00EA, 0xE02E, pynput.keyboard.Key.media_volume_down, 'Volume Down')
+    # ScanCode(0x0C, 0x0152, (None, None, 'Bass Up')
+    # ScanCode(0x0C, 0x0153, (None, None, 'Bass Down')
+    # ScanCode(0x0C, 0x0154, (None, None, 'Treble Up')
+    # ScanCode(0x0C, 0x0155, (None, None, 'Treble Down')
+    CONSUMER_0x0183 = ScanCode(KeyType.CONSUMER, 0x0183, 0xE06D, None, 'Media Select')
+    CONSUMER_0x018A = ScanCode(KeyType.CONSUMER, 0x018A, 0xE06C, 180, 'Mail')
+    CONSUMER_0x0192 = ScanCode(KeyType.CONSUMER, 0x0192, 0xE021, 183, 'Calculator')
+    CONSUMER_0x0194 = ScanCode(KeyType.CONSUMER, 0x0194, 0xE06B, 182, 'My Computer')
+    CONSUMER_0x0221 = ScanCode(KeyType.CONSUMER, 0x0221, 0xE065, 170, 'WWW Search')
+    CONSUMER_0x0223 = ScanCode(KeyType.CONSUMER, 0x0223, 0xE032, 172, 'WWW Home')
+    CONSUMER_0x0224 = ScanCode(KeyType.CONSUMER, 0x0224, 0xE06A, 166, 'WWW Back')
+    CONSUMER_0x0225 = ScanCode(KeyType.CONSUMER, 0x0225, 0xE069, 167, 'WWW Forward')
+    CONSUMER_0x0226 = ScanCode(KeyType.CONSUMER, 0x0226, 0xE068, 169, 'WWW Stop')
+    CONSUMER_0x0227 = ScanCode(KeyType.CONSUMER, 0x0227, 0xE067, 168, 'WWW Refresh')
+    CONSUMER_0x022A = ScanCode(KeyType.CONSUMER, 0x022A, 0xE066, 171, 'WWW Favorites')
+
+assert (isinstance(member.value, ScanCode) for member in KeyList)
+
+def get_all_key_list():
+    string_list = [x.value.Key_Name for x in KeyList]
+    return string_list
+
+# def keycode_to_string(keytype: KeyType, keycode: int):
+#     return next(filter(lambda x: x.value.HID_Usage == keytype and x.value.HID_Keycode == keytype,  KeyList), None)
 
 def pynput_event_to_HIDKeycode(key: Union[pynput.keyboard.Key, pynput.keyboard.KeyCode]):
     if isinstance(key, pynput.keyboard.Key):
-        for x in usb_ps2_map:
-            if x.Pynput_Keycode == key:
-                return x
-        else:
-            x = None
+        return next(filter(lambda x: x.value.Pynput_Keycode == key,  KeyList), None)
+        # for x in KeyList:
+        #     if x.value.Pynput_Keycode == key:
+        #         return x
+        # else:
+        #     x = None
 
     if isinstance(key, pynput.keyboard.KeyCode):
         if 65 <= key.vk <= 90 or 48 <= key.vk <= 57:
-            return next(filter(lambda x: ord(x.Key_Name) == key.vk,  usb_ps2_map), None)
+            return next(filter(lambda x: ord(x.value.Key_Name) == key.vk,  KeyList), None)
         
-        return next(filter(lambda x: x.Pynput_Keycode == key.vk,  usb_ps2_map), None)
+        return next(filter(lambda x: x.value.Pynput_Keycode == key.vk,  KeyList), None)
         
