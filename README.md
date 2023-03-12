@@ -49,5 +49,5 @@ The FLUXPAD is a keypad designed for osu! with **2 analog Wooting Lekker switche
 - Polling Rate: 1000 Hz
 - USB Type-C Port
 - MCU: SAMD21 (Seeeduino XIAO)
-- Weight: 100g TODO
-- Dimensions (WxLxH): 49x70x30mm. TODO.
+- Weight: 65g TODO
+- Dimensions (WxLxH): 49x70x22mm
