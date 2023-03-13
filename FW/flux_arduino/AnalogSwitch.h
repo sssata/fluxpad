@@ -23,16 +23,22 @@ typedef uint32_t q22_10_t;
 #define ADC_BITS 12
 #define LUT_BITS 3
 const q22_10_t adc_to_dist_lut[] = {
-    FLOAT_TO_Q22_10(13.0),    // 0
-    FLOAT_TO_Q22_10(12.0),     // 512
-    FLOAT_TO_Q22_10(6),   // 1024
-    FLOAT_TO_Q22_10(3.7),   // 1536
-    FLOAT_TO_Q22_10(3.0), // 2048
-    FLOAT_TO_Q22_10(2.5), // 2560
-    FLOAT_TO_Q22_10(2.15), // 3072
-    FLOAT_TO_Q22_10(1.83), // 3584
-    FLOAT_TO_Q22_10(1.55), // 4096
+    FLOAT_TO_Q22_10(13.0f), // 0
+    FLOAT_TO_Q22_10(12.0f), // 512
+    FLOAT_TO_Q22_10(6.0f),  // 1024
+    FLOAT_TO_Q22_10(3.7f),  // 1536
+    FLOAT_TO_Q22_10(3.0f),  // 2048
+    FLOAT_TO_Q22_10(2.5f),  // 2560
+    FLOAT_TO_Q22_10(2.15f), // 3072
+    FLOAT_TO_Q22_10(1.83f), // 3584
+    FLOAT_TO_Q22_10(1.55f), // 4096
 };
+
+const q22_10_t reference_up_mm = FLOAT_TO_Q22_10(6.0f);
+const q22_10_t reference_down_mm = FLOAT_TO_Q22_10(2.0f);
+
+const q22_10_t reference_up_adc = INT_TO_Q22_10(1024);
+const q22_10_t reference_down_adc = INT_TO_Q22_10(3295);
 
 typedef struct {
     q22_10_t press_hysteresis_mm;
@@ -42,6 +48,8 @@ typedef struct {
     uint32_t press_debounce_ms;
     uint32_t release_debounce_ms;
     uint32_t samples;
+    q22_10_t calibration_up_adc = reference_up_adc;
+    q22_10_t calibration_down_adc = reference_down_adc;
 } AnalogSwitchSettings_t;
 
 class AnalogSwitch {
@@ -67,7 +75,8 @@ class AnalogSwitch {
         setADCConversionTime(128, 0);
         // analogReference(AR_INTERNAL2V23);
         ADC->REFCTRL.bit.REFCOMP = 1;
-        while (ADC->STATUS.bit.SYNCBUSY);
+        while (ADC->STATUS.bit.SYNCBUSY)
+            ;
 
         loadADCFactoryCalibration();
 
@@ -175,7 +184,8 @@ class AnalogSwitch {
             ADC->INTFLAG.reg = ADC_INTFLAG_RESRDY; // Clear ready flag
             sum += INT_TO_Q22_10(result);
         }
-        current_reading = sum / samples;
+        // current_reading = sum / samples;
+        current_reading = apply_calibration(sum / samples);
 
         ADC->CTRLA.bit.ENABLE = 0; // Turn off ADC
         syncADC();
@@ -245,22 +255,38 @@ class AnalogSwitch {
 
     q22_10_t adcCountsToDistanceMM(q22_10_t counts) { return lut(counts); }
 
-  private:
-
-    void loadADCFactoryCalibration(){
-        uint32_t bias = (*((uint32_t *) ADC_FUSES_BIASCAL_ADDR) & ADC_FUSES_BIASCAL_Msk) >> ADC_FUSES_BIASCAL_Pos;
-        uint32_t linearity = (*((uint32_t *) ADC_FUSES_LINEARITY_0_ADDR) & ADC_FUSES_LINEARITY_0_Msk) >> ADC_FUSES_LINEARITY_0_Pos;
-        linearity |= ((*((uint32_t *) ADC_FUSES_LINEARITY_1_ADDR) & ADC_FUSES_LINEARITY_1_Msk) >> ADC_FUSES_LINEARITY_1_Pos) << 5;
-
-        /* Wait for bus synchronization. */
-        while (ADC->STATUS.bit.SYNCBUSY) {};
-
-        /* Write the calibration data. */
-        ADC->CALIB.reg = ADC_CALIB_BIAS_CAL(bias) | ADC_CALIB_LINEARITY_CAL(linearity);
-
-        while (ADC->STATUS.bit.SYNCBUSY) {};
+    q22_10_t reset_calibration() {
+        settings.calibration_up_adc = reference_up_adc;
+        settings.calibration_down_adc = reference_down_adc;
     }
-    
+
+  private:
+    void loadADCFactoryCalibration() {
+
+        // Load calibration data from efuses
+        uint32_t bias =
+            (*((uint32_t *)ADC_FUSES_BIASCAL_ADDR) & ADC_FUSES_BIASCAL_Msk) >>
+            ADC_FUSES_BIASCAL_Pos;
+        uint32_t linearity = (*((uint32_t *)ADC_FUSES_LINEARITY_0_ADDR) &
+                              ADC_FUSES_LINEARITY_0_Msk) >>
+                             ADC_FUSES_LINEARITY_0_Pos;
+        linearity |= ((*((uint32_t *)ADC_FUSES_LINEARITY_1_ADDR) &
+                       ADC_FUSES_LINEARITY_1_Msk) >>
+                      ADC_FUSES_LINEARITY_1_Pos)
+                     << 5;
+
+        // Wait for bus synchronization
+        while (ADC->STATUS.bit.SYNCBUSY) {
+        };
+
+        // Write the calibration data
+        ADC->CALIB.reg =
+            ADC_CALIB_BIAS_CAL(bias) | ADC_CALIB_LINEARITY_CAL(linearity);
+
+        while (ADC->STATUS.bit.SYNCBUSY) {
+        };
+    }
+
     void resetMinMaxDistance() {
         min_distance_mm = UINT32_MAX;
         max_distance_mm = 0;
@@ -279,6 +305,29 @@ class AnalogSwitch {
             a * ((1 << Q22_10_FRAC_BITS) - t) >> Q22_10_FRAC_BITS;
         q22_10_t b_weight = b * t >> Q22_10_FRAC_BITS;
         return a_weight + b_weight;
+    }
+
+    /**
+     * @brief Linear interpolation
+     *
+     * @param x If x=x0, output is y0, if x=x1, output is y1
+     * @param y0 output mapping
+     * @param y1 output mapping
+     * @param x0 input mapping
+     * @param x1 input mapping
+     * @return q22_10_t
+     */
+    q22_10_t lerp2(q22_10_t x, q22_10_t y0, q22_10_t y1, q22_10_t x0,
+                   q22_10_t x1) {
+        q22_10_t term_a = y0 * (x1 - x);
+        q22_10_t term_b = y1 * (x - x0);
+        return (term_a + term_b) / (x1 - x0);
+    }
+
+    q22_10_t apply_calibration(q22_10_t adc) {
+        return lerp2(adc, reference_down_adc, reference_up_adc,
+                     settings.calibration_down_adc,
+                     settings.calibration_up_adc);
     }
 
     /**
