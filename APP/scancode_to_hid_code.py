@@ -1,9 +1,10 @@
-from typing import NamedTuple, Union
+from typing import Union
 import enum
 import pynput
 
 # USB HID to PS/2 Scan Code Translation Table
 # (HID Usage Page, HID Usage ID, (PS/2 Set 1 Make, PS/2 Set 1 Break, PS/2 Set 2 Make, PS/2 Set 2 Break), Key Name)
+
 
 class KeyType(enum.IntEnum):
     KEYBOARD = 1
@@ -13,12 +14,12 @@ class KeyType(enum.IntEnum):
 class ScanCode:
 
     def __init__(self,
-            HID_Usage: int,
-            HID_Keycode: int,
-            PS2_Set_1_Make: Union[int, None],
-            Pynput_Keycode: Union[int, pynput.keyboard.Key, None],
-            Key_Name: str
-        ):
+                 HID_Usage: int,
+                 HID_Keycode: int,
+                 PS2_Set_1_Make: Union[int, None],
+                 Pynput_Keycode: Union[int, pynput.keyboard.Key, None],
+                 Key_Name: str
+                 ):
         self.HID_Usage = HID_Usage
         self.HID_Keycode = HID_Keycode
         self.PS2_Set_1_Make = PS2_Set_1_Make
@@ -71,7 +72,7 @@ class KeyList(enum.Enum):
     KEY_9 = ScanCode(KeyType.KEYBOARD, 0x26, 0x0A, None, '9')
     KEY_0 = ScanCode(KeyType.KEYBOARD, 0x27, 0x0B, None, '0')
     Return = ScanCode(KeyType.KEYBOARD, 0x28, 0x1C, pynput.keyboard.Key.enter, 'Return')
-    Escape = ScanCode(KeyType.KEYBOARD, 0x29, 0x01, pynput.keyboard.Key.esc,'Escape')
+    Escape = ScanCode(KeyType.KEYBOARD, 0x29, 0x01, pynput.keyboard.Key.esc, 'Escape')
     Backspace = ScanCode(KeyType.KEYBOARD, 0x2A, 0x0E, pynput.keyboard.Key.backspace, 'Backspace')
     Tab = ScanCode(KeyType.KEYBOARD, 0x2B, 0x0F, pynput.keyboard.Key.tab, 'Tab')
     Space = ScanCode(KeyType.KEYBOARD, 0x2C, 0x39, pynput.keyboard.Key.space, 'Space')
@@ -118,19 +119,19 @@ class KeyList(enum.Enum):
     KEY_0x55 = ScanCode(KeyType.KEYBOARD, 0x55, 0x37, 106, 'Keypad *')
     KEY_0x56 = ScanCode(KeyType.KEYBOARD, 0x56, 0x4A, 109, 'Keypad -')
     KEY_0x57 = ScanCode(KeyType.KEYBOARD, 0x57, 0x4E, 107, 'Keypad +')
-    KEY_0x58 = ScanCode(KeyType.KEYBOARD, 0x58, 0xE01C, None,'Keypad Enter')
-    KEY_0x59 = ScanCode(KeyType.KEYBOARD, 0x59, 0x4F, 97,'Keypad 1')
-    KEY_0x5A = ScanCode(KeyType.KEYBOARD, 0x5A, 0x50, 98,'Keypad 2')
-    KEY_0x5B = ScanCode(KeyType.KEYBOARD, 0x5B, 0x51, 99,'Keypad 3')
-    KEY_0x5C = ScanCode(KeyType.KEYBOARD, 0x5C, 0x4B, 100,'Keypad 4')
-    KEY_0x5D = ScanCode(KeyType.KEYBOARD, 0x5D, 0x4C, 101,'Keypad 5')
-    KEY_0x5E = ScanCode(KeyType.KEYBOARD, 0x5E, 0x4D, 102,'Keypad 6')
-    KEY_0x5F = ScanCode(KeyType.KEYBOARD, 0x5F, 0x47, 103,'Keypad 7')
-    KEY_0x60 = ScanCode(KeyType.KEYBOARD, 0x60, 0x48, 104,'Keypad 8')
-    KEY_0x61 = ScanCode(KeyType.KEYBOARD, 0x61, 0x49, 105,'Keypad 9')
-    KEY_0x62 = ScanCode(KeyType.KEYBOARD, 0x62, 0x52, 96,'Keypad 0')
-    KEY_0x63 = ScanCode(KeyType.KEYBOARD, 0x63, 0x53, 110,'Keypad .')
-    KEY_0x64 = ScanCode(KeyType.KEYBOARD, 0x64, 0x56, 226,'Non-US \\ |')
+    KEY_0x58 = ScanCode(KeyType.KEYBOARD, 0x58, 0xE01C, None, 'Keypad Enter')
+    KEY_0x59 = ScanCode(KeyType.KEYBOARD, 0x59, 0x4F, 97, 'Keypad 1')
+    KEY_0x5A = ScanCode(KeyType.KEYBOARD, 0x5A, 0x50, 98, 'Keypad 2')
+    KEY_0x5B = ScanCode(KeyType.KEYBOARD, 0x5B, 0x51, 99, 'Keypad 3')
+    KEY_0x5C = ScanCode(KeyType.KEYBOARD, 0x5C, 0x4B, 100, 'Keypad 4')
+    KEY_0x5D = ScanCode(KeyType.KEYBOARD, 0x5D, 0x4C, 101, 'Keypad 5')
+    KEY_0x5E = ScanCode(KeyType.KEYBOARD, 0x5E, 0x4D, 102, 'Keypad 6')
+    KEY_0x5F = ScanCode(KeyType.KEYBOARD, 0x5F, 0x47, 103, 'Keypad 7')
+    KEY_0x60 = ScanCode(KeyType.KEYBOARD, 0x60, 0x48, 104, 'Keypad 8')
+    KEY_0x61 = ScanCode(KeyType.KEYBOARD, 0x61, 0x49, 105, 'Keypad 9')
+    KEY_0x62 = ScanCode(KeyType.KEYBOARD, 0x62, 0x52, 96, 'Keypad 0')
+    KEY_0x63 = ScanCode(KeyType.KEYBOARD, 0x63, 0x53, 110, 'Keypad .')
+    KEY_0x64 = ScanCode(KeyType.KEYBOARD, 0x64, 0x56, 226, 'Non-US \\ |')
     # ScanCode(0x07, 0x65, 0xE05D, 'App')
     # ScanCode(0x07, 0x66, None, 'Keyboard Power')
     KEY_0x67 = ScanCode(KeyType.KEYBOARD, 0x67, 0x59, 12, 'Keypad =')
@@ -165,12 +166,12 @@ class KeyList(enum.Enum):
     # ScanCode(0x07, 0x84, None, 'Keyboard Locking Scroll Lock')
     # ScanCode(KeyType.KEYBOARD, 0x85, 0x7E, None, 'Keypad , (Brazilian Keypad .)')
     # ScanCode(0x07, 0x86, None, 'Keyboard Equal Sign')
-    KEY_0x87 = ScanCode(KeyType.KEYBOARD, 0x87, 0x73, 193,"ろ (Ro)")
-    KEY_0x88 = ScanCode(KeyType.KEYBOARD, 0x88, 0x70, 255,"かたかな/ひらがな (Katakana/Hiragana)")
-    KEY_0x89 = ScanCode(KeyType.KEYBOARD, 0x89, 0x7D, None,"￥ (Yen)")
-    KEY_0x8A = ScanCode(KeyType.KEYBOARD, 0x8A, 0x79, None,"前候補 変換 (次候補) 全候補 (Henkan)")
-    KEY_0x8B = ScanCode(KeyType.KEYBOARD, 0x8B, 0x7B, 235,"無変換 (Muhenkan)")
-    KEY_0x8C = ScanCode(KeyType.KEYBOARD, 0x8C, 0x5C, None,"(PC9800 Keypad ,)")
+    KEY_0x87 = ScanCode(KeyType.KEYBOARD, 0x87, 0x73, 193, "ろ (Ro)")
+    KEY_0x88 = ScanCode(KeyType.KEYBOARD, 0x88, 0x70, 255, "かたかな/ひらがな (Katakana/Hiragana)")
+    KEY_0x89 = ScanCode(KeyType.KEYBOARD, 0x89, 0x7D, None, "￥ (Yen)")
+    KEY_0x8A = ScanCode(KeyType.KEYBOARD, 0x8A, 0x79, None, "前候補 変換 (次候補) 全候補 (Henkan)")
+    KEY_0x8B = ScanCode(KeyType.KEYBOARD, 0x8B, 0x7B, 235, "無変換 (Muhenkan)")
+    KEY_0x8C = ScanCode(KeyType.KEYBOARD, 0x8C, 0x5C, None, "(PC9800 Keypad ,)")
     # ScanCode(0x07, 0x8D, None, "Keyboard Int'l 7")
     # ScanCode(0x07, 0x8E, None, "Keyboard Int'l 8")
     # ScanCode(0x07, 0x8F, None, "Keyboard Int'l 9")
@@ -232,7 +233,12 @@ class KeyList(enum.Enum):
 
 assert (isinstance(member.value, ScanCode) for member in KeyList)
 
-def get_all_key_list():
+
+def key_name_to_keycode(key_name: str):
+    return next(filter(lambda x: x.value.Key_Name == key_name, KeyList), None)
+
+
+def get_name_list():
     string_list = [x.value.Key_Name for x in KeyList]
     return string_list
 
@@ -241,7 +247,7 @@ def get_all_key_list():
 
 def pynput_event_to_HIDKeycode(key: Union[pynput.keyboard.Key, pynput.keyboard.KeyCode]):
     if isinstance(key, pynput.keyboard.Key):
-        return next(filter(lambda x: x.value.Pynput_Keycode == key,  KeyList), None)
+        return next(filter(lambda x: x.value.Pynput_Keycode == key, KeyList), None).value
         # for x in KeyList:
         #     if x.value.Pynput_Keycode == key:
         #         return x
@@ -250,7 +256,7 @@ def pynput_event_to_HIDKeycode(key: Union[pynput.keyboard.Key, pynput.keyboard.K
 
     if isinstance(key, pynput.keyboard.KeyCode):
         if 65 <= key.vk <= 90 or 48 <= key.vk <= 57:
-            return next(filter(lambda x: ord(x.value.Key_Name) == key.vk,  KeyList), None)
+            return next(filter(lambda x: ord(x.value.Key_Name) == key.vk, KeyList), None).value
         
-        return next(filter(lambda x: x.value.Pynput_Keycode == key.vk,  KeyList), None)
+        return next(filter(lambda x: x.value.Pynput_Keycode == key.vk, KeyList), None).value
         

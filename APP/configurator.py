@@ -1,23 +1,24 @@
 import tkinter as tk
 from tkinter import ttk
-from typing import Union
+from typing import Union, Optional
 
 import pynput
 
-from scancode_to_hid_code import (KeyList, ScanCode, get_all_key_list,
+from scancode_to_hid_code import (KeyList, ScanCode, get_name_list,
                                   pynput_event_to_HIDKeycode)
 
 
 class EncoderMap(ttk.Labelframe):
     """Class for an encoder keymap gui
     """
+
     def __init__(self, master, *args, **kwargs):
         super().__init__(master, *args, **kwargs)
         self.configure(text="Encoder")
 
-        self.cw_scancode: ScanCode = None
-        self.ccw_scancode: ScanCode = None
-        
+        self.cw_scancode: Optional[ScanCode] = None
+        self.ccw_scancode: Optional[ScanCode] = None
+
         self.label_cw = ttk.Label(self, text="↻CW")
         self.label_cw.grid(row=1, column=1)
         self.label_ccw = ttk.Label(self, text="↺CCW")
@@ -47,10 +48,11 @@ class EncoderMap(ttk.Labelframe):
 class KeyMap(ttk.Labelframe):
     """Class for an encoder keymap gui
     """
+
     def __init__(self, master, *args, **kwargs):
         super().__init__(master, *args, **kwargs)
 
-        self.scancode: ScanCode = None
+        self.scancode: Optional[ScanCode] = None
 
         self.label_key = ttk.Label(self, text="None")
         self.label_key.pack()
@@ -72,10 +74,16 @@ class MapEditFrame(ttk.Labelframe):
         self.label_a = ttk.Label(self, text="Press key to set...")
         self.label_a.grid(row=1, column=1)
 
-        self.label_key = ttk.Combobox(self, text="None")
+        self.label_key = ttk.Combobox(self, text="None", state="readonly")
         self.label_key.grid(row=1, column=2)
-        self.label_key['values'] = get_all_key_list()
+        self.label_key['values'] = get_name_list()
 
+        listener = pynput.keyboard.Listener(
+            on_press=self.on_press)
+        listener.start()
+
+    def on_press(self, key: Union[pynput.keyboard.Key, pynput.keyboard.KeyCode]):
+        self.label_key.set(pynput_event_to_HIDKeycode(key).Key_Name)
 
 class KeymapFrame(ttk.Frame):
     """Represents a the keymap tab
@@ -94,7 +102,7 @@ class KeymapFrame(ttk.Frame):
         self.lf_key1 = KeyMap(self, text="Digital Key 1")
         self.lf_key1.grid(row=2, column=1)
         self.lf_key1.set_keycode(KeyList.KEY_A.value)
-        
+
         self.lf_key2 = KeyMap(self, text="Digital Key 2")
         self.lf_key2.grid(row=2, column=2)
         self.lf_key2.set_keycode(KeyList.KEY_S.value)
@@ -102,7 +110,7 @@ class KeymapFrame(ttk.Frame):
         self.lf_key3 = KeyMap(self, text="Analog Key 1")
         self.lf_key3.grid(row=3, column=1)
         self.lf_key3.set_keycode(KeyList.KEY_Z.value)
-        
+
         self.lf_key4 = KeyMap(self, text="Analog Key 2")
         self.lf_key4.grid(row=3, column=2)
         self.lf_key4.set_keycode(KeyList.KEY_X.value)
@@ -121,6 +129,7 @@ class SettingsFrame(ttk.Frame):
         test_label = tk.Label(self, text="hello")
         test_label.pack()
 
+
 class Application(ttk.Frame):
     """Top Level application frame"""
 
@@ -130,7 +139,7 @@ class Application(ttk.Frame):
 
         self.btn_upload = ttk.Button(self, text="Upload")
         self.btn_upload.grid(row=1, column=1)
-        
+
         self.notebook = ttk.Notebook(self)
 
         self.frame_keymap = KeymapFrame(self.notebook)
@@ -140,32 +149,10 @@ class Application(ttk.Frame):
         self.notebook.add(self.frame_settings, text="Settings")
         self.notebook.grid(row=2, column=1)
 
-    def key_test(self, event: tk.Event):
-        print(event)
-        print(type(event))
-        print(event.char)
-        print(event.keycode)
-        print(event.keysym)
-
-
-# def keyboard_callback(event: keyboard.KeyboardEvent):
-#     print(event, event.scan_code, event.scan_code)
-
-def on_press(key: Union[pynput.keyboard.Key, pynput.keyboard.KeyCode]):
-    print(pynput_event_to_HIDKeycode(key))
-    try:
-        print('alphanumeric key {0} pressed'.format(
-            key.vk))
-    except AttributeError:
-        print('special key {0} pressed'.format(
-            key))
 
 if __name__ == "__main__":
 
     # keyboard.hook(callback=keyboard_callback)
-    listener = pynput.keyboard.Listener(
-        on_press=on_press)
-    listener.start()
 
     root = tk.Tk()
     # root.geometry("200x600")
