@@ -35,17 +35,18 @@
 
 bool debug_mode = false;
 
-uint32_t mainloop_freq_hz = 1000;
-uint32_t mainloop_period_us = HZ_TO_PERIOD_US(mainloop_freq_hz);
+const uint32_t normal_mode_freq_hz = 1000;
+const uint32_t debug_mode_freq_hz = 10;
+uint32_t mainloop_period_us = HZ_TO_PERIOD_US(normal_mode_freq_hz);
 
 uint32_t loop_count = 0;
-uint64_t last_print_us = 0;
-uint64_t print_period_us = 2 * 1000 * 1000;
+uint32_t last_print_us = 0;
+uint32_t print_period_us = 2 * 1000 * 1000;
 
 unsigned long last_time_us;
 
 const int WRITTEN_SIGNATURE = 0xABCDEF01;
-uint16_t storedAddress = 0;
+const uint16_t storedAddress = 0;
 
 typedef enum { KEY_TYPE_KEYBOARD, KEY_TYPE_CONSUMER, KEY_TYPE_MOUSE } KeyType_t;
 
@@ -61,8 +62,8 @@ typedef struct {
 typedef struct {
     KeyMapEntry_t keymap[6];
 
-    AnalogSwitchSettings_t analogSettings;
-    DigitalSwitchSettings_t digitalSettings;
+    AnalogSwitchSettings_t analogSettings[2];
+    DigitalSwitchSettings_t digitalSettings[2];
     KeyLightingSettings_t lightingSettings[4];
 
     uint64_t first_write_timestamp = 0;
@@ -90,11 +91,10 @@ KeyLighting keyLighting[] = {
     KeyLighting(KEY3_LIGHT_PIN, &(analogKeys[1].is_pressed)),
 };
 
-StaticJsonDocument<512> json_doc_incoming;
-StaticJsonDocument<512> json_doc_outgoing;
+StaticJsonDocument<1024> json_doc_incoming;
+StaticJsonDocument<1024> json_doc_outgoing;
 
 void setup() {
-    // pinMode(LED_BUILTIN, OUTPUT);
 
     // DISABLE UART RX TX LEDS
     pinMode(PIN_LED2, INPUT_PULLUP);
@@ -131,7 +131,6 @@ void setup() {
 
     pinMode(2, INPUT);
 
-    // delay(1000);
     last_time_us = micros();
 }
 
@@ -147,7 +146,9 @@ void loop() {
 
     if (!debug_mode) {
         if (curr_time_us - last_print_us > print_period_us) {
-            float loop_freq = (loop_count / (print_period_us / 1000000.0));
+            float loop_freq =
+                (static_cast<float>(loop_count) /
+                 (static_cast<float>(print_period_us) / 1000000.0f));
             Serial.printf("Loop freq: %f\n", loop_freq);
             loop_count = 0;
             last_print_us += print_period_us;
@@ -177,10 +178,8 @@ void loop() {
         key.mainLoopService();
 
         if (key.is_pressed) {
-            // Keyboard.add(storage_vars.keymap[key.id].keycode);
             pressHIDKey(&(storage_vars.keymap[key.id]));
         } else {
-            // Keyboard.remove(storage_vars.keymap[key.id].keycode);
             releaseHIDKey(&(storage_vars.keymap[key.id]));
         }
     }
@@ -206,10 +205,7 @@ void loop() {
     // Run Lighting
     int i = 0;
     for (KeyLighting &lighting : keyLighting) {
-        // if (i == 0 || i == 1){
-            lighting.lightingTask(curr_time_us);
-            // Serial.printf("i: %d, a: %d, b: %d, p: %d\n", i, lighting.pressed_p, *(lighting.pressed_p), lighting.pin);
-        // }
+        lighting.lightingTask(curr_time_us);
         i++;
     }
 
@@ -265,11 +261,11 @@ void releaseHIDKey(const KeyMapEntry_t *entry) {
     }
 }
 
-bool saveFlashStorage(StorageVars_t storage_vars) {
+bool saveFlashStorage(StorageVars_t *storage_vars) {
 
     // Write to Flash
     EEPROM.put(storedAddress, WRITTEN_SIGNATURE);
-    EEPROM.put(storedAddress + sizeof(int), storage_vars);
+    EEPROM.put(storedAddress + sizeof(int), *storage_vars);
 
     if (!EEPROM.getCommitASAP()) {
         Serial.printf("CommitASAP not set. Need commit()");
@@ -331,19 +327,26 @@ bool loadFlashStorage(StorageVars_t *storage_vars) {
     };
 
     // Set Default Key Settings
-    storage_vars->digitalSettings = {
-        .debounce_press_ms = 1,
-        .debounce_release_ms = 10,
-    };
-    storage_vars->analogSettings = {
-        .press_hysteresis_mm = FLOAT_TO_Q22_10(0.3),
-        .release_hysteresis_mm = FLOAT_TO_Q22_10(0.3),
-        .actuation_point_mm = FLOAT_TO_Q22_10(2.2),
-        .release_point_mm = FLOAT_TO_Q22_10(5.8),
-        .press_debounce_ms = 0,
-        .release_debounce_ms = 0,
-        .samples = 22,
-    };
+    for (auto &digitalSetting : storage_vars->digitalSettings) {
+        digitalSetting = {
+            .debounce_press_ms = 1,
+            .debounce_release_ms = 10,
+        };
+    }
+
+    for (auto &analogSetting : storage_vars->analogSettings) {
+        analogSetting = {
+            .press_hysteresis_mm = FLOAT_TO_Q22_10(0.3),
+            .release_hysteresis_mm = FLOAT_TO_Q22_10(0.3),
+            .actuation_point_mm = FLOAT_TO_Q22_10(2.2),
+            .release_point_mm = FLOAT_TO_Q22_10(5.8),
+            .press_debounce_ms = 0,
+            .release_debounce_ms = 0,
+            .samples = 22,
+            .calibration_up_adc = reference_up_adc,
+            .calibration_down_adc = reference_down_adc,
+        };
+    }
 
     for (KeyLightingSettings_t &keyLightingSettings :
          storage_vars->lightingSettings) {
@@ -356,7 +359,7 @@ bool loadFlashStorage(StorageVars_t *storage_vars) {
     };
 
     // Write to Flash
-    saveFlashStorage(*storage_vars);
+    saveFlashStorage(storage_vars);
 
     return false;
 }
@@ -495,15 +498,13 @@ void read_serial() {
             debug_mode = json_doc_incoming["debug"].as<bool>();
             Serial.printf("debug %d\n", debug_mode);
             if (debug_mode) {
-                mainloop_freq_hz = 60;
-                mainloop_period_us = HZ_TO_PERIOD_US(mainloop_freq_hz);
+                mainloop_period_us = HZ_TO_PERIOD_US(debug_mode_freq_hz);
             } else {
-                mainloop_freq_hz = 1000;
-                mainloop_period_us = HZ_TO_PERIOD_US(mainloop_freq_hz);
+                mainloop_period_us = HZ_TO_PERIOD_US(normal_mode_freq_hz);
             }
         }
 
-        saveFlashStorage(storage_vars);
+        saveFlashStorage(&storage_vars);
     }
 
     // R: Read from storage
