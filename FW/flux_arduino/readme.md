@@ -48,16 +48,24 @@ Example: Set key 0 keyboard character "a"
 This message is used to read data from the fluxpad. The value of "cmd" is "r".
 
 Example: Read key type and key code of key 0
-
+Request
 ``` json
 {
     "cmd": "r",
-    "key": 0,
+    "key": 0,  // These values are unused and can be anything
     "k_t": 0,
     "k_c": 0,
 }
 ```
-
+Response
+``` json
+{
+    "cmd": "r",
+    "key": 0,  // These values are the actual values from the read
+    "k_t": 1,
+    "k_c": 4,
+}
+```
 
 ### Message Keys
 
@@ -76,6 +84,8 @@ This is a list of valid keys that can appear in a `request message`
 | `d_a` | Actuate Debounce [ms] | Actuation debouce time | integer
 | `d_r` | Release Debounce [ms] | Actuation debouce time | integer
 | `a_s` | ADC Samples [0,32] | Number of ADC samples to take per loop | integer
+| `c_u` | Calibration ADC Up | Calibration ADC value of key in up position | number
+| `c_d` | Calibration ADC Down | Calibration ADC value of key in down position | number
 | `dstrm` | Datastream mode | Datastream mode enable or disable | bool
 | `dstrm_freq` | Datastream Frequency [hz] | Datastream mode message frequency | int
 

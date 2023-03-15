@@ -6,6 +6,8 @@
 
 // Q22.10 fixed point
 typedef uint32_t q22_10_t;
+typedef int64_t q54_10_t;
+
 
 #define Q22_10_FRAC_BITS 10
 #define Q22_10_INT_BITS 22
@@ -276,15 +278,13 @@ class AnalogSwitch {
                      << 5;
 
         // Wait for bus synchronization
-        while (ADC->STATUS.bit.SYNCBUSY) {
-        };
+        while (ADC->STATUS.bit.SYNCBUSY);
 
         // Write the calibration data
         ADC->CALIB.reg =
             ADC_CALIB_BIAS_CAL(bias) | ADC_CALIB_LINEARITY_CAL(linearity);
 
-        while (ADC->STATUS.bit.SYNCBUSY) {
-        };
+        while (ADC->STATUS.bit.SYNCBUSY);
     }
 
     void resetMinMaxDistance() {
@@ -319,12 +319,15 @@ class AnalogSwitch {
      */
     q22_10_t lerp2(q22_10_t x, q22_10_t y0, q22_10_t y1, q22_10_t x0,
                    q22_10_t x1) {
-        q22_10_t term_a = y0 * (x1 - x);
-        q22_10_t term_b = y1 * (x - x0);
-        return (term_a + term_b) / (x1 - x0);
+        q54_10_t term_a = int64_t(y0) * (int64_t(x1) - int64_t(x));
+        q54_10_t term_b = int64_t(y1) * (int64_t(x) - int64_t(x0));
+        q54_10_t term_c = int64_t(x1) - int64_t(x0);
+        q54_10_t temp = (term_a + term_b) / term_c;
+        return static_cast<q22_10_t>(temp);
     }
 
     q22_10_t apply_calibration(q22_10_t adc) {
+        // Serial.printf("adc: %d", adc);
         return lerp2(adc, reference_down_adc, reference_up_adc,
                      settings.calibration_down_adc,
                      settings.calibration_up_adc);

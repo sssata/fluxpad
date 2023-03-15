@@ -36,7 +36,6 @@
 bool debug_mode = false;
 
 const uint32_t normal_mode_freq_hz = 1000;
-const uint32_t debug_mode_freq_hz = 10;
 uint32_t mainloop_period_us = HZ_TO_PERIOD_US(normal_mode_freq_hz);
 
 uint32_t loop_count = 0;
@@ -48,7 +47,12 @@ unsigned long last_time_us;
 const int WRITTEN_SIGNATURE = 0xABCDEF01;
 const uint16_t storedAddress = 0;
 
-typedef enum { KEY_TYPE_KEYBOARD, KEY_TYPE_CONSUMER, KEY_TYPE_MOUSE } KeyType_t;
+enum class KeyType_t {
+    NONE = 0,
+    KEYBOARD = 1,
+    CONSUMER = 2,
+    MOUSE = 3
+};
 
 typedef struct {
     union keycode {
@@ -64,6 +68,7 @@ typedef struct {
 
     AnalogSwitchSettings_t analogSettings[2];
     DigitalSwitchSettings_t digitalSettings[2];
+
     KeyLightingSettings_t lightingSettings[4];
 
     uint64_t first_write_timestamp = 0;
@@ -112,14 +117,14 @@ void setup() {
 
     loadFlashStorage(&storage_vars);
 
-    for (DigitalSwitch &key : digitalKeys) {
-        key.setup();
-        key.applySettings(&(storage_vars.digitalSettings));
+    for (size_t i=0; i < sizeof(digitalKeys)/sizeof(digitalKeys[0]); i++){
+        digitalKeys[i].setup();
+        digitalKeys[i].applySettings(&(storage_vars.digitalSettings[i]));
     }
 
-    for (AnalogSwitch &key : analogKeys) {
-        key.setup();
-        key.applySettings(&(storage_vars.analogSettings));
+    for (size_t i=0; i < sizeof(analogKeys)/sizeof(analogKeys[0]); i++){
+        analogKeys[i].setup();
+        analogKeys[i].applySettings(&(storage_vars.analogSettings[i]));
     }
 
     int i = 0;
@@ -155,18 +160,19 @@ void loop() {
         }
     }
 
+    Keyboard.removeAll();
+
     // Scan analog keys
     for (AnalogSwitch &key : analogKeys) {
         key.mainLoopService();
         if (debug_mode) {
+            Serial.printf(" (%d) ", key.current_reading);
             Serial.printf("%f %f ", Q22_10_TO_FLOAT(key.current_reading),
                           Q22_10_TO_FLOAT(key.current_distance_mm));
         }
 
         if (key.is_pressed) {
             pressHIDKey(&(storage_vars.keymap[key.id]));
-        } else {
-            releaseHIDKey(&(storage_vars.keymap[key.id]));
         }
     }
     if (debug_mode) {
@@ -179,8 +185,6 @@ void loop() {
 
         if (key.is_pressed) {
             pressHIDKey(&(storage_vars.keymap[key.id]));
-        } else {
-            releaseHIDKey(&(storage_vars.keymap[key.id]));
         }
     }
 
@@ -189,11 +193,11 @@ void loop() {
     if (encoder.valueChanged()) {
         switch (encoder.getValue()) {
         case 1:
-            writeHIDKey(storage_vars.keymap[ENC_UP_KEY_ID].keycode.value,
+            typeHIDKey(storage_vars.keymap[ENC_UP_KEY_ID].keycode.value,
                         storage_vars.keymap[ENC_UP_KEY_ID].keyType);
             break;
         case -1:
-            writeHIDKey(storage_vars.keymap[ENC_DOWN_KEY_ID].keycode.value,
+            typeHIDKey(storage_vars.keymap[ENC_DOWN_KEY_ID].keycode.value,
                         storage_vars.keymap[ENC_DOWN_KEY_ID].keyType);
             break;
         default:
@@ -213,15 +217,15 @@ void loop() {
     read_serial();
 }
 
-void writeHIDKey(char key, KeyType_t key_type) {
+void typeHIDKey(char key, KeyType_t key_type) {
     switch (key_type) {
-    case KEY_TYPE_KEYBOARD:
+    case KeyType_t::KEYBOARD:
         Keyboard.write(key);
         break;
-    case KEY_TYPE_CONSUMER:
+    case KeyType_t::CONSUMER:
         Consumer.write(ConsumerKeycode(key));
         break;
-    case KEY_TYPE_MOUSE:
+    case KeyType_t::MOUSE:
         // Unsupported for now
         break;
     default:
@@ -231,13 +235,13 @@ void writeHIDKey(char key, KeyType_t key_type) {
 
 void pressHIDKey(const KeyMapEntry_t *entry) {
     switch (entry->keyType) {
-    case KEY_TYPE_KEYBOARD:
+    case KeyType_t::KEYBOARD:
         Keyboard.add(KeyboardKeycode(entry->keycode.keyboard));
         break;
-    case KEY_TYPE_CONSUMER:
+    case KeyType_t::CONSUMER:
         Consumer.press(ConsumerKeycode(entry->keycode.consumer));
         break;
-    case KEY_TYPE_MOUSE:
+    case KeyType_t::MOUSE:
         // Unsupported for now
         break;
     default:
@@ -247,13 +251,13 @@ void pressHIDKey(const KeyMapEntry_t *entry) {
 
 void releaseHIDKey(const KeyMapEntry_t *entry) {
     switch (entry->keyType) {
-    case KEY_TYPE_KEYBOARD:
+    case KeyType_t::KEYBOARD:
         Keyboard.remove(KeyboardKeycode(entry->keycode.keyboard));
         break;
-    case KEY_TYPE_CONSUMER:
+    case KeyType_t::CONSUMER:
         Consumer.release(ConsumerKeycode(entry->keycode.consumer));
         break;
-    case KEY_TYPE_MOUSE:
+    case KeyType_t::MOUSE:
         // Unsupported for now
         break;
     default:
@@ -261,7 +265,27 @@ void releaseHIDKey(const KeyMapEntry_t *entry) {
     }
 }
 
-bool saveFlashStorage(StorageVars_t *storage_vars) {
+bool is_analog_key(uint32_t key_id){
+    return key_id <= 1;
+}
+
+bool is_digital_key(uint32_t key_id){
+    return 2 <= key_id && key_id <= 3;
+}
+
+bool is_encoder_key(uint32_t key_id){
+    return 4 <= key_id && key_id <= 5;
+}
+
+uint32_t key_id_to_analog_key_index(uint32_t key_id){
+    return (key_id - 2);
+}
+
+uint32_t key_id_to_digital_key_index(uint32_t key_id){
+    return key_id;
+}
+
+bool saveFlashStorage(const StorageVars_t *storage_vars) {
 
     // Write to Flash
     EEPROM.put(storedAddress, WRITTEN_SIGNATURE);
@@ -294,7 +318,7 @@ bool loadFlashStorage(StorageVars_t *storage_vars) {
 
         StorageVars_t retrievedStorageVars;
         EEPROM.get(storedAddress + sizeof(signature), *storage_vars);
-        storage_vars = &retrievedStorageVars;
+        *storage_vars = retrievedStorageVars;
         return true;
     }
 
@@ -303,27 +327,27 @@ bool loadFlashStorage(StorageVars_t *storage_vars) {
     // Set Default keymap
     storage_vars->keymap[0] = {
         .keycode = {KEY_A},
-        .keyType = KEY_TYPE_KEYBOARD,
+        .keyType = KeyType_t::KEYBOARD,
     };
     storage_vars->keymap[1] = {
         .keycode = {KEY_S},
-        .keyType = KEY_TYPE_KEYBOARD,
+        .keyType = KeyType_t::KEYBOARD,
     };
     storage_vars->keymap[2] = {
         .keycode = {KEY_Z},
-        .keyType = KEY_TYPE_KEYBOARD,
+        .keyType = KeyType_t::KEYBOARD,
     };
     storage_vars->keymap[3] = {
         .keycode = {KEY_X},
-        .keyType = KEY_TYPE_KEYBOARD,
+        .keyType = KeyType_t::KEYBOARD,
     };
     storage_vars->keymap[4] = {
         .keycode = {HID_CONSUMER_VOLUME_INCREMENT},
-        .keyType = KEY_TYPE_CONSUMER,
+        .keyType = KeyType_t::CONSUMER,
     };
     storage_vars->keymap[5] = {
         .keycode = {HID_CONSUMER_VOLUME_DECREMENT},
-        .keyType = KEY_TYPE_CONSUMER,
+        .keyType = KeyType_t::CONSUMER,
     };
 
     // Set Default Key Settings
@@ -364,6 +388,10 @@ bool loadFlashStorage(StorageVars_t *storage_vars) {
     return false;
 }
 
+void apply_analog_settings(){
+
+}
+
 /**
  * @brief Reads and processes incoming commands
  *
@@ -377,6 +405,11 @@ void read_serial() {
     // Try to deserialize from Serial stream
     DeserializationError error = deserializeJson(json_doc_incoming, Serial);
 
+    // // Flush incoming buffer
+    // while (Serial.available() > 0) {
+    //     Serial.read();
+    // }
+
     // Detect Deserialize error
     if (error) {
         Serial.print(F("deserializeJson() failed: "));
@@ -388,6 +421,8 @@ void read_serial() {
         }
         return;
     }
+
+
 
     // Try to get command
     const char *cmd = json_doc_incoming["cmd"];
@@ -401,106 +436,170 @@ void read_serial() {
 
     json_doc_outgoing.clear();
 
-    // Parse command (unfortunately can't use switch/case because string comp)
     // W: Write to storage
-    if (strcmp(cmd, "W") == 0) {
+    if (strcmp(cmd, "w") == 0) {
 
         json_doc_outgoing["cmd"] = "W";
 
-        if (json_doc_incoming.containsKey("map")) {
-            JsonArray array = json_doc_incoming["map"].as<JsonArray>();
-            for (auto entry : array) {
-                if (entry.containsKey("id") && entry.containsKey("code") &&
-                    entry.containsKey("type")) {
-                    uint32_t id = entry["id"].as<unsigned int>();
-                    uint32_t code = entry["code"].as<int>();
-                    uint32_t type = entry["type"].as<unsigned int>();
+        if (json_doc_incoming.containsKey("key")){
+            uint32_t key_id = json_doc_incoming["key"].as<unsigned int>();
 
-                    storage_vars.keymap[id].keycode.value = code;
-                    storage_vars.keymap[id].keyType =
-                        static_cast<KeyType_t>(type);
+            // Keymap
+            if (json_doc_incoming.containsKey("k_t")){
+                storage_vars.keymap[key_id].keyType = static_cast<KeyType_t>(json_doc_incoming["k_t"].as<unsigned int>());
+            }
+            if (json_doc_incoming.containsKey("k_c")){
+                storage_vars.keymap[key_id].keycode.value = static_cast<uint16_t>(json_doc_incoming["k_c"].as<unsigned int>());
+            }
 
-                    Serial.printf("Set id %d to code %d type %d", id,
-                                  storage_vars.keymap[id].keycode,
-                                  storage_vars.keymap[id].keyType);
+            // Analog Key Settings
+
+            if (is_analog_key(key_id)){
+                uint32_t analog_key_id = key_id_to_analog_key_index(key_id);
+                AnalogSwitchSettings_t *currAnalogSettings = &(storage_vars.analogSettings[analog_key_id]);
+
+                if (json_doc_incoming.containsKey("h_a")){
+                    currAnalogSettings->press_hysteresis_mm = static_cast<q22_10_t>(json_doc_incoming["h_a"].as<unsigned int>());
                 }
+                if (json_doc_incoming.containsKey("h_r")){
+                    currAnalogSettings->release_hysteresis_mm = static_cast<q22_10_t>(json_doc_incoming["h_r"].as<unsigned int>());
+                }
+                if (json_doc_incoming.containsKey("p_a")){
+                    currAnalogSettings->actuation_point_mm = static_cast<q22_10_t>(json_doc_incoming["p_a"].as<unsigned int>());
+                }
+                if (json_doc_incoming.containsKey("p_r")){
+                    currAnalogSettings->release_point_mm = static_cast<q22_10_t>(json_doc_incoming["p_r"].as<unsigned int>());
+                }
+                if (json_doc_incoming.containsKey("d_a")){
+                    currAnalogSettings->press_debounce_ms = static_cast<uint32_t>(json_doc_incoming["d_a"].as<unsigned int>());
+                }
+                if (json_doc_incoming.containsKey("d_r")){
+                    currAnalogSettings->release_debounce_ms = static_cast<uint32_t>(json_doc_incoming["d_r"].as<unsigned int>());
+                }
+                if (json_doc_incoming.containsKey("c_u")){
+                    currAnalogSettings->calibration_up_adc = static_cast<q22_10_t>(json_doc_incoming["c_u"].as<unsigned int>());
+                }
+                if (json_doc_incoming.containsKey("c_d")){
+                    currAnalogSettings->calibration_down_adc = static_cast<q22_10_t>(json_doc_incoming["c_d"].as<unsigned int>());
+                }
+                if (json_doc_incoming.containsKey("s")){
+                    currAnalogSettings->samples = static_cast<q22_10_t>(json_doc_incoming["s"].as<unsigned int>());
+                }
+                analogKeys[analog_key_id].applySettings(currAnalogSettings);
+                
+            } else if (is_digital_key(key_id))
+            {
+                uint32_t digital_key_id = key_id_to_analog_key_index(key_id);
+                DigitalSwitchSettings_t *currDigitalSettings = &(storage_vars.digitalSettings[digital_key_id]);
+                if (json_doc_incoming.containsKey("d_a")){
+                    currDigitalSettings->debounce_press_ms = static_cast<uint32_t>(json_doc_incoming["d_a"].as<unsigned int>());
+                }
+                if (json_doc_incoming.containsKey("d_r")){
+                    currDigitalSettings->debounce_release_ms = static_cast<uint32_t>(json_doc_incoming["d_r"].as<unsigned int>());
+                }
+
+                digitalKeys[digital_key_id].applySettings(currDigitalSettings);
+            } else {
+                json_doc_outgoing["error"] = F("INVALID_KEY_ID");
             }
         }
 
-        // Digital key settings
-        if (json_doc_incoming.containsKey("d_s")) {
-            JsonObject digital_settings =
-                json_doc_incoming["d_s"].as<JsonObject>();
-            if (digital_settings.containsKey("t_p")) {
-                storage_vars.digitalSettings.debounce_press_ms =
-                    digital_settings["t_p"].as<int32_t>();
-            }
-            if (digital_settings.containsKey("t_r")) {
-                storage_vars.digitalSettings.debounce_release_ms =
-                    digital_settings["t_r"].as<int32_t>();
-            }
+        // if (json_doc_incoming.containsKey("map")) {
+        //     JsonArray array = json_doc_incoming["map"].as<JsonArray>();
+        //     for (auto entry : array) {
+        //         if (entry.containsKey("id") && entry.containsKey("code") &&
+        //             entry.containsKey("type")) {
+        //             uint32_t id = entry["id"].as<unsigned int>();
+        //             uint32_t code = entry["code"].as<int>();
+        //             uint32_t type = entry["type"].as<unsigned int>();
 
-            // Apply settings
-            for (DigitalSwitch &key : digitalKeys) {
-                key.applySettings(&(storage_vars.digitalSettings));
-            }
-        }
+        //             storage_vars.keymap[id].keycode.value = static_cast<uint16_t>(code);
+        //             storage_vars.keymap[id].keyType =
+        //                 static_cast<KeyType_t>(type);
+
+        //             Serial.printf("Set id %d to code %d type %d", id,
+        //                           storage_vars.keymap[id].keycode,
+        //                           storage_vars.keymap[id].keyType);
+        //         }
+        //     }
+        // }
+
+        // // Digital key settings
+        // if (json_doc_incoming.containsKey("d_s")) {
+        //     JsonObject digital_settings =
+        //         json_doc_incoming["d_s"].as<JsonObject>();
+        //     if (digital_settings.containsKey("t_p")) {
+        //         storage_vars.digitalSettings.debounce_press_ms =
+        //             digital_settings["t_p"].as<int32_t>();
+        //     }
+        //     if (digital_settings.containsKey("t_r")) {
+        //         storage_vars.digitalSettings.debounce_release_ms =
+        //             digital_settings["t_r"].as<int32_t>();
+        //     }
+
+        //     // Apply settings
+        //     for (DigitalSwitch &key : digitalKeys) {
+        //         key.applySettings(&(storage_vars.digitalSettings));
+        //     }
+        // }
 
         // Analog key settings
-        if (json_doc_incoming.containsKey("a_s")) {
-            Serial.printf("a_s\n");
-            JsonObject analog_settings =
-                json_doc_incoming["a_s"].as<JsonObject>();
-            if (analog_settings.containsKey("h_a")) {
-                storage_vars.analogSettings.press_hysteresis_mm =
-                    FLOAT_TO_Q22_10(analog_settings["h_a"].as<float>());
-            }
-            if (analog_settings.containsKey("h_r")) {
-                storage_vars.analogSettings.release_hysteresis_mm =
-                    FLOAT_TO_Q22_10(analog_settings["h_r"].as<float>());
-            }
-            if (analog_settings.containsKey("p_a")) {
-                storage_vars.analogSettings.actuation_point_mm =
-                    FLOAT_TO_Q22_10(analog_settings["p_a"].as<float>());
-            }
-            if (analog_settings.containsKey("p_r")) {
-                storage_vars.analogSettings.release_point_mm =
-                    FLOAT_TO_Q22_10(analog_settings["p_r"].as<float>());
-            }
-            if (analog_settings.containsKey("s")) {
-                storage_vars.analogSettings.samples =
-                    analog_settings["s"].as<uint32_t>();
-            }
-            if (analog_settings.containsKey("PRESCALER_DIV")) {
-                int prescaler_div =
-                    analog_settings["PRESCALER_DIV"].as<uint32_t>();
-                for (AnalogSwitch &key : analogKeys) {
-                    key.setADCConversionTime(prescaler_div, 0);
-                }
-                Serial.printf("PRESCALER_DIV: %d", prescaler_div);
-            }
+        // if (json_doc_incoming.containsKey("a_s")) {
+        //     Serial.printf("a_s\n");
+        //     JsonObject analog_settings =
+        //         json_doc_incoming["a_s"].as<JsonObject>();
+        //     if (analog_settings.containsKey("h_a")) {
+        //         storage_vars.analogSettings.press_hysteresis_mm =
+        //             FLOAT_TO_Q22_10(analog_settings["h_a"].as<float>());
+        //     }
+        //     if (analog_settings.containsKey("h_r")) {
+        //         storage_vars.analogSettings.release_hysteresis_mm =
+        //             FLOAT_TO_Q22_10(analog_settings["h_r"].as<float>());
+        //     }
+        //     if (analog_settings.containsKey("p_a")) {
+        //         storage_vars.analogSettings.actuation_point_mm =
+        //             FLOAT_TO_Q22_10(analog_settings["p_a"].as<float>());
+        //     }
+        //     if (analog_settings.containsKey("p_r")) {
+        //         storage_vars.analogSettings.release_point_mm =
+        //             FLOAT_TO_Q22_10(analog_settings["p_r"].as<float>());
+        //     }
+        //     if (analog_settings.containsKey("s")) {
+        //         storage_vars.analogSettings.samples =
+        //             analog_settings["s"].as<uint32_t>();
+        //     }
+        //     if (analog_settings.containsKey("PRESCALER_DIV")) {
+        //         int prescaler_div =
+        //             analog_settings["PRESCALER_DIV"].as<uint32_t>();
+        //         for (AnalogSwitch &key : analogKeys) {
+        //             key.setADCConversionTime(prescaler_div, 0);
+        //         }
+        //         Serial.printf("PRESCALER_DIV: %d", prescaler_div);
+        //     }
 
-            if (analog_settings.containsKey("FREERUN")) {
-                bool use_freerun = analog_settings["FREERUN"].as<uint32_t>();
-                for (AnalogSwitch &key : analogKeys) {
-                    key.use_freerun_mode = use_freerun;
-                }
-                Serial.printf("FREERUN: %d", use_freerun);
-            }
+        //     if (analog_settings.containsKey("FREERUN")) {
+        //         bool use_freerun = analog_settings["FREERUN"].as<uint32_t>();
+        //         for (AnalogSwitch &key : analogKeys) {
+        //             key.use_freerun_mode = use_freerun;
+        //         }
+        //         Serial.printf("FREERUN: %d", use_freerun);
+        //     }
 
-            // Apply settings
-            for (AnalogSwitch &key : analogKeys) {
-                key.applySettings(&(storage_vars.analogSettings));
-            }
-        }
+        //     // Apply settings
+        //     for (AnalogSwitch &key : analogKeys) {
+        //         key.applySettings(&(storage_vars.analogSettings));
+        //     }
+        // }
 
         if (json_doc_incoming.containsKey("debug")) {
-            debug_mode = json_doc_incoming["debug"].as<bool>();
-            Serial.printf("debug %d\n", debug_mode);
-            if (debug_mode) {
-                mainloop_period_us = HZ_TO_PERIOD_US(debug_mode_freq_hz);
-            } else {
+            uint32_t debug_mode_freq_hz = json_doc_incoming["debug"].as<unsigned int>();
+            Serial.printf("debug mode freq: %d hz\n", debug_mode_freq_hz);
+            if (debug_mode_freq_hz == 0) {
+                debug_mode = false;
                 mainloop_period_us = HZ_TO_PERIOD_US(normal_mode_freq_hz);
+            } else {
+                debug_mode = true;
+                mainloop_period_us = HZ_TO_PERIOD_US(debug_mode_freq_hz);
             }
         }
 
@@ -508,25 +607,30 @@ void read_serial() {
     }
 
     // R: Read from storage
-    else if (strcmp(cmd, "R") == 0) {
-        json_doc_outgoing["cmd"] = "R";
+    else if (strcmp(cmd, "r") == 0) {
+        json_doc_outgoing["cmd"] = "r";
 
-        if (json_doc_incoming.containsKey("map")) {
-            JsonArray incoming_array = json_doc_incoming["map"].as<JsonArray>();
-            JsonArray array = json_doc_outgoing.createNestedArray("map");
-            for (auto incoming_entry : incoming_array) {
-                if (incoming_entry.containsKey("id")) {
-                    uint32_t id = incoming_entry["id"].as<unsigned int>();
+        if (json_doc_incoming.containsKey("key")){
+            uint32_t key_id = json_doc_incoming["key"].as<unsigned int>();
+            
+            json_doc_outgoing["k_t"] = static_cast<unsigned int>(storage_vars.keymap[key_id].keyType);
+            json_doc_outgoing["k_c"] = static_cast<unsigned int>(storage_vars.keymap[key_id].keycode.value);
 
-                    Serial.printf("id: %d \n", id);
+            // JsonArray incoming_array = json_doc_incoming["map"].as<JsonArray>();
+            // JsonArray array = json_doc_outgoing.createNestedArray("map");
+            // for (auto incoming_entry : incoming_array) {
+            //     if (incoming_entry.containsKey("id")) {
+            //         uint32_t id = incoming_entry["id"].as<unsigned int>();
 
-                    JsonObject object = array.createNestedObject();
-                    object["code"] = static_cast<unsigned int>(
-                        storage_vars.keymap[id].keycode.value);
-                    object["type"] = static_cast<unsigned int>(
-                        storage_vars.keymap[id].keyType);
-                }
-            }
+            //         Serial.printf("id: %d \n", id);
+
+            //         JsonObject object = array.createNestedObject();
+            //         object["code"] = static_cast<unsigned int>(
+            //             storage_vars.keymap[id].keycode.value);
+            //         object["type"] = static_cast<unsigned int>(
+            //             storage_vars.keymap[id].keyType);
+            //     }
+            // }
         }
 
         if (json_doc_incoming.containsKey("adc")) {
@@ -550,9 +654,9 @@ void read_serial() {
     }
 
     // V: Get Version
-    else if (strcmp(cmd, "V") == 0) {
+    else if (strcmp(cmd, "v") == 0) {
 
-        json_doc_outgoing["cmd"] = "V";
+        json_doc_outgoing["cmd"] = "v";
 
         json_doc_outgoing["V"] = VERSION;
     } else {
