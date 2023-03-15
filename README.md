@@ -24,7 +24,7 @@ The FLUXPAD is a keypad designed for osu! with **2 analog Wooting Lekker switche
 <details><summary><header>Gallery</header></summary>
 <p>
   
-<a href="https://www.youtube.com/watch?v=YnBMVPY66ps" target="_blank">
+<a href="https://www.youtube.com/watch?v=YnBMVPY66ps" target="_blank" rel="noopener noreferrer">
  <img src="http://img.youtube.com/vi/YnBMVPY66ps/hqdefault.jpg" alt="Watch the video" height="400" border="10" />
 </a>
 
