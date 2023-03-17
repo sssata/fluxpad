@@ -1,33 +1,37 @@
-from typing import Union
+from typing import Union, List
 import enum
 import pynput
 
 # USB HID to PS/2 Scan Code Translation Table
 # (HID Usage Page, HID Usage ID, (PS/2 Set 1 Make, PS/2 Set 1 Break, PS/2 Set 2 Make, PS/2 Set 2 Break), Key Name)
 
-
+@enum.unique
 class KeyType(enum.IntEnum):
+    """This must be in sync with flux_arduino.KeyType_t"""
+    NONE = 0
     KEYBOARD = 1
     CONSUMER = 2
+    MOUSE = 3
 
 
 class ScanCode:
 
     def __init__(self,
-                 HID_Usage: int,
-                 HID_Keycode: int,
-                 PS2_Set_1_Make: Union[int, None],
-                 Pynput_Keycode: Union[int, pynput.keyboard.Key, None],
-                 Key_Name: str
+                 hid_usage: int,
+                 hid_keycode: int,
+                 ps2_set1_make: Union[int, None],
+                 pynput_key_keycode: Union[int, pynput.keyboard.Key, None],
+                 name: str
                  ):
-        self.HID_Usage = HID_Usage
-        self.HID_Keycode = HID_Keycode
-        self.PS2_Set_1_Make = PS2_Set_1_Make
-        self.Pynput_Keycode = Pynput_Keycode
-        self.Key_Name = Key_Name
+        self.hid_usage = hid_usage
+        self.hid_keycode = hid_keycode
+        self.ps2_set1_make = ps2_set1_make
+        self.pynput_key_keycode = pynput_key_keycode
+        self.name = name
 
 
-class KeyList(enum.Enum):
+@enum.unique
+class ScanCodeList(enum.Enum):
     # ScanCode(0x01, 0x81, 0xE05E, pynput.keyboard.Key, 'System Power'),
     # ScanCode(0x01, 0x82, 0xE05F, 'System Sleep'),
     # ScanCode(0x01, 0x83, 0xE063, 'System Wake'),
@@ -197,66 +201,60 @@ class KeyList(enum.Enum):
     # ScanCode(0x07, 0xA3, None, 'Keyboard CrSel/Props')
     # ScanCode(0x07, 0xA4, None, 'Keyboard ExSel')
     # ScanCode('07', 'A5-DF', (', 'RESERVED',', 'RESERVED'), 'RESERVED')
-    KEY_0xE0 = ScanCode(KeyType.KEYBOARD, 0xE0, 0x1D, pynput.keyboard.Key.ctrl_l, 'Left Control')
-    KEY_0xE1 = ScanCode(KeyType.KEYBOARD, 0xE1, 0x2A, pynput.keyboard.Key.shift_l, 'Left Shift')
-    KEY_0xE2 = ScanCode(KeyType.KEYBOARD, 0xE2, 0x38, pynput.keyboard.Key.alt_l, 'Left Alt')
-    KEY_0xE3 = ScanCode(KeyType.KEYBOARD, 0xE3, 0xE05B, pynput.keyboard.Key.cmd_l, 'Left GUI')
-    KEY_0xE4 = ScanCode(KeyType.KEYBOARD, 0xE4, 0xE01D, pynput.keyboard.Key.ctrl_r, 'Right Control')
-    KEY_0xE5 = ScanCode(KeyType.KEYBOARD, 0xE5, 0x36, pynput.keyboard.Key.shift_r, 'Right Shift')
-    KEY_0xE6 = ScanCode(KeyType.KEYBOARD, 0xE6, 0xE038, pynput.keyboard.Key.alt_r, 'Right Alt')
-    KEY_0xE7 = ScanCode(KeyType.KEYBOARD, 0xE7, 0xE05C, pynput.keyboard.Key.cmd_r, 'Right GUI')
+    LEFT_CTRL = ScanCode(KeyType.KEYBOARD, 0xE0, 0x1D, pynput.keyboard.Key.ctrl_l, 'Left Control')
+    LEFT_SHIFT = ScanCode(KeyType.KEYBOARD, 0xE1, 0x2A, pynput.keyboard.Key.shift_l, 'Left Shift')
+    LEFT_ALT = ScanCode(KeyType.KEYBOARD, 0xE2, 0x38, pynput.keyboard.Key.alt_l, 'Left Alt')
+    LEFT_GUI = ScanCode(KeyType.KEYBOARD, 0xE3, 0xE05B, pynput.keyboard.Key.cmd_l, 'Left GUI')
+    RIGHT_CTRL = ScanCode(KeyType.KEYBOARD, 0xE4, 0xE01D, pynput.keyboard.Key.ctrl_r, 'Right Control')
+    RIGHT_SHIFT = ScanCode(KeyType.KEYBOARD, 0xE5, 0x36, pynput.keyboard.Key.shift_r, 'Right Shift')
+    RIGHT_ALT = ScanCode(KeyType.KEYBOARD, 0xE6, 0xE038, pynput.keyboard.Key.alt_r, 'Right Alt')
+    RIGHT_GUI = ScanCode(KeyType.KEYBOARD, 0xE7, 0xE05C, pynput.keyboard.Key.cmd_r, 'Right GUI')
     # ScanCode('07', 'E8-FFFF', (', 'RESERVED',', 'RESERVED'), 'RESERVED')
-    CONSUMER_0x00B5 = ScanCode(KeyType.CONSUMER, 0x00B5, 0xE019, pynput.keyboard.Key.media_next, 'Next Track')
-    CONSUMER_0x00B6 = ScanCode(KeyType.CONSUMER, 0x00B6, 0xE010, pynput.keyboard.Key.media_previous, 'Previous Track')
-    CONSUMER_0x00B7 = ScanCode(KeyType.CONSUMER, 0x00B7, 0xE024, None, 'Stop')
-    CONSUMER_0x00CD = ScanCode(KeyType.CONSUMER, 0x00CD, 0xE022, pynput.keyboard.Key.media_play_pause, 'Play/Pause')
-    CONSUMER_0x00E2 = ScanCode(KeyType.CONSUMER, 0x00E2, 0xE020, pynput.keyboard.Key.media_volume_mute, 'Mute')
+    MEDIA_NEXT = ScanCode(KeyType.CONSUMER, 0x00B5, 0xE019, pynput.keyboard.Key.media_next, 'Next Track')
+    MEDIA_PREVIOUS = ScanCode(KeyType.CONSUMER, 0x00B6, 0xE010, pynput.keyboard.Key.media_previous, 'Previous Track')
+    MEDIA_STOP = ScanCode(KeyType.CONSUMER, 0x00B7, 0xE024, None, 'Stop')
+    MEDIA_PLAY_PAUSE = ScanCode(KeyType.CONSUMER, 0x00CD, 0xE022, pynput.keyboard.Key.media_play_pause, 'Play/Pause')
+    MEDIA_MUTE = ScanCode(KeyType.CONSUMER, 0x00E2, 0xE020, pynput.keyboard.Key.media_volume_mute, 'Mute')
     # ScanCode(0x0C, 0x00E5, None, None, 'Bass Boost'
     # ScanCode(0x0C, 0x00E7, (None, None, 'Loudness')
-    CONSUMER_0x00E9 = ScanCode(KeyType.CONSUMER, 0x00E9, 0xE030, pynput.keyboard.Key.media_volume_up, 'Volume Up')
-    CONSUMER_0x00EA = ScanCode(KeyType.CONSUMER, 0x00EA, 0xE02E, pynput.keyboard.Key.media_volume_down, 'Volume Down')
+    MEDIA_VOL_UP = ScanCode(KeyType.CONSUMER, 0x00E9, 0xE030, pynput.keyboard.Key.media_volume_up, 'Volume Up')
+    MEDIA_VOL_DOWN = ScanCode(KeyType.CONSUMER, 0x00EA, 0xE02E, pynput.keyboard.Key.media_volume_down, 'Volume Down')
     # ScanCode(0x0C, 0x0152, (None, None, 'Bass Up')
     # ScanCode(0x0C, 0x0153, (None, None, 'Bass Down')
     # ScanCode(0x0C, 0x0154, (None, None, 'Treble Up')
     # ScanCode(0x0C, 0x0155, (None, None, 'Treble Down')
-    CONSUMER_0x0183 = ScanCode(KeyType.CONSUMER, 0x0183, 0xE06D, None, 'Media Select')
-    CONSUMER_0x018A = ScanCode(KeyType.CONSUMER, 0x018A, 0xE06C, 180, 'Mail')
-    CONSUMER_0x0192 = ScanCode(KeyType.CONSUMER, 0x0192, 0xE021, 183, 'Calculator')
-    CONSUMER_0x0194 = ScanCode(KeyType.CONSUMER, 0x0194, 0xE06B, 182, 'My Computer')
-    CONSUMER_0x0221 = ScanCode(KeyType.CONSUMER, 0x0221, 0xE065, 170, 'WWW Search')
-    CONSUMER_0x0223 = ScanCode(KeyType.CONSUMER, 0x0223, 0xE032, 172, 'WWW Home')
-    CONSUMER_0x0224 = ScanCode(KeyType.CONSUMER, 0x0224, 0xE06A, 166, 'WWW Back')
-    CONSUMER_0x0225 = ScanCode(KeyType.CONSUMER, 0x0225, 0xE069, 167, 'WWW Forward')
-    CONSUMER_0x0226 = ScanCode(KeyType.CONSUMER, 0x0226, 0xE068, 169, 'WWW Stop')
-    CONSUMER_0x0227 = ScanCode(KeyType.CONSUMER, 0x0227, 0xE067, 168, 'WWW Refresh')
-    CONSUMER_0x022A = ScanCode(KeyType.CONSUMER, 0x022A, 0xE066, 171, 'WWW Favorites')
+    MEDIA_SELECT = ScanCode(KeyType.CONSUMER, 0x0183, 0xE06D, None, 'Media Select')
+    MAIL = ScanCode(KeyType.CONSUMER, 0x018A, 0xE06C, 180, 'Mail')
+    CALCULATOR = ScanCode(KeyType.CONSUMER, 0x0192, 0xE021, 183, 'Calculator')
+    MY_COMPUTER = ScanCode(KeyType.CONSUMER, 0x0194, 0xE06B, 182, 'My Computer')
+    WWW_SEARCH = ScanCode(KeyType.CONSUMER, 0x0221, 0xE065, 170, 'WWW Search')
+    WWw_HOME = ScanCode(KeyType.CONSUMER, 0x0223, 0xE032, 172, 'WWW Home')
+    WWW_BACK = ScanCode(KeyType.CONSUMER, 0x0224, 0xE06A, 166, 'WWW Back')
+    WWW_FORWARD = ScanCode(KeyType.CONSUMER, 0x0225, 0xE069, 167, 'WWW Forward')
+    WWW_STOP = ScanCode(KeyType.CONSUMER, 0x0226, 0xE068, 169, 'WWW Stop')
+    WWW_REFRESH = ScanCode(KeyType.CONSUMER, 0x0227, 0xE067, 168, 'WWW Refresh')
+    WWW_FAVORITES = ScanCode(KeyType.CONSUMER, 0x022A, 0xE066, 171, 'WWW Favorites')
 
-assert (isinstance(member.value, ScanCode) for member in KeyList)
 
+SCANCODE_LIST: List[ScanCode] = [keycode.value for keycode in ScanCodeList]
 
 def key_name_to_keycode(key_name: str):
-    return next(filter(lambda x: x.value.Key_Name == key_name, KeyList), None)
+    return next(filter(lambda x: x.name == key_name, SCANCODE_LIST), None)
 
 
 def get_name_list():
-    string_list = [x.value.Key_Name for x in KeyList]
+    string_list = [x.name for x in SCANCODE_LIST]
     return string_list
 
-# def keycode_to_string(keytype: KeyType, keycode: int):
-#     return next(filter(lambda x: x.value.HID_Usage == keytype and x.value.HID_Keycode == keytype,  KeyList), None)
+def pynput_event_to_scancode(key: Union[pynput.keyboard.Key, pynput.keyboard.KeyCode]):
+    """Get ScanCode from pynput event, or None if not found"""
 
-def pynput_event_to_HIDKeycode(key: Union[pynput.keyboard.Key, pynput.keyboard.KeyCode]):
     if isinstance(key, pynput.keyboard.Key):
-        return next(filter(lambda x: x.value.Pynput_Keycode == key, KeyList), None).value
-        # for x in KeyList:
-        #     if x.value.Pynput_Keycode == key:
-        #         return x
-        # else:
-        #     x = None
+        return next(filter(lambda x: x.pynput_key_keycode == key, SCANCODE_LIST), None)
 
     if isinstance(key, pynput.keyboard.KeyCode):
         if 65 <= key.vk <= 90 or 48 <= key.vk <= 57:
-            return next(filter(lambda x: ord(x.value.Key_Name) == key.vk, KeyList), None).value
+            return next(filter(lambda x: ord(x.name) == key.vk, SCANCODE_LIST), None)
         
-        return next(filter(lambda x: x.value.Pynput_Keycode == key.vk, KeyList), None).value
+        return next(filter(lambda x: x.pynput_key_keycode == key.vk, SCANCODE_LIST), None)
         

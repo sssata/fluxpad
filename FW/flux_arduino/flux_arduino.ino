@@ -160,7 +160,6 @@ void loop() {
     for (AnalogSwitch &key : analogKeys) {
         key.mainLoopService();
         if (debug_mode) {
-            Serial.printf(" (%d) ", key.current_reading);
             Serial.printf("%f %f ", Q22_10_TO_FLOAT(key.current_reading), Q22_10_TO_FLOAT(key.current_distance_mm));
         }
 
@@ -277,7 +276,7 @@ bool saveFlashStorage(const StorageVars_t *storage_vars) {
     EEPROM.put(storedAddress + sizeof(int), *storage_vars);
 
     if (!EEPROM.getCommitASAP()) {
-        Serial.printf("CommitASAP not set. Need commit()");
+        // Serial.printf("CommitASAP not set. Need commit()");
         EEPROM.commit();
     }
 

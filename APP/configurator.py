@@ -4,8 +4,8 @@ from typing import Union, Optional
 
 import pynput
 
-from scancode_to_hid_code import (KeyList, ScanCode, get_name_list,
-                                  pynput_event_to_HIDKeycode)
+from scancode_to_hid_code import (ScanCodeList, ScanCode, get_name_list,
+                                  pynput_event_to_scancode)
 
 
 class EncoderMap(ttk.Labelframe):
@@ -37,12 +37,12 @@ class EncoderMap(ttk.Labelframe):
     def set_cw_keycode(self, scancode: ScanCode):
         assert isinstance(scancode, ScanCode), f"bruh {type(scancode)}"
         self.cw_scancode = scancode
-        self.label_cw_key.configure(text=self.cw_scancode.Key_Name)
+        self.label_cw_key.configure(text=self.cw_scancode.name)
 
     def set_ccw_keycode(self, scancode: ScanCode):
         assert isinstance(scancode, ScanCode)
         self.ccw_scancode = scancode
-        self.label_ccw_key.configure(text=self.ccw_scancode.Key_Name)
+        self.label_ccw_key.configure(text=self.ccw_scancode.name)
 
 
 class KeyMap(ttk.Labelframe):
@@ -61,7 +61,7 @@ class KeyMap(ttk.Labelframe):
 
     def set_keycode(self, scancode: ScanCode):
         self.scancode = scancode
-        self.label_key.configure(text=self.scancode.Key_Name)
+        self.label_key.configure(text=self.scancode.name)
 
 
 class MapEditFrame(ttk.Labelframe):
@@ -83,7 +83,7 @@ class MapEditFrame(ttk.Labelframe):
         listener.start()
 
     def on_press(self, key: Union[pynput.keyboard.Key, pynput.keyboard.KeyCode]):
-        self.label_key.set(pynput_event_to_HIDKeycode(key).Key_Name)
+        self.label_key.set(pynput_event_to_scancode(key).name)
 
 class KeymapFrame(ttk.Frame):
     """Represents a the keymap tab
@@ -95,30 +95,32 @@ class KeymapFrame(ttk.Frame):
         # Create encoder map
         self.lf_encoder = EncoderMap(self)
         self.lf_encoder.grid(row=1, column=1, columnspan=2)
-        self.lf_encoder.set_cw_keycode(KeyList.CONSUMER_0x00E9.value)
-        self.lf_encoder.set_ccw_keycode(KeyList.CONSUMER_0x00EA.value)
+        self.lf_encoder.set_cw_keycode(ScanCodeList.MEDIA_VOL_UP.value)
+        self.lf_encoder.set_ccw_keycode(ScanCodeList.MEDIA_VOL_DOWN.value)
 
         # Create key map
         self.lf_key1 = KeyMap(self, text="Digital Key 1")
         self.lf_key1.grid(row=2, column=1)
-        self.lf_key1.set_keycode(KeyList.KEY_A.value)
+        self.lf_key1.set_keycode(ScanCodeList.KEY_A.value)
 
         self.lf_key2 = KeyMap(self, text="Digital Key 2")
         self.lf_key2.grid(row=2, column=2)
-        self.lf_key2.set_keycode(KeyList.KEY_S.value)
+        self.lf_key2.set_keycode(ScanCodeList.KEY_S.value)
 
         self.lf_key3 = KeyMap(self, text="Analog Key 1")
         self.lf_key3.grid(row=3, column=1)
-        self.lf_key3.set_keycode(KeyList.KEY_Z.value)
+        self.lf_key3.set_keycode(ScanCodeList.KEY_Z.value)
 
         self.lf_key4 = KeyMap(self, text="Analog Key 2")
         self.lf_key4.grid(row=3, column=2)
-        self.lf_key4.set_keycode(KeyList.KEY_X.value)
+        self.lf_key4.set_keycode(ScanCodeList.KEY_X.value)
 
         # Create Map Edit Frame
         self.lf_mapedit = MapEditFrame(self)
         self.lf_mapedit.grid(row=4, column=1, columnspan=2)
 
+    def update_from_message_list(msg_list):
+        pass
 
 class SettingsFrame(ttk.Frame):
     """Represents the settings tab"""

@@ -1,0 +1,1 @@
+import scancode_to_hid_code
