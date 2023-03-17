@@ -5,9 +5,11 @@
 #include <stdint.h>
 
 // Q22.10 fixed point
+// Use fixed point numbers instead of floats since SAM D21 doesn't have FPU
 typedef uint32_t q22_10_t;
-typedef int64_t q54_10_t;
 
+// Signed Q53.10 fixed point for large fixed point numbers
+typedef int64_t q53_10_t;
 
 #define Q22_10_FRAC_BITS 10
 #define Q22_10_INT_BITS 22
@@ -16,10 +18,6 @@ typedef int64_t q54_10_t;
 #define Q22_10_TO_INT(x) ((x) >> 10)
 #define Q22_10_TO_FLOAT(x) ((x) / (1024.0f))
 #define FLOAT_TO_Q22_10(x) static_cast<q22_10_t>((x) * (1024))
-
-// typedef Array<fir_tap_t, FIR_NUM_TAPS> fir_taps_array_t;
-
-// fir_taps_array_t fir_taps {0};
 
 // ADC to Distance(mm) LUT
 #define ADC_BITS 12
@@ -42,6 +40,10 @@ const q22_10_t reference_down_mm = FLOAT_TO_Q22_10(2.0f);
 const q22_10_t reference_up_adc = INT_TO_Q22_10(1024);
 const q22_10_t reference_down_adc = INT_TO_Q22_10(3295);
 
+/**
+ * @brief Stores all operational settings for an analog switch
+ * 
+ */
 typedef struct {
     q22_10_t press_hysteresis_mm;
     q22_10_t release_hysteresis_mm;
@@ -71,7 +73,11 @@ class AnalogSwitch {
     AnalogSwitchSettings_t settings;
 
     AnalogSwitch(uint32_t pin, uint32_t id) : pin(pin), id(id) {}
-
+    
+    /**
+     * @brief Setup hardware for 
+     * 
+     */
     void setup() {
         pinMode(pin, INPUT);
         setADCConversionTime(128, 0);
@@ -88,17 +94,12 @@ class AnalogSwitch {
         analogRead(pin);
     }
 
-    void applySettings(AnalogSwitchSettings_t *_settings) {
-        settings = *_settings;
-    }
-
-    void takeAvgReading(size_t no_of_measurements) {
-        q22_10_t sum = 0;
-        for (size_t i = 0; i < no_of_measurements; i++) {
-            sum += INT_TO_Q22_10(analogRead(pin));
-        }
-        current_reading = sum / no_of_measurements;
-    }
+    /**
+     * @brief Update operational settings of the analog switch
+     * 
+     * @param _settings 
+     */
+    void applySettings(AnalogSwitchSettings_t *_settings) { settings = *_settings; }
 
     void mainLoopService() {
         if (use_freerun_mode) {
@@ -121,8 +122,7 @@ class AnalogSwitch {
             }
 
             // Check if should press
-            if (max_distance_mm - current_distance_mm >
-                    settings.press_hysteresis_mm &&
+            if (max_distance_mm - current_distance_mm > settings.press_hysteresis_mm &&
                 current_distance_mm < settings.release_point_mm) {
                 is_pressed = true;
                 resetMinMaxDistance();
@@ -136,8 +136,7 @@ class AnalogSwitch {
                 min_distance_mm = current_distance_mm;
             }
 
-            if (current_distance_mm - min_distance_mm >
-                    settings.release_hysteresis_mm &&
+            if (current_distance_mm - min_distance_mm > settings.release_hysteresis_mm &&
                 current_distance_mm > settings.actuation_point_mm) {
                 is_pressed = false;
                 resetMinMaxDistance();
@@ -151,19 +150,35 @@ class AnalogSwitch {
     }
 
     /**
-     * @brief Read n samples from pin in freerun mode
+     * @brief Read n samples from pin in ADC freerun mode
      * This is faster than getting individual samples with analogRead
      *
      * @param samples
      * @param pin
      * @return uint32_t
      */
+    void takeAvgReading(size_t no_of_measurements) {
+        q22_10_t sum = 0;
+        for (size_t i = 0; i < no_of_measurements; i++) {
+            sum += INT_TO_Q22_10(analogRead(pin));
+        }
+        current_reading = sum / no_of_measurements;
+    }
+
+
+    /**
+     * @brief Read n samples from pin in ADC freerun mode
+     * This is faster than getting individual samples with analogRead
+     *
+     * @param samples
+     * @param pin
+     * @return uint32_t averaged adc value
+     */
     uint32_t takeAvgReadingFreerun(size_t samples) {
         syncADC();
 
-        ADC->INPUTCTRL.bit.MUXPOS =
-            g_APinDescription[pin].ulADCChannelNumber; // Select pos adc input
-        ADC->CTRLB.bit.FREERUN = 1;                    // Turn on freerun mode
+        ADC->INPUTCTRL.bit.MUXPOS = g_APinDescription[pin].ulADCChannelNumber; // Select pos adc input
+        ADC->CTRLB.bit.FREERUN = 1;                                            // Turn on freerun mode
 
         syncADC();
         ADC->CTRLA.bit.ENABLE = 1; // Turn on ADC
@@ -193,22 +208,21 @@ class AnalogSwitch {
         syncADC();
     }
 
-    // Wait for synchronization of registers between the clock domains
+    // Wait for synchronization of registers between MCU and ADC clock domains
     static inline __attribute__((always_inline)) void syncADC() {
         while (ADC->STATUS.bit.SYNCBUSY == 1)
             ;
     }
 
     /**
-     * @brief Setup ADC Prescaler and cycles per sample. Affects mininum
-     * acceptable input impedance
+     * @brief Setup ADC clock prescaler and cycles to set hold capacitor charge time per sample. Affects mininum
+     * acceptable input impedance.
      *
      * @param prescaler Clock divider setting, valid values are
      * 4,8,16,32,64,128,256,512
      * @param cyclesPerSample Number of clock cycles per sample
      */
-    void setADCConversionTime(unsigned int prescaler,
-                              unsigned int cyclesPerSample) {
+    void setADCConversionTime(unsigned int prescaler, unsigned int cyclesPerSample) const {
         unsigned int my_ADC_CTRLB_PRESCALER_DIV;
         unsigned int my_SAMPCTRLREGVal;
 
@@ -240,7 +254,6 @@ class AnalogSwitch {
         default:
             my_ADC_CTRLB_PRESCALER_DIV = ADC_CTRLB_PRESCALER_DIV512_Val;
         }
-        // ADC->CTRLB.reg = my_ADC_CTRLB_PRESCALER_DIV | ADC_CTRLB_RESSEL_12BIT;
         ADC->CTRLB.bit.PRESCALER = my_ADC_CTRLB_PRESCALER_DIV;
 
         while (ADC->STATUS.bit.SYNCBUSY)
@@ -263,28 +276,23 @@ class AnalogSwitch {
     }
 
   private:
-    void loadADCFactoryCalibration() {
+    /**
+     * @brief Loads factory bias and linearity calibration of the ADC from OTP memory
+     *
+     */
+    void loadADCFactoryCalibration() const {
 
         // Load calibration data from efuses
-        uint32_t bias =
-            (*((uint32_t *)ADC_FUSES_BIASCAL_ADDR) & ADC_FUSES_BIASCAL_Msk) >>
-            ADC_FUSES_BIASCAL_Pos;
-        uint32_t linearity = (*((uint32_t *)ADC_FUSES_LINEARITY_0_ADDR) &
-                              ADC_FUSES_LINEARITY_0_Msk) >>
-                             ADC_FUSES_LINEARITY_0_Pos;
-        linearity |= ((*((uint32_t *)ADC_FUSES_LINEARITY_1_ADDR) &
-                       ADC_FUSES_LINEARITY_1_Msk) >>
-                      ADC_FUSES_LINEARITY_1_Pos)
-                     << 5;
-
-        // Wait for bus synchronization
-        while (ADC->STATUS.bit.SYNCBUSY);
+        uint32_t bias = (*((uint32_t *)ADC_FUSES_BIASCAL_ADDR) & ADC_FUSES_BIASCAL_Msk) >> ADC_FUSES_BIASCAL_Pos;
+        uint32_t linearity =
+            (*((uint32_t *)ADC_FUSES_LINEARITY_0_ADDR) & ADC_FUSES_LINEARITY_0_Msk) >> ADC_FUSES_LINEARITY_0_Pos;
+        linearity |=
+            ((*((uint32_t *)ADC_FUSES_LINEARITY_1_ADDR) & ADC_FUSES_LINEARITY_1_Msk) >> ADC_FUSES_LINEARITY_1_Pos) << 5;
 
         // Write the calibration data
-        ADC->CALIB.reg =
-            ADC_CALIB_BIAS_CAL(bias) | ADC_CALIB_LINEARITY_CAL(linearity);
-
-        while (ADC->STATUS.bit.SYNCBUSY);
+        syncADC();
+        ADC->CALIB.reg = ADC_CALIB_BIAS_CAL(bias) | ADC_CALIB_LINEARITY_CAL(linearity);
+        syncADC();
     }
 
     void resetMinMaxDistance() {
@@ -300,9 +308,8 @@ class AnalogSwitch {
      * @param t Must be between 0 an 1
      * @return q22_10_t
      */
-    q22_10_t lerp(q22_10_t a, q22_10_t b, q22_10_t t) {
-        q22_10_t a_weight =
-            a * ((1 << Q22_10_FRAC_BITS) - t) >> Q22_10_FRAC_BITS;
+    q22_10_t lerp(q22_10_t a, q22_10_t b, q22_10_t t) const {
+        q22_10_t a_weight = a * ((1 << Q22_10_FRAC_BITS) - t) >> Q22_10_FRAC_BITS;
         q22_10_t b_weight = b * t >> Q22_10_FRAC_BITS;
         return a_weight + b_weight;
     }
@@ -317,19 +324,16 @@ class AnalogSwitch {
      * @param x1 input mapping
      * @return q22_10_t
      */
-    q22_10_t lerp2(q22_10_t x, q22_10_t y0, q22_10_t y1, q22_10_t x0,
-                   q22_10_t x1) {
-        q54_10_t term_a = int64_t(y0) * (int64_t(x1) - int64_t(x));
-        q54_10_t term_b = int64_t(y1) * (int64_t(x) - int64_t(x0));
-        q54_10_t term_c = int64_t(x1) - int64_t(x0);
-        q54_10_t temp = (term_a + term_b) / term_c;
-        return static_cast<q22_10_t>(temp);
+    q22_10_t lerp2(q22_10_t x, q22_10_t y0, q22_10_t y1, q22_10_t x0, q22_10_t x1) const {
+        q53_10_t term_a = int64_t(y0) * (int64_t(x1) - int64_t(x));
+        q53_10_t term_b = int64_t(y1) * (int64_t(x) - int64_t(x0));
+        q53_10_t term_c = int64_t(x1) - int64_t(x0);
+        q53_10_t temp = (term_a + term_b) / term_c;
+        return static_cast<q22_10_t>(temp); // Should be safe to truncate back to 32 bits at this point
     }
 
-    q22_10_t apply_calibration(q22_10_t adc) {
-        // Serial.printf("adc: %d", adc);
-        return lerp2(adc, reference_down_adc, reference_up_adc,
-                     settings.calibration_down_adc,
+    q22_10_t apply_calibration(q22_10_t adc) const {
+        return lerp2(adc, reference_down_adc, reference_up_adc, settings.calibration_down_adc,
                      settings.calibration_up_adc);
     }
 
@@ -348,7 +352,6 @@ class AnalogSwitch {
         q22_10_t x_floored = INT_TO_Q22_10(lut_index << (ADC_BITS - LUT_BITS));
         // Get difference between input and LUT index
         q22_10_t fraction = (x - x_floored) >> (ADC_BITS - LUT_BITS);
-        return lerp(adc_to_dist_lut[lut_index], adc_to_dist_lut[lut_index + 1],
-                    fraction);
+        return lerp(adc_to_dist_lut[lut_index], adc_to_dist_lut[lut_index + 1], fraction);
     }
 };
