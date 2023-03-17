@@ -73,6 +73,7 @@ This is a list of valid keys that can appear in a `request message`
 
 | JSON Key | Name [units or range] | Description | Type | Notes |
 | - | - | - | - | - |
+| `tkn` | Message Token [uint32] | Message token that the response will echo (write only) | int
 | `key` | Key ID [0,5]| Key ID that the following keys applies to | string
 | `k_t` | Key Type [0,1] | HID Usage Page, Keyboard=0, Consumer=1 | int
 | `k_c` | Key Code [0,255] | HID Key Usage ID (keycode) | int
@@ -81,6 +82,7 @@ This is a list of valid keys that can appear in a `request message`
 | `p_a` | Actuate Point [mm] | Actuation point (Analog key only) | number
 | `p_r` | Release Point [mm] | Release point (Analog key only) | number
 | `rt` | Rapid Trigger | Enable or disable rapid trigger (Analog key only) | bool
+| `adc` | Raw ADC [0,4095] | Raw ADC counts (read only) | integer
 | `d_a` | Actuate Debounce [ms] | Actuation debouce time | integer
 | `d_r` | Release Debounce [ms] | Actuation debouce time | integer
 | `a_s` | ADC Samples [0,32] | Number of ADC samples to take per loop | integer

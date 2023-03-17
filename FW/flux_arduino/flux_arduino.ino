@@ -47,12 +47,7 @@ unsigned long last_time_us;
 const int WRITTEN_SIGNATURE = 0xABCDEF01;
 const uint16_t storedAddress = 0;
 
-enum class KeyType_t {
-    NONE = 0,
-    KEYBOARD = 1,
-    CONSUMER = 2,
-    MOUSE = 3
-};
+enum class KeyType_t { NONE = 0, KEYBOARD = 1, CONSUMER = 2, MOUSE = 3 };
 
 typedef struct {
     union keycode {
@@ -96,8 +91,10 @@ KeyLighting keyLighting[] = {
     KeyLighting(KEY3_LIGHT_PIN, &(analogKeys[1].is_pressed)),
 };
 
-StaticJsonDocument<1024> json_doc_incoming;
-StaticJsonDocument<1024> json_doc_outgoing;
+StaticJsonDocument<1024> request_msg;
+StaticJsonDocument<1024> response_msg;
+
+bool datastream_mode = false;
 
 void setup() {
 
@@ -112,17 +109,16 @@ void setup() {
     Keyboard.begin();
     Consumer.begin();
 
-    encoder.begin(ENC_A_PIN, ENC_B_PIN, EncoderTool::CountMode::quarter,
-                  INPUT_PULLUP);
+    encoder.begin(ENC_A_PIN, ENC_B_PIN, EncoderTool::CountMode::quarter, INPUT_PULLUP);
 
     loadFlashStorage(&storage_vars);
 
-    for (size_t i=0; i < sizeof(digitalKeys)/sizeof(digitalKeys[0]); i++){
+    for (size_t i = 0; i < sizeof(digitalKeys) / sizeof(digitalKeys[0]); i++) {
         digitalKeys[i].setup();
         digitalKeys[i].applySettings(&(storage_vars.digitalSettings[i]));
     }
 
-    for (size_t i=0; i < sizeof(analogKeys)/sizeof(analogKeys[0]); i++){
+    for (size_t i = 0; i < sizeof(analogKeys) / sizeof(analogKeys[0]); i++) {
         analogKeys[i].setup();
         analogKeys[i].applySettings(&(storage_vars.analogSettings[i]));
     }
@@ -151,9 +147,7 @@ void loop() {
 
     if (!debug_mode) {
         if (curr_time_us - last_print_us > print_period_us) {
-            float loop_freq =
-                (static_cast<float>(loop_count) /
-                 (static_cast<float>(print_period_us) / 1000000.0f));
+            float loop_freq = (static_cast<float>(loop_count) / (static_cast<float>(print_period_us) / 1000000.0f));
             Serial.printf("Loop freq: %f\n", loop_freq);
             loop_count = 0;
             last_print_us += print_period_us;
@@ -167,8 +161,7 @@ void loop() {
         key.mainLoopService();
         if (debug_mode) {
             Serial.printf(" (%d) ", key.current_reading);
-            Serial.printf("%f %f ", Q22_10_TO_FLOAT(key.current_reading),
-                          Q22_10_TO_FLOAT(key.current_distance_mm));
+            Serial.printf("%f %f ", Q22_10_TO_FLOAT(key.current_reading), Q22_10_TO_FLOAT(key.current_distance_mm));
         }
 
         if (key.is_pressed) {
@@ -193,12 +186,11 @@ void loop() {
     if (encoder.valueChanged()) {
         switch (encoder.getValue()) {
         case 1:
-            typeHIDKey(storage_vars.keymap[ENC_UP_KEY_ID].keycode.value,
-                        storage_vars.keymap[ENC_UP_KEY_ID].keyType);
+            typeHIDKey(storage_vars.keymap[ENC_UP_KEY_ID].keycode.value, storage_vars.keymap[ENC_UP_KEY_ID].keyType);
             break;
         case -1:
             typeHIDKey(storage_vars.keymap[ENC_DOWN_KEY_ID].keycode.value,
-                        storage_vars.keymap[ENC_DOWN_KEY_ID].keyType);
+                       storage_vars.keymap[ENC_DOWN_KEY_ID].keyType);
             break;
         default:
             break;
@@ -215,6 +207,9 @@ void loop() {
 
     Keyboard.send();
     read_serial();
+
+    // Send data out in datastream mode
+    datastream_mode_service();
 }
 
 void typeHIDKey(char key, KeyType_t key_type) {
@@ -265,25 +260,15 @@ void releaseHIDKey(const KeyMapEntry_t *entry) {
     }
 }
 
-bool is_analog_key(uint32_t key_id){
-    return key_id <= 1;
-}
+bool is_analog_key(uint32_t key_id) { return key_id <= 1; }
 
-bool is_digital_key(uint32_t key_id){
-    return 2 <= key_id && key_id <= 3;
-}
+bool is_digital_key(uint32_t key_id) { return 2 <= key_id && key_id <= 3; }
 
-bool is_encoder_key(uint32_t key_id){
-    return 4 <= key_id && key_id <= 5;
-}
+bool is_encoder_key(uint32_t key_id) { return 4 <= key_id && key_id <= 5; }
 
-uint32_t key_id_to_analog_key_index(uint32_t key_id){
-    return (key_id - 2);
-}
+uint32_t key_id_to_analog_key_index(uint32_t key_id) { return (key_id - 2); }
 
-uint32_t key_id_to_digital_key_index(uint32_t key_id){
-    return key_id;
-}
+uint32_t key_id_to_digital_key_index(uint32_t key_id) { return key_id; }
 
 bool saveFlashStorage(const StorageVars_t *storage_vars) {
 
@@ -372,8 +357,7 @@ bool loadFlashStorage(StorageVars_t *storage_vars) {
         };
     }
 
-    for (KeyLightingSettings_t &keyLightingSettings :
-         storage_vars->lightingSettings) {
+    for (KeyLightingSettings_t &keyLightingSettings : storage_vars->lightingSettings) {
         keyLightingSettings = {
             .mode = LIGHTING_MODE_FADE,
             .fade_half_life_us = 20 * 1000,
@@ -388,8 +372,18 @@ bool loadFlashStorage(StorageVars_t *storage_vars) {
     return false;
 }
 
-void apply_analog_settings(){
+void send_error_response_message(const char *error_string) {
+    StaticJsonDocument<256> error_msg;
+    error_msg["error"] = error_string;
+    serializeJson(error_msg, Serial);
+}
 
+/**
+ * @brief Datastream mode service function, called periodically in main loop
+ * 
+ */
+void datastream_mode_service(){
+    // TODO implmement this
 }
 
 /**
@@ -403,7 +397,7 @@ void read_serial() {
     }
 
     // Try to deserialize from Serial stream
-    DeserializationError error = deserializeJson(json_doc_incoming, Serial);
+    DeserializationError error = deserializeJson(request_msg, Serial);
 
     // // Flush incoming buffer
     // while (Serial.available() > 0) {
@@ -422,10 +416,8 @@ void read_serial() {
         return;
     }
 
-
-
     // Try to get command
-    const char *cmd = json_doc_incoming["cmd"];
+    const char *cmd = request_msg["cmd"];
     if (cmd == nullptr) {
         Serial.println(F("No cmd key found"));
     }
@@ -434,165 +426,90 @@ void read_serial() {
     Keyboard.releaseAll();
     Consumer.releaseAll();
 
-    json_doc_outgoing.clear();
+    response_msg.clear();
 
-    // W: Write to storage
+    // Get Token if any
+    unsigned int token = 0;
+    if (request_msg.containsKey("tkn")) {
+        token = request_msg["tkn"].as<unsigned int>();
+    }
+
+    // w: Write command
     if (strcmp(cmd, "w") == 0) {
 
-        json_doc_outgoing["cmd"] = "W";
+        response_msg["cmd"] = "W";
 
-        if (json_doc_incoming.containsKey("key")){
-            uint32_t key_id = json_doc_incoming["key"].as<unsigned int>();
+        if (request_msg.containsKey("key")) {
+            uint32_t key_id = request_msg["key"].as<unsigned int>();
 
             // Keymap
-            if (json_doc_incoming.containsKey("k_t")){
-                storage_vars.keymap[key_id].keyType = static_cast<KeyType_t>(json_doc_incoming["k_t"].as<unsigned int>());
+            if (request_msg.containsKey("k_t")) {
+                storage_vars.keymap[key_id].keyType = static_cast<KeyType_t>(request_msg["k_t"].as<unsigned int>());
             }
-            if (json_doc_incoming.containsKey("k_c")){
-                storage_vars.keymap[key_id].keycode.value = static_cast<uint16_t>(json_doc_incoming["k_c"].as<unsigned int>());
+            if (request_msg.containsKey("k_c")) {
+                storage_vars.keymap[key_id].keycode.value =
+                    static_cast<uint16_t>(request_msg["k_c"].as<unsigned int>());
             }
 
-            // Analog Key Settings
-
-            if (is_analog_key(key_id)){
+            if (is_analog_key(key_id)) {
+                // Handle analog key settings
                 uint32_t analog_key_id = key_id_to_analog_key_index(key_id);
                 AnalogSwitchSettings_t *currAnalogSettings = &(storage_vars.analogSettings[analog_key_id]);
 
-                if (json_doc_incoming.containsKey("h_a")){
-                    currAnalogSettings->press_hysteresis_mm = static_cast<q22_10_t>(json_doc_incoming["h_a"].as<unsigned int>());
+                if (request_msg.containsKey("h_a")) {
+                    currAnalogSettings->press_hysteresis_mm = FLOAT_TO_Q22_10(request_msg["h_a"].as<unsigned int>());
                 }
-                if (json_doc_incoming.containsKey("h_r")){
-                    currAnalogSettings->release_hysteresis_mm = static_cast<q22_10_t>(json_doc_incoming["h_r"].as<unsigned int>());
+                if (request_msg.containsKey("h_r")) {
+                    currAnalogSettings->release_hysteresis_mm = FLOAT_TO_Q22_10(request_msg["h_r"].as<unsigned int>());
                 }
-                if (json_doc_incoming.containsKey("p_a")){
-                    currAnalogSettings->actuation_point_mm = static_cast<q22_10_t>(json_doc_incoming["p_a"].as<unsigned int>());
+                if (request_msg.containsKey("p_a")) {
+                    currAnalogSettings->actuation_point_mm = FLOAT_TO_Q22_10(request_msg["p_a"].as<float>());
                 }
-                if (json_doc_incoming.containsKey("p_r")){
-                    currAnalogSettings->release_point_mm = static_cast<q22_10_t>(json_doc_incoming["p_r"].as<unsigned int>());
+                if (request_msg.containsKey("p_r")) {
+                    currAnalogSettings->release_point_mm = FLOAT_TO_Q22_10(request_msg["p_r"].as<float>());
                 }
-                if (json_doc_incoming.containsKey("d_a")){
-                    currAnalogSettings->press_debounce_ms = static_cast<uint32_t>(json_doc_incoming["d_a"].as<unsigned int>());
+                if (request_msg.containsKey("d_a")) {
+                    currAnalogSettings->press_debounce_ms = request_msg["d_a"].as<unsigned int>();
                 }
-                if (json_doc_incoming.containsKey("d_r")){
-                    currAnalogSettings->release_debounce_ms = static_cast<uint32_t>(json_doc_incoming["d_r"].as<unsigned int>());
+                if (request_msg.containsKey("d_r")) {
+                    currAnalogSettings->release_debounce_ms = request_msg["d_r"].as<unsigned int>();
                 }
-                if (json_doc_incoming.containsKey("c_u")){
-                    currAnalogSettings->calibration_up_adc = static_cast<q22_10_t>(json_doc_incoming["c_u"].as<unsigned int>());
+                if (request_msg.containsKey("c_u")) {
+                    currAnalogSettings->calibration_up_adc = FLOAT_TO_Q22_10(request_msg["c_u"].as<unsigned int>());
                 }
-                if (json_doc_incoming.containsKey("c_d")){
-                    currAnalogSettings->calibration_down_adc = static_cast<q22_10_t>(json_doc_incoming["c_d"].as<unsigned int>());
+                if (request_msg.containsKey("c_d")) {
+                    currAnalogSettings->calibration_down_adc = FLOAT_TO_Q22_10(request_msg["c_d"].as<unsigned int>());
                 }
-                if (json_doc_incoming.containsKey("s")){
-                    currAnalogSettings->samples = static_cast<q22_10_t>(json_doc_incoming["s"].as<unsigned int>());
-                }
-                analogKeys[analog_key_id].applySettings(currAnalogSettings);
-                
-            } else if (is_digital_key(key_id))
-            {
-                uint32_t digital_key_id = key_id_to_analog_key_index(key_id);
-                DigitalSwitchSettings_t *currDigitalSettings = &(storage_vars.digitalSettings[digital_key_id]);
-                if (json_doc_incoming.containsKey("d_a")){
-                    currDigitalSettings->debounce_press_ms = static_cast<uint32_t>(json_doc_incoming["d_a"].as<unsigned int>());
-                }
-                if (json_doc_incoming.containsKey("d_r")){
-                    currDigitalSettings->debounce_release_ms = static_cast<uint32_t>(json_doc_incoming["d_r"].as<unsigned int>());
+                if (request_msg.containsKey("s")) {
+                    currAnalogSettings->samples = request_msg["s"].as<unsigned int>();
                 }
 
+                // Apply new settings to key
+                analogKeys[analog_key_id].applySettings(currAnalogSettings);
+
+            } else if (is_digital_key(key_id)) {
+                // Handle digital key settings
+                uint32_t digital_key_id = key_id_to_analog_key_index(key_id);
+                DigitalSwitchSettings_t *currDigitalSettings = &(storage_vars.digitalSettings[digital_key_id]);
+
+                if (request_msg.containsKey("d_a")) {
+                    currDigitalSettings->debounce_press_ms =
+                        static_cast<uint32_t>(request_msg["d_a"].as<unsigned int>());
+                }
+                if (request_msg.containsKey("d_r")) {
+                    currDigitalSettings->debounce_release_ms =
+                        static_cast<uint32_t>(request_msg["d_r"].as<unsigned int>());
+                }
+
+                // Apply new settings to key
                 digitalKeys[digital_key_id].applySettings(currDigitalSettings);
             } else {
-                json_doc_outgoing["error"] = F("INVALID_KEY_ID");
+                send_error_response_message("INVALID_KEY_ID");
             }
         }
 
-        // if (json_doc_incoming.containsKey("map")) {
-        //     JsonArray array = json_doc_incoming["map"].as<JsonArray>();
-        //     for (auto entry : array) {
-        //         if (entry.containsKey("id") && entry.containsKey("code") &&
-        //             entry.containsKey("type")) {
-        //             uint32_t id = entry["id"].as<unsigned int>();
-        //             uint32_t code = entry["code"].as<int>();
-        //             uint32_t type = entry["type"].as<unsigned int>();
-
-        //             storage_vars.keymap[id].keycode.value = static_cast<uint16_t>(code);
-        //             storage_vars.keymap[id].keyType =
-        //                 static_cast<KeyType_t>(type);
-
-        //             Serial.printf("Set id %d to code %d type %d", id,
-        //                           storage_vars.keymap[id].keycode,
-        //                           storage_vars.keymap[id].keyType);
-        //         }
-        //     }
-        // }
-
-        // // Digital key settings
-        // if (json_doc_incoming.containsKey("d_s")) {
-        //     JsonObject digital_settings =
-        //         json_doc_incoming["d_s"].as<JsonObject>();
-        //     if (digital_settings.containsKey("t_p")) {
-        //         storage_vars.digitalSettings.debounce_press_ms =
-        //             digital_settings["t_p"].as<int32_t>();
-        //     }
-        //     if (digital_settings.containsKey("t_r")) {
-        //         storage_vars.digitalSettings.debounce_release_ms =
-        //             digital_settings["t_r"].as<int32_t>();
-        //     }
-
-        //     // Apply settings
-        //     for (DigitalSwitch &key : digitalKeys) {
-        //         key.applySettings(&(storage_vars.digitalSettings));
-        //     }
-        // }
-
-        // Analog key settings
-        // if (json_doc_incoming.containsKey("a_s")) {
-        //     Serial.printf("a_s\n");
-        //     JsonObject analog_settings =
-        //         json_doc_incoming["a_s"].as<JsonObject>();
-        //     if (analog_settings.containsKey("h_a")) {
-        //         storage_vars.analogSettings.press_hysteresis_mm =
-        //             FLOAT_TO_Q22_10(analog_settings["h_a"].as<float>());
-        //     }
-        //     if (analog_settings.containsKey("h_r")) {
-        //         storage_vars.analogSettings.release_hysteresis_mm =
-        //             FLOAT_TO_Q22_10(analog_settings["h_r"].as<float>());
-        //     }
-        //     if (analog_settings.containsKey("p_a")) {
-        //         storage_vars.analogSettings.actuation_point_mm =
-        //             FLOAT_TO_Q22_10(analog_settings["p_a"].as<float>());
-        //     }
-        //     if (analog_settings.containsKey("p_r")) {
-        //         storage_vars.analogSettings.release_point_mm =
-        //             FLOAT_TO_Q22_10(analog_settings["p_r"].as<float>());
-        //     }
-        //     if (analog_settings.containsKey("s")) {
-        //         storage_vars.analogSettings.samples =
-        //             analog_settings["s"].as<uint32_t>();
-        //     }
-        //     if (analog_settings.containsKey("PRESCALER_DIV")) {
-        //         int prescaler_div =
-        //             analog_settings["PRESCALER_DIV"].as<uint32_t>();
-        //         for (AnalogSwitch &key : analogKeys) {
-        //             key.setADCConversionTime(prescaler_div, 0);
-        //         }
-        //         Serial.printf("PRESCALER_DIV: %d", prescaler_div);
-        //     }
-
-        //     if (analog_settings.containsKey("FREERUN")) {
-        //         bool use_freerun = analog_settings["FREERUN"].as<uint32_t>();
-        //         for (AnalogSwitch &key : analogKeys) {
-        //             key.use_freerun_mode = use_freerun;
-        //         }
-        //         Serial.printf("FREERUN: %d", use_freerun);
-        //     }
-
-        //     // Apply settings
-        //     for (AnalogSwitch &key : analogKeys) {
-        //         key.applySettings(&(storage_vars.analogSettings));
-        //     }
-        // }
-
-        if (json_doc_incoming.containsKey("debug")) {
-            uint32_t debug_mode_freq_hz = json_doc_incoming["debug"].as<unsigned int>();
+        if (request_msg.containsKey("debug")) {
+            uint32_t debug_mode_freq_hz = request_msg["debug"].as<unsigned int>();
             Serial.printf("debug mode freq: %d hz\n", debug_mode_freq_hz);
             if (debug_mode_freq_hz == 0) {
                 debug_mode = false;
@@ -603,66 +520,106 @@ void read_serial() {
             }
         }
 
+        // Set datastream mode
+        if (request_msg.containsKey("dstrm")){
+            datastream_mode = request_msg["dstrm"].as<bool>();
+        }
+
         saveFlashStorage(&storage_vars);
     }
 
-    // R: Read from storage
+    // r: Read command
     else if (strcmp(cmd, "r") == 0) {
-        json_doc_outgoing["cmd"] = "r";
+        response_msg["cmd"] = "r";
 
-        if (json_doc_incoming.containsKey("key")){
-            uint32_t key_id = json_doc_incoming["key"].as<unsigned int>();
-            
-            json_doc_outgoing["k_t"] = static_cast<unsigned int>(storage_vars.keymap[key_id].keyType);
-            json_doc_outgoing["k_c"] = static_cast<unsigned int>(storage_vars.keymap[key_id].keycode.value);
+        if (request_msg.containsKey("key")) {
+            uint32_t key_id = request_msg["key"].as<unsigned int>();
 
-            // JsonArray incoming_array = json_doc_incoming["map"].as<JsonArray>();
-            // JsonArray array = json_doc_outgoing.createNestedArray("map");
-            // for (auto incoming_entry : incoming_array) {
-            //     if (incoming_entry.containsKey("id")) {
-            //         uint32_t id = incoming_entry["id"].as<unsigned int>();
+            response_msg["k_t"] = static_cast<unsigned int>(storage_vars.keymap[key_id].keyType);
+            response_msg["k_c"] = static_cast<unsigned int>(storage_vars.keymap[key_id].keycode.value);
 
-            //         Serial.printf("id: %d \n", id);
-
-            //         JsonObject object = array.createNestedObject();
-            //         object["code"] = static_cast<unsigned int>(
-            //             storage_vars.keymap[id].keycode.value);
-            //         object["type"] = static_cast<unsigned int>(
-            //             storage_vars.keymap[id].keyType);
-            //     }
-            // }
+            if (is_analog_key(key_id)) {
+                // Handle analog keys
+                // This repeated code is not great...
+                uint32_t analog_key_id = key_id_to_analog_key_index(key_id);
+                const AnalogSwitchSettings_t *currAnalogSettings = &(storage_vars.analogSettings[analog_key_id]);
+                if (request_msg.containsKey("h_a")) {
+                    response_msg["h_a"] = Q22_10_TO_FLOAT(currAnalogSettings->press_hysteresis_mm);
+                }
+                if (request_msg.containsKey("h_r")) {
+                    response_msg["h_r"] = Q22_10_TO_FLOAT(currAnalogSettings->release_hysteresis_mm);
+                }
+                if (request_msg.containsKey("p_a")) {
+                    response_msg["p_a"] = Q22_10_TO_FLOAT(currAnalogSettings->actuation_point_mm);
+                }
+                if (request_msg.containsKey("p_r")) {
+                    response_msg["p_r"] = Q22_10_TO_FLOAT(currAnalogSettings->release_point_mm);
+                }
+                if (request_msg.containsKey("d_a")) {
+                    response_msg["d_a"] = currAnalogSettings->press_debounce_ms;
+                }
+                if (request_msg.containsKey("d_r")) {
+                    response_msg["c_u"] = currAnalogSettings->release_debounce_ms;
+                }
+                if (request_msg.containsKey("c_u")) {
+                    response_msg["c_u"] = Q22_10_TO_FLOAT(currAnalogSettings->calibration_up_adc);
+                }
+                if (request_msg.containsKey("c_d")) {
+                    response_msg["c_d"] = Q22_10_TO_FLOAT(currAnalogSettings->calibration_down_adc);
+                }
+                if (request_msg.containsKey("s")) {
+                    response_msg["s"] = currAnalogSettings->samples;
+                }
+                if (request_msg.containsKey("adc")) {
+                    response_msg["adc"] = Q22_10_TO_FLOAT(currAnalogSettings->samples);
+                }
+            } else if (is_digital_key(key_id)) {
+                // Handle digital keys
+                uint32_t digital_key_id = key_id_to_analog_key_index(key_id);
+                DigitalSwitchSettings_t *currDigitalSettings = &(storage_vars.digitalSettings[digital_key_id]);
+                if (request_msg.containsKey("d_a")) {
+                    currDigitalSettings->debounce_press_ms =
+                        static_cast<uint32_t>(request_msg["d_a"].as<unsigned int>());
+                }
+                if (request_msg.containsKey("d_r")) {
+                    currDigitalSettings->debounce_release_ms =
+                        static_cast<uint32_t>(request_msg["d_r"].as<unsigned int>());
+                }
+            } else {
+                send_error_response_message("INVALID_KEY_ID");
+            }
         }
 
-        if (json_doc_incoming.containsKey("adc")) {
-            JsonObject adc_object = json_doc_outgoing.createNestedObject("adc");
-            GCLK->CLKCTRL.bit.ID =
-                static_cast<uint8_t>(GCLK_CLKCTRL_ID_ADC_Val);
+        if (request_msg.containsKey("adc")) {
+            JsonObject adc_object = response_msg.createNestedObject("adc");
+            GCLK->CLKCTRL.bit.ID = static_cast<uint8_t>(GCLK_CLKCTRL_ID_ADC_Val);
             while (GCLK->STATUS.bit.SYNCBUSY)
                 ;
-            adc_object["GCLK"] = static_cast<unsigned int>(
-                GCLK->CLKCTRL.reg); // 01 00 0000 00 011110
+            adc_object["GCLK"] = static_cast<unsigned int>(GCLK->CLKCTRL.reg);
             adc_object["CTRLA"] = static_cast<unsigned int>(ADC->CTRLA.reg);
             adc_object["CTRLB"] = static_cast<unsigned int>(ADC->CTRLB.reg);
             adc_object["AVGCTRL"] = static_cast<unsigned int>(ADC->AVGCTRL.reg);
-            adc_object["SAMPCTRL"] =
-                static_cast<unsigned int>(ADC->SAMPCTRL.reg);
-            adc_object["GAINCORR"] =
-                static_cast<unsigned int>(ADC->GAINCORR.reg);
-            adc_object["OFFSETCORR"] =
-                static_cast<unsigned int>(ADC->OFFSETCORR.reg);
+            adc_object["SAMPCTRL"] = static_cast<unsigned int>(ADC->SAMPCTRL.reg);
+            adc_object["GAINCORR"] = static_cast<unsigned int>(ADC->GAINCORR.reg);
+            adc_object["OFFSETCORR"] = static_cast<unsigned int>(ADC->OFFSETCORR.reg);
         }
     }
 
     // V: Get Version
     else if (strcmp(cmd, "v") == 0) {
 
-        json_doc_outgoing["cmd"] = "v";
+        response_msg["cmd"] = "v";
 
-        json_doc_outgoing["V"] = VERSION;
+        response_msg["V"] = VERSION;
     } else {
         Serial.printf("Invalid cmd: %s", cmd);
     }
 
-    // Reply with json doc
-    serializeJson(json_doc_outgoing, Serial);
+    // Add token if there was one and it wasn't zero
+    if (token != 0) {
+        response_msg["tkn"] = token;
+    }
+
+    // Send response message
+    serializeJson(response_msg, Serial);
 }
