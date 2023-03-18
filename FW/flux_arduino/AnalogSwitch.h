@@ -62,6 +62,7 @@ class AnalogSwitch {
     const uint32_t id = 0;
 
     q22_10_t current_reading = 0;
+    q22_10_t current_reading_calibrated = 0;
     q22_10_t current_distance_mm = 0;
     q22_10_t max_distance_mm;
     q22_10_t min_distance_mm;
@@ -111,7 +112,8 @@ class AnalogSwitch {
         // %lu ", current_reading, max_reading, min_reading);
         // Serial.printf("press_hys: %lu, release_hys: %lu ",
         // settings.press_hysteresis, settings.release_hysteresis);
-        current_distance_mm = adcCountsToDistanceMM(current_reading);
+        current_reading_calibrated = apply_calibration(current_reading);
+        current_distance_mm = adcCountsToDistanceMM(current_reading_calibrated);
 
         switch (is_pressed) {
         case false:
@@ -174,7 +176,7 @@ class AnalogSwitch {
      * @param pin
      * @return uint32_t averaged adc value
      */
-    uint32_t takeAvgReadingFreerun(size_t samples) {
+    void takeAvgReadingFreerun(size_t samples) {
         syncADC();
 
         ADC->INPUTCTRL.bit.MUXPOS = g_APinDescription[pin].ulADCChannelNumber; // Select pos adc input
@@ -202,7 +204,7 @@ class AnalogSwitch {
             sum += INT_TO_Q22_10(result);
         }
         // current_reading = sum / samples;
-        current_reading = apply_calibration(sum / samples);
+        current_reading = sum / samples;
 
         ADC->CTRLA.bit.ENABLE = 0; // Turn off ADC
         syncADC();

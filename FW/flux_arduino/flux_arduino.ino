@@ -259,9 +259,9 @@ void releaseHIDKey(const KeyMapEntry_t *entry) {
     }
 }
 
-bool is_analog_key(uint32_t key_id) { return key_id <= 1; }
+bool is_digital_key(uint32_t key_id) { return key_id <= 1; }
 
-bool is_digital_key(uint32_t key_id) { return 2 <= key_id && key_id <= 3; }
+bool is_analog_key(uint32_t key_id) { return 2 <= key_id && key_id <= 3; }
 
 bool is_encoder_key(uint32_t key_id) { return 4 <= key_id && key_id <= 5; }
 
@@ -273,41 +273,18 @@ bool saveFlashStorage(const StorageVars_t *storage_vars) {
 
     // Write to Flash
     EEPROM.put(storedAddress, WRITTEN_SIGNATURE);
-    EEPROM.put(storedAddress + sizeof(int), *storage_vars);
+    EEPROM.put(storedAddress + sizeof(WRITTEN_SIGNATURE), *storage_vars);
 
-    if (!EEPROM.getCommitASAP()) {
-        // Serial.printf("CommitASAP not set. Need commit()");
+    // if (!EEPROM.getCommitASAP()) {
+    //     Serial.printf("CommitASAP not set. Need commit()");
         EEPROM.commit();
-    }
+    // }
 
     return false;
 }
 
-/**
- * @brief Loads flash storage settings. If flash doesn't exist, returns the
- * default settings.
- *
- * @param storage_vars
- * @return true
- * @return false
- */
-bool loadFlashStorage(StorageVars_t *storage_vars) {
-
-    // Check if flash has been written before
-    int signature;
-    EEPROM.get(storedAddress, signature);
-    if (signature == WRITTEN_SIGNATURE) {
-        // Flash has already been written
-        // Read from flash and load to storage_vars
-
-        StorageVars_t retrievedStorageVars;
-        EEPROM.get(storedAddress + sizeof(signature), *storage_vars);
-        *storage_vars = retrievedStorageVars;
-        return true;
-    }
-
-    // Flash has not been written yet, set default values
-
+void fillDefaultStorageVars(StorageVars_t *storage_vars){
+    
     // Set Default keymap
     storage_vars->keymap[0] = {
         .keycode = {KEY_A},
@@ -364,9 +341,37 @@ bool loadFlashStorage(StorageVars_t *storage_vars) {
             .static_duty_cycle = 50,
         };
     };
+}
+
+/**
+ * @brief Loads flash storage settings. If flash doesn't exist, returns the
+ * default settings.
+ *
+ * @param storage_vars
+ * @return true
+ * @return false
+ */
+bool loadFlashStorage(StorageVars_t *_storage_vars) {
+
+    // Check if flash has been written before
+    int signature;
+    EEPROM.get(storedAddress, signature);
+    if (signature == WRITTEN_SIGNATURE) {
+        // Flash has already been written
+        // Read from flash and load to storage_vars
+
+        StorageVars_t retrievedStorageVars;
+        EEPROM.get(storedAddress + sizeof(signature), *_storage_vars);
+        // *_storage_vars = retrievedStorageVars;
+        return true;
+    }
+
+    // Flash has not been written yet, set default values
+
+    fillDefaultStorageVars(_storage_vars);
 
     // Write to Flash
-    saveFlashStorage(storage_vars);
+    saveFlashStorage(_storage_vars);
 
     return false;
 }
@@ -456,10 +461,10 @@ void read_serial() {
                 AnalogSwitchSettings_t *currAnalogSettings = &(storage_vars.analogSettings[analog_key_id]);
 
                 if (request_msg.containsKey("h_a")) {
-                    currAnalogSettings->press_hysteresis_mm = FLOAT_TO_Q22_10(request_msg["h_a"].as<unsigned int>());
+                    currAnalogSettings->press_hysteresis_mm = FLOAT_TO_Q22_10(request_msg["h_a"].as<float>());
                 }
                 if (request_msg.containsKey("h_r")) {
-                    currAnalogSettings->release_hysteresis_mm = FLOAT_TO_Q22_10(request_msg["h_r"].as<unsigned int>());
+                    currAnalogSettings->release_hysteresis_mm = FLOAT_TO_Q22_10(request_msg["h_r"].as<float>());
                 }
                 if (request_msg.containsKey("p_a")) {
                     currAnalogSettings->actuation_point_mm = FLOAT_TO_Q22_10(request_msg["p_a"].as<float>());
@@ -474,10 +479,10 @@ void read_serial() {
                     currAnalogSettings->release_debounce_ms = request_msg["d_r"].as<unsigned int>();
                 }
                 if (request_msg.containsKey("c_u")) {
-                    currAnalogSettings->calibration_up_adc = FLOAT_TO_Q22_10(request_msg["c_u"].as<unsigned int>());
+                    currAnalogSettings->calibration_up_adc = FLOAT_TO_Q22_10(request_msg["c_u"].as<float>());
                 }
                 if (request_msg.containsKey("c_d")) {
-                    currAnalogSettings->calibration_down_adc = FLOAT_TO_Q22_10(request_msg["c_d"].as<unsigned int>());
+                    currAnalogSettings->calibration_down_adc = FLOAT_TO_Q22_10(request_msg["c_d"].as<float>());
                 }
                 if (request_msg.containsKey("s")) {
                     currAnalogSettings->samples = request_msg["s"].as<unsigned int>();
@@ -488,7 +493,7 @@ void read_serial() {
 
             } else if (is_digital_key(key_id)) {
                 // Handle digital key settings
-                uint32_t digital_key_id = key_id_to_analog_key_index(key_id);
+                uint32_t digital_key_id = key_id_to_digital_key_index(key_id);
                 DigitalSwitchSettings_t *currDigitalSettings = &(storage_vars.digitalSettings[digital_key_id]);
 
                 if (request_msg.containsKey("d_a")) {
@@ -558,7 +563,7 @@ void read_serial() {
                     response_msg["d_a"] = currAnalogSettings->press_debounce_ms;
                 }
                 if (request_msg.containsKey("d_r")) {
-                    response_msg["c_u"] = currAnalogSettings->release_debounce_ms;
+                    response_msg["d_r"] = currAnalogSettings->release_debounce_ms;
                 }
                 if (request_msg.containsKey("c_u")) {
                     response_msg["c_u"] = Q22_10_TO_FLOAT(currAnalogSettings->calibration_up_adc);
@@ -570,38 +575,40 @@ void read_serial() {
                     response_msg["s"] = currAnalogSettings->samples;
                 }
                 if (request_msg.containsKey("adc")) {
-                    response_msg["adc"] = Q22_10_TO_FLOAT(currAnalogSettings->samples);
+                    response_msg["adc"] = Q22_10_TO_FLOAT(analogKeys[analog_key_id].current_reading);
+                }
+                if (request_msg.containsKey("ht")) {
+                    response_msg["ht"] = Q22_10_TO_FLOAT(analogKeys[analog_key_id].current_distance_mm);
                 }
             } else if (is_digital_key(key_id)) {
                 // Handle digital keys
-                uint32_t digital_key_id = key_id_to_analog_key_index(key_id);
-                DigitalSwitchSettings_t *currDigitalSettings = &(storage_vars.digitalSettings[digital_key_id]);
+                uint32_t digital_key_id = key_id_to_digital_key_index(key_id);
+                const DigitalSwitchSettings_t *currDigitalSettings = &(storage_vars.digitalSettings[digital_key_id]);
                 if (request_msg.containsKey("d_a")) {
-                    currDigitalSettings->debounce_press_ms =
-                        static_cast<uint32_t>(request_msg["d_a"].as<unsigned int>());
+                    response_msg["d_a"] = currDigitalSettings->debounce_press_ms;
                 }
                 if (request_msg.containsKey("d_r")) {
-                    currDigitalSettings->debounce_release_ms =
-                        static_cast<uint32_t>(request_msg["d_r"].as<unsigned int>());
+                    Serial.printf("hello");
+                    response_msg["d_r"] = currDigitalSettings->debounce_release_ms;
                 }
             } else {
                 send_error_response_message("INVALID_KEY_ID");
             }
         }
 
-        if (request_msg.containsKey("adc")) {
-            JsonObject adc_object = response_msg.createNestedObject("adc");
-            GCLK->CLKCTRL.bit.ID = static_cast<uint8_t>(GCLK_CLKCTRL_ID_ADC_Val);
-            while (GCLK->STATUS.bit.SYNCBUSY)
-                ;
-            adc_object["GCLK"] = static_cast<unsigned int>(GCLK->CLKCTRL.reg);
-            adc_object["CTRLA"] = static_cast<unsigned int>(ADC->CTRLA.reg);
-            adc_object["CTRLB"] = static_cast<unsigned int>(ADC->CTRLB.reg);
-            adc_object["AVGCTRL"] = static_cast<unsigned int>(ADC->AVGCTRL.reg);
-            adc_object["SAMPCTRL"] = static_cast<unsigned int>(ADC->SAMPCTRL.reg);
-            adc_object["GAINCORR"] = static_cast<unsigned int>(ADC->GAINCORR.reg);
-            adc_object["OFFSETCORR"] = static_cast<unsigned int>(ADC->OFFSETCORR.reg);
-        }
+        // if (request_msg.containsKey("adc")) {
+        //     JsonObject adc_object = response_msg.createNestedObject("adc");
+        //     GCLK->CLKCTRL.bit.ID = static_cast<uint8_t>(GCLK_CLKCTRL_ID_ADC_Val);
+        //     while (GCLK->STATUS.bit.SYNCBUSY)
+        //         ;
+        //     adc_object["GCLK"] = static_cast<unsigned int>(GCLK->CLKCTRL.reg);
+        //     adc_object["CTRLA"] = static_cast<unsigned int>(ADC->CTRLA.reg);
+        //     adc_object["CTRLB"] = static_cast<unsigned int>(ADC->CTRLB.reg);
+        //     adc_object["AVGCTRL"] = static_cast<unsigned int>(ADC->AVGCTRL.reg);
+        //     adc_object["SAMPCTRL"] = static_cast<unsigned int>(ADC->SAMPCTRL.reg);
+        //     adc_object["GAINCORR"] = static_cast<unsigned int>(ADC->GAINCORR.reg);
+        //     adc_object["OFFSETCORR"] = static_cast<unsigned int>(ADC->OFFSETCORR.reg);
+        // }
     }
 
     // V: Get Version
