@@ -82,7 +82,8 @@ This is a list of valid keys that can appear in a `request message`
 | `p_a` | Actuate Point [mm] | Actuation point (Analog key only) | number
 | `p_r` | Release Point [mm] | Release point (Analog key only) | number
 | `rt` | Rapid Trigger | Enable or disable rapid trigger (Analog key only) | bool
-| `adc` | Raw ADC [0,4095] | Raw ADC counts (read only) | integer
+| `adc` | Raw ADC [0,4095] | Raw ADC counts (read only) | number
+| `ht` | Height [mm] | Calculated height of key ADC (read only) | number
 | `d_a` | Actuate Debounce [ms] | Actuation debouce time | integer
 | `d_r` | Release Debounce [ms] | Actuation debouce time | integer
 | `a_s` | ADC Samples [0,32] | Number of ADC samples to take per loop | integer
