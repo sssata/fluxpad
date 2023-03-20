@@ -1081,7 +1081,7 @@
         (effects (font (size 1 1) (thickness 0.15)))
       (tstamp bd5593fa-abe5-4d8b-9d50-5d344d729173)
     )
-    (fp_text user "LEKKER SW#" (at 0 5.7 unlocked) (layer "F.SilkS")
+    (fp_text user "LEKKER SW#" (at 0 5.7 unlocked) (layer "F.SilkS") hide
         (effects (font (size 1 1) (thickness 0.15)))
       (tstamp c5d218c3-702f-4362-b748-4b3da67c5dd1)
     )
@@ -1839,7 +1839,7 @@
         (effects (font (size 1 1) (thickness 0.15)))
       (tstamp 03213f24-e09f-415e-98d7-6dd6be73e8e5)
     )
-    (fp_text user "LEKKER SW#" (at 0 5.7 unlocked) (layer "F.SilkS")
+    (fp_text user "LEKKER SW#" (at 0 5.7 unlocked) (layer "F.SilkS") hide
         (effects (font (size 1 1) (thickness 0.15)))
       (tstamp 7351cc68-0603-4a56-9c44-7709eda5f07d)
     )
