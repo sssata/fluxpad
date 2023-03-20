@@ -18,6 +18,7 @@ enum LightingMode {
 
 typedef struct {
     LightingMode mode;
+    uint8_t fade_duty_cycle;
     uint32_t fade_half_life_us;
     uint32_t flash_duration_us;
     uint8_t static_duty_cycle;
@@ -42,7 +43,7 @@ class KeyLighting {
         PORT->Group[g_APinDescription[pin].ulPort].PINCFG[g_APinDescription[pin].ulPin].bit.DRVSTR = 1;  // Set high drive strength
     }
 
-    void applySettings(KeyLightingSettings_t *_settings) {
+    void applySettings(const KeyLightingSettings_t *_settings) {
         settings = *_settings;
         fade_factor = pow(0.5, (static_cast<float>(UPDATE_PERIOD_US) /
                            static_cast<float>(settings.fade_half_life_us)));
@@ -62,7 +63,7 @@ class KeyLighting {
             switch (pressed) {
             case true:
                 // Turn on the led
-                set_duty_cycle(DUTY_CYCLE_ON);
+                set_duty_cycle(settings.fade_duty_cycle);
                 break;
             case false:
                 // Fade the led
