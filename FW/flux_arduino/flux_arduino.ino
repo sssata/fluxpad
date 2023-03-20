@@ -160,7 +160,7 @@ void loop() {
     for (AnalogSwitch &key : analogKeys) {
         key.mainLoopService();
         if (debug_mode) {
-            Serial.printf("%f %f ", Q22_10_TO_FLOAT(key.current_reading), Q22_10_TO_FLOAT(key.current_distance_mm));
+            Serial.printf("%f %f ", Q22_10_TO_FLOAT(key.current_reading), Q22_10_TO_FLOAT(key.current_height_mm));
         }
 
         if (key.is_pressed) {
@@ -321,12 +321,12 @@ void fillDefaultStorageVars(StorageVars_t *storage_vars){
 
     for (auto &analogSetting : storage_vars->analogSettings) {
         analogSetting = {
-            .press_hysteresis_mm = FLOAT_TO_Q22_10(0.3),
-            .release_hysteresis_mm = FLOAT_TO_Q22_10(0.3),
-            .actuation_point_mm = FLOAT_TO_Q22_10(2.2),
-            .release_point_mm = FLOAT_TO_Q22_10(5.8),
-            .press_debounce_ms = 0,
-            .release_debounce_ms = 0,
+            .press_hysteresis_mm = FLOAT_TO_Q22_10(0.2),
+            .release_hysteresis_mm = FLOAT_TO_Q22_10(0.2),
+            .actuation_point_mm = FLOAT_TO_Q22_10(2.5),
+            .release_point_mm = FLOAT_TO_Q22_10(5.5),
+            .press_debounce_ms = 1,
+            .release_debounce_ms = 6,
             .samples = 22,
             .calibration_up_adc = reference_up_adc,
             .calibration_down_adc = reference_down_adc,
@@ -336,6 +336,7 @@ void fillDefaultStorageVars(StorageVars_t *storage_vars){
     for (KeyLightingSettings_t &keyLightingSettings : storage_vars->lightingSettings) {
         keyLightingSettings = {
             .mode = LIGHTING_MODE_FADE,
+            .fade_duty_cycle = DUTY_CYCLE_ON,
             .fade_half_life_us = 20 * 1000,
             .flash_duration_us = 1000 * 1000,
             .static_duty_cycle = 50,
@@ -538,10 +539,12 @@ void read_serial() {
 
         if (request_msg.containsKey("key")) {
             uint32_t key_id = request_msg["key"].as<unsigned int>();
-
-            response_msg["k_t"] = static_cast<unsigned int>(storage_vars.keymap[key_id].keyType);
-            response_msg["k_c"] = static_cast<unsigned int>(storage_vars.keymap[key_id].keycode.value);
-
+            if (request_msg.containsKey("k_t")) {
+                response_msg["k_t"] = static_cast<unsigned int>(storage_vars.keymap[key_id].keyType);
+            }
+            if (request_msg.containsKey("k_c")) {
+                response_msg["k_c"] = static_cast<unsigned int>(storage_vars.keymap[key_id].keycode.value);
+            }
             if (is_analog_key(key_id)) {
                 // Handle analog keys
                 // This repeated code is not great...
@@ -578,7 +581,7 @@ void read_serial() {
                     response_msg["adc"] = Q22_10_TO_FLOAT(analogKeys[analog_key_id].current_reading);
                 }
                 if (request_msg.containsKey("ht")) {
-                    response_msg["ht"] = Q22_10_TO_FLOAT(analogKeys[analog_key_id].current_distance_mm);
+                    response_msg["ht"] = Q22_10_TO_FLOAT(analogKeys[analog_key_id].current_height_mm);
                 }
             } else if (is_digital_key(key_id)) {
                 // Handle digital keys

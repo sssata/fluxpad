@@ -42,7 +42,7 @@ const q22_10_t reference_down_adc = INT_TO_Q22_10(3295);
 
 /**
  * @brief Stores all operational settings for an analog switch
- * 
+ *
  */
 typedef struct {
     q22_10_t press_hysteresis_mm;
@@ -63,9 +63,11 @@ class AnalogSwitch {
 
     q22_10_t current_reading = 0;
     q22_10_t current_reading_calibrated = 0;
-    q22_10_t current_distance_mm = 0;
-    q22_10_t max_distance_mm;
-    q22_10_t min_distance_mm;
+    q22_10_t current_height_mm = 0;
+    q22_10_t max_height_mm;
+    q22_10_t min_height_mm;
+    uint32_t last_pressed_time_ms = 0;
+    uint32_t last_released_time_ms = 0;
 
     bool is_pressed = false;
     bool is_setup = false;
@@ -74,15 +76,13 @@ class AnalogSwitch {
     AnalogSwitchSettings_t settings;
 
     AnalogSwitch(uint32_t pin, uint32_t id) : pin(pin), id(id) {}
-    
+
     /**
-     * @brief Setup hardware for 
-     * 
+     * @brief Setup hardware for analog key
      */
     void setup() {
         pinMode(pin, INPUT);
         setADCConversionTime(128, 0);
-        // analogReference(AR_INTERNAL2V23);
         ADC->REFCTRL.bit.REFCOMP = 1;
         while (ADC->STATUS.bit.SYNCBUSY)
             ;
@@ -93,16 +93,19 @@ class AnalogSwitch {
         is_pressed = false;
         is_setup = true;
         analogRead(pin);
+        last_pressed_time_ms = millis();
+        last_released_time_ms = millis();
     }
 
     /**
      * @brief Update operational settings of the analog switch
-     * 
-     * @param _settings 
+     *
+     * @param _settings
      */
-    void applySettings(AnalogSwitchSettings_t *_settings) { settings = *_settings; }
+    void applySettings(const AnalogSwitchSettings_t *_settings) { settings = *_settings; }
 
     void mainLoopService() {
+        unsigned long current_time_ms = millis();
         if (use_freerun_mode) {
             takeAvgReadingFreerun(settings.samples);
         } else {
@@ -113,38 +116,61 @@ class AnalogSwitch {
         // Serial.printf("press_hys: %lu, release_hys: %lu ",
         // settings.press_hysteresis, settings.release_hysteresis);
         current_reading_calibrated = apply_calibration(current_reading);
-        current_distance_mm = adcCountsToDistanceMM(current_reading_calibrated);
+        current_height_mm = adcCountsToDistanceMM(current_reading_calibrated);
 
         switch (is_pressed) {
-        case false:
-
+        case false: {
             // Update max distance
-            if (current_distance_mm > max_distance_mm) {
-                max_distance_mm = current_distance_mm;
+            if (current_height_mm > max_height_mm) {
+                max_height_mm = current_height_mm;
             }
 
             // Check if should press
-            if (max_distance_mm - current_distance_mm > settings.press_hysteresis_mm &&
-                current_distance_mm < settings.release_point_mm) {
-                is_pressed = true;
-                resetMinMaxDistance();
-                min_distance_mm = current_distance_mm;
-            };
-            break;
-        case true:
+            bool hysteresis_should_press = abs(max_height_mm - current_height_mm) > settings.press_hysteresis_mm;
+            bool height_should_actuate = current_height_mm < settings.actuation_point_mm;
+            bool height_should_release = current_height_mm > settings.release_point_mm;
+            bool should_press = (hysteresis_should_press || height_should_actuate) && !height_should_release;
+            // Serial.printf("hyp: %d, hp: %d, sp: %d\n", hysteresis_should_press, height_should_actuate, should_press);
 
-            // Update min distance
-            if (current_distance_mm < min_distance_mm) {
-                min_distance_mm = current_distance_mm;
+            // Update debounce timer
+            if (!should_press) {
+                last_released_time_ms = current_time_ms;
             }
 
-            if (current_distance_mm - min_distance_mm > settings.release_hysteresis_mm &&
-                current_distance_mm > settings.actuation_point_mm) {
+            // Check debounce timer
+            if (current_time_ms - last_released_time_ms > settings.press_debounce_ms) {
+                is_pressed = true;
+                resetMinMaxDistance();
+                min_height_mm = current_height_mm;
+            }
+            break;
+        }
+        case true: {
+            // Update min distance
+            if (current_height_mm < min_height_mm) {
+                min_height_mm = current_height_mm;
+            }
+
+            // Check if should release
+            bool hysteresis_should_release = abs(current_height_mm - min_height_mm) > settings.release_hysteresis_mm;
+            bool height_should_actuate = current_height_mm < settings.actuation_point_mm;
+            bool height_should_release = current_height_mm > settings.release_point_mm;
+            bool should_release = (hysteresis_should_release || height_should_release) && !height_should_actuate;
+            // Serial.printf("hyr: %d, hr: %d, sr: %d\n", hysteresis_should_release, height_should_release, should_release);
+
+            // Update debounce timer
+            if (!should_release) {
+                last_pressed_time_ms = current_time_ms;
+            }
+
+            // Check debounce timer
+            if (current_time_ms - last_pressed_time_ms > settings.release_debounce_ms) {
                 is_pressed = false;
                 resetMinMaxDistance();
-                max_distance_mm = current_distance_mm;
-            };
+                max_height_mm = current_height_mm;
+            }
             break;
+        }
         default:
             // Nothing
             break;
@@ -166,7 +192,6 @@ class AnalogSwitch {
         }
         current_reading = sum / no_of_measurements;
     }
-
 
     /**
      * @brief Read n samples from pin in ADC freerun mode
@@ -298,8 +323,8 @@ class AnalogSwitch {
     }
 
     void resetMinMaxDistance() {
-        min_distance_mm = UINT32_MAX;
-        max_distance_mm = 0;
+        min_height_mm = UINT32_MAX;
+        max_height_mm = 0;
     }
 
     /**
