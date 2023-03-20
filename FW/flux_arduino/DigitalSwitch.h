@@ -18,21 +18,21 @@ class DigitalSwitch {
     bool is_pressed;
     DigitalSwitchSettings_t settings;
 
-    DigitalSwitch(uint32_t pin, uint32_t id) : pin(pin), id(id){}
+    DigitalSwitch(uint32_t pin, uint32_t id) : pin(pin), id(id) {}
 
-    void setup(){
+    void setup() {
         is_pressed = false;
         pinMode(pin, INPUT_PULLUP);
         last_pressed_time_ms = millis();
         last_release_time_ms = millis();
     }
 
-    void applySettings(DigitalSwitchSettings_t *_settings){
+    void applySettings(DigitalSwitchSettings_t *_settings) {
         settings = *_settings;
         is_pressed = false;
     }
 
-    void mainLoopService(){
+    void mainLoopService() {
         bool curr_state = !digitalRead(pin);
         unsigned long current_time_ms = millis();
 
@@ -42,8 +42,7 @@ class DigitalSwitch {
                 last_pressed_time_ms = current_time_ms;
             }
 
-            if (current_time_ms - last_pressed_time_ms >
-                settings.debounce_release_ms) {
+            if (current_time_ms - last_pressed_time_ms > settings.debounce_release_ms) {
                 is_pressed = false;
             }
             break;
@@ -52,8 +51,7 @@ class DigitalSwitch {
                 last_release_time_ms = current_time_ms;
             }
 
-            if (current_time_ms - last_release_time_ms >
-                settings.debounce_press_ms) {
+            if (current_time_ms - last_release_time_ms > settings.debounce_press_ms) {
                 is_pressed = true;
             }
         default:
