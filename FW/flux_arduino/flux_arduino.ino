@@ -16,26 +16,34 @@
 
 #define VERSION 1
 
-#define ENC_A_PIN 1u
-#define ENC_B_PIN 0u
-#define KEY0_PIN 4u
-#define KEY1_PIN 9u
-#define KEY2_PIN 6u
-#define KEY3_PIN 8u
+
+// PIN DEFINITIONS
+constexpr uint32_t ENC_A_PIN = 1u;
+constexpr uint32_t ENC_B_PIN = 0u;
+constexpr uint32_t KEY0_PIN = 4u;
+constexpr uint32_t KEY1_PIN = 9u;
+constexpr uint32_t KEY2_PIN = 6u;
+constexpr uint32_t KEY3_PIN = 8u;
 
 #define KEY0_LIGHT_PIN 3u
 #define KEY1_LIGHT_PIN 7u
 #define KEY2_LIGHT_PIN 5u
 #define KEY3_LIGHT_PIN 10u
 
-#define ENC_UP_KEY_ID 4u
-#define ENC_DOWN_KEY_ID 5u
-
 #define LED_PIN 13u
 
+// GLOBALS
+constexpr uint32_t normal_mode_freq_hz = 1000;
+
+constexpr int WRITTEN_SIGNATURE = 0xABCDEF01;
+constexpr uint16_t storedAddress = 0;
+
+constexpr uint32_t ENC_UP_KEY_ID = 4u;
+constexpr uint32_t ENC_DOWN_KEY_ID = 5u;
+
+// GLOBAL STATE
 bool debug_mode = false;
 
-const uint32_t normal_mode_freq_hz = 1000;
 uint32_t mainloop_period_us = HZ_TO_PERIOD_US(normal_mode_freq_hz);
 
 uint32_t loop_count = 0;
@@ -44,11 +52,12 @@ uint32_t print_period_us = 2 * 1000 * 1000;
 
 unsigned long last_time_us;
 
-const int WRITTEN_SIGNATURE = 0xABCDEF01;
-const uint16_t storedAddress = 0;
 
+// ENUMS
 enum class KeyType_t { NONE = 0, KEYBOARD = 1, CONSUMER = 2, MOUSE = 3 };
 
+
+// STRUCTS
 typedef struct {
     union keycode {
         uint8_t keyboard;
@@ -269,11 +278,11 @@ uint32_t key_id_to_analog_key_index(uint32_t key_id) { return (key_id - 2); }
 
 uint32_t key_id_to_digital_key_index(uint32_t key_id) { return key_id; }
 
-bool saveFlashStorage(const StorageVars_t *storage_vars) {
+bool saveFlashStorage(const StorageVars_t *_storage_vars) {
 
     // Write to Flash
     EEPROM.put(storedAddress, WRITTEN_SIGNATURE);
-    EEPROM.put(storedAddress + sizeof(WRITTEN_SIGNATURE), *storage_vars);
+    EEPROM.put(storedAddress + sizeof(WRITTEN_SIGNATURE), *_storage_vars);
 
     // if (!EEPROM.getCommitASAP()) {
     //     Serial.printf("CommitASAP not set. Need commit()");
@@ -283,43 +292,43 @@ bool saveFlashStorage(const StorageVars_t *storage_vars) {
     return false;
 }
 
-void fillDefaultStorageVars(StorageVars_t *storage_vars){
+void fillDefaultStorageVars(StorageVars_t *_storage_vars){
     
     // Set Default keymap
-    storage_vars->keymap[0] = {
+    _storage_vars->keymap[0] = {
         .keycode = {KEY_A},
         .keyType = KeyType_t::KEYBOARD,
     };
-    storage_vars->keymap[1] = {
+    _storage_vars->keymap[1] = {
         .keycode = {KEY_S},
         .keyType = KeyType_t::KEYBOARD,
     };
-    storage_vars->keymap[2] = {
+    _storage_vars->keymap[2] = {
         .keycode = {KEY_Z},
         .keyType = KeyType_t::KEYBOARD,
     };
-    storage_vars->keymap[3] = {
+    _storage_vars->keymap[3] = {
         .keycode = {KEY_X},
         .keyType = KeyType_t::KEYBOARD,
     };
-    storage_vars->keymap[4] = {
+    _storage_vars->keymap[4] = {
         .keycode = {HID_CONSUMER_VOLUME_INCREMENT},
         .keyType = KeyType_t::CONSUMER,
     };
-    storage_vars->keymap[5] = {
+    _storage_vars->keymap[5] = {
         .keycode = {HID_CONSUMER_VOLUME_DECREMENT},
         .keyType = KeyType_t::CONSUMER,
     };
 
     // Set Default Key Settings
-    for (auto &digitalSetting : storage_vars->digitalSettings) {
+    for (auto &digitalSetting : _storage_vars->digitalSettings) {
         digitalSetting = {
             .debounce_press_ms = 1,
             .debounce_release_ms = 10,
         };
     }
 
-    for (auto &analogSetting : storage_vars->analogSettings) {
+    for (auto &analogSetting : _storage_vars->analogSettings) {
         analogSetting = {
             .press_hysteresis_mm = FLOAT_TO_Q22_10(0.2),
             .release_hysteresis_mm = FLOAT_TO_Q22_10(0.2),
@@ -333,7 +342,7 @@ void fillDefaultStorageVars(StorageVars_t *storage_vars){
         };
     }
 
-    for (KeyLightingSettings_t &keyLightingSettings : storage_vars->lightingSettings) {
+    for (KeyLightingSettings_t &keyLightingSettings : _storage_vars->lightingSettings) {
         keyLightingSettings = {
             .mode = LIGHTING_MODE_FADE,
             .fade_duty_cycle = DUTY_CYCLE_ON,
@@ -368,7 +377,6 @@ bool loadFlashStorage(StorageVars_t *_storage_vars) {
     }
 
     // Flash has not been written yet, set default values
-
     fillDefaultStorageVars(_storage_vars);
 
     // Write to Flash
@@ -404,18 +412,13 @@ void read_serial() {
     // Try to deserialize from Serial stream
     DeserializationError error = deserializeJson(request_msg, Serial);
 
-    // // Flush incoming buffer
-    // while (Serial.available() > 0) {
-    //     Serial.read();
-    // }
-
     // Detect Deserialize error
     if (error) {
         Serial.print(F("deserializeJson() failed: "));
         Serial.println(error.c_str());
 
         // Flush incoming buffer
-        while (Serial.available() > 0) {
+        while (Serial.available()) {
             Serial.read();
         }
         return;
@@ -591,7 +594,6 @@ void read_serial() {
                     response_msg["d_a"] = currDigitalSettings->debounce_press_ms;
                 }
                 if (request_msg.containsKey("d_r")) {
-                    Serial.printf("hello");
                     response_msg["d_r"] = currDigitalSettings->debounce_release_ms;
                 }
             } else {
