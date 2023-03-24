@@ -1,11 +1,13 @@
-import serial
-import serial.tools.list_ports
-from typing import Deque, NamedTuple, TypedDict, Optional
-from collections import deque
 import enum
 import json
-# import scancode_to_hid_code
+from collections import deque
+from typing import Deque, NamedTuple, Optional, TypedDict
+
+import serial
+import serial.tools.list_ports
+
 from scancode_to_hid_code import KeyType
+
 
 def find_fluxpad_port():
     serial_ports = serial.tools.list_ports.comports()
