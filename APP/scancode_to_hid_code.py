@@ -32,6 +32,7 @@ class ScanCode:
 
 @enum.unique
 class ScanCodeList(enum.Enum):
+    KEY_NONE = ScanCode(KeyType.NONE, 0x00, None, None, "No Key")
     # ScanCode(0x01, 0x81, 0xE05E, pynput.keyboard.Key, 'System Power'),
     # ScanCode(0x01, 0x82, 0xE05F, 'System Sleep'),
     # ScanCode(0x01, 0x83, 0xE063, 'System Wake'),
@@ -234,13 +235,12 @@ class ScanCodeList(enum.Enum):
     WWW_STOP = ScanCode(KeyType.CONSUMER, 0x0226, 0xE068, 169, 'WWW Stop')
     WWW_REFRESH = ScanCode(KeyType.CONSUMER, 0x0227, 0xE067, 168, 'WWW Refresh')
     WWW_FAVORITES = ScanCode(KeyType.CONSUMER, 0x022A, 0xE066, 171, 'WWW Favorites')
-    KEY_NONE = ScanCode(KeyType.NONE, 0x00, None, None, "No Key")
 
 
 
 SCANCODE_LIST: List[ScanCode] = [keycode.value for keycode in ScanCodeList]
 
-def key_name_to_keycode(key_name: str):
+def key_name_to_scancode(key_name: str):
     """Get a ScanCode from keyname"""
     return next(filter(lambda x: x.name == key_name, SCANCODE_LIST), None)
 
@@ -257,7 +257,7 @@ def pynput_event_to_scancode(key: Union[pynput.keyboard.Key, pynput.keyboard.Key
 
     if isinstance(key, pynput.keyboard.KeyCode):
         if 65 <= key.vk <= 90 or 48 <= key.vk <= 57:
-            return next(filter(lambda x: ord(x.name) == key.vk, SCANCODE_LIST), None)
+            return next(filter(lambda x: ord(x.name if len(x.name) == 1 else ".") == key.vk, SCANCODE_LIST), None)
         
         return next(filter(lambda x: x.pynput_key_keycode == key.vk, SCANCODE_LIST), None)
         
