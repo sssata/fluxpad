@@ -118,6 +118,9 @@ class AnalogSwitch {
         current_reading_calibrated = apply_calibration(current_reading);
         current_height_mm = adcCountsToDistanceMM(current_reading_calibrated);
 
+        bool height_should_actuate = current_height_mm < settings.actuation_point_mm;
+        bool height_should_release = current_height_mm > settings.release_point_mm;
+
         switch (is_pressed) {
         case false: {
             // Update max distance
@@ -127,8 +130,6 @@ class AnalogSwitch {
 
             // Check if should press
             bool hysteresis_should_press = abs(max_height_mm - current_height_mm) > settings.press_hysteresis_mm;
-            bool height_should_actuate = current_height_mm < settings.actuation_point_mm;
-            bool height_should_release = current_height_mm > settings.release_point_mm;
             bool should_press = (hysteresis_should_press || height_should_actuate) && !height_should_release;
             // Serial.printf("hyp: %d, hp: %d, sp: %d\n", hysteresis_should_press, height_should_actuate, should_press);
 
@@ -153,8 +154,6 @@ class AnalogSwitch {
 
             // Check if should release
             bool hysteresis_should_release = abs(current_height_mm - min_height_mm) > settings.release_hysteresis_mm;
-            bool height_should_actuate = current_height_mm < settings.actuation_point_mm;
-            bool height_should_release = current_height_mm > settings.release_point_mm;
             bool should_release = (hysteresis_should_release || height_should_release) && !height_should_actuate;
             // Serial.printf("hyr: %d, hr: %d, sr: %d\n", hysteresis_should_release, height_should_release, should_release);
 
