@@ -288,7 +288,7 @@ class Fluxpad:
         message.command = CommandType.READ
         return self._send_request(message)
 
-
+# FOR TESTING
 if __name__ == "__main__":
 
     logging.basicConfig(level=logging.DEBUG)
@@ -300,7 +300,7 @@ if __name__ == "__main__":
         message = Message()
         message.key_id = 0
         message.key_type = KeyType.KEYBOARD
-        message.key_code = ScanCodeList.KEY_B.value.hid_keycode
+        message.key_code = ScanCodeList.KEY_A.value.hid_keycode
         response = fluxpad.send_write_request(message)
         print(response.data)
 
