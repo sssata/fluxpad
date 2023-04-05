@@ -118,14 +118,17 @@ class AnalogSwitch {
         current_reading_calibrated = apply_calibration(current_reading);
         current_height_mm = adcCountsToDistanceMM(current_reading_calibrated);
 
+        // Check if we are at guaranteed release or guaranteed press height
         bool height_should_actuate = current_height_mm < settings.actuation_point_mm;
         bool height_should_release = current_height_mm > settings.release_point_mm;
 
         switch (is_pressed) {
         case false: {
+            // If we are released, we are looking for the right conditions to press the key
+
             // Update max distance
             if (current_height_mm > max_height_mm) {
-                max_height_mm = current_height_mm;
+                max_height_mm = min(settings.release_point_mm, current_height_mm);  // Cap at guaranteed release distance
             }
 
             // Check if should press
@@ -140,16 +143,19 @@ class AnalogSwitch {
 
             // Check debounce timer
             if (current_time_ms - last_released_time_ms > settings.press_debounce_ms) {
+                // All conditions for press fullfilled for at least debounce time
+                // Transition to pressed state
                 is_pressed = true;
-                resetMinMaxDistance();
-                min_height_mm = current_height_mm;
+                resetMinMaxDistance();  // Reset max height
             }
             break;
         }
         case true: {
+            // If we are pressed, we are looking for the right conditions to release the key
+            
             // Update min distance
             if (current_height_mm < min_height_mm) {
-                min_height_mm = current_height_mm;
+                min_height_mm = max(settings.actuation_point_mm, current_height_mm);  // Cap at guaranteed actuation distance
             }
 
             // Check if should release
@@ -164,9 +170,10 @@ class AnalogSwitch {
 
             // Check debounce timer
             if (current_time_ms - last_pressed_time_ms > settings.release_debounce_ms) {
+                // All conditions for release fullfilled for at least debounce time
+                // Transition to released state
                 is_pressed = false;
                 resetMinMaxDistance();
-                max_height_mm = current_height_mm;
             }
             break;
         }
