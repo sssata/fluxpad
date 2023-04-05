@@ -1,4 +1,11 @@
+## Project Updates
+
+| First stock of 8 units scheduled for April 17! Make sure to join the waitlist to get notified of when new stock becomes available! Store and Waitlist Link: https://www.tindie.com/products/kappachino/fluxpad-analog-keypad/ |
+|---|
+
 # FLUXPAD Analog Keypad
+
+
 <picture>
   <source media="(prefers-color-scheme: dark)" srcset="assets/Branding/LogoDark.png?raw=True" width="600">
   <img alt="Shows an illustrated sun in light color mode and a moon with stars in dark color mode." src="assets/Branding/LogoDark.png?raw=True" width="600">
