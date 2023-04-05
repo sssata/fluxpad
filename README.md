@@ -1,6 +1,6 @@
 ## Project Updates
 
-| First stock of 8 units scheduled for April 17! Make sure to join the waitlist to get notified of when new stock becomes available! Store and Waitlist Link: https://www.tindie.com/products/kappachino/fluxpad-analog-keypad/ |
+| First stock of 8 units scheduled for April 17! Make sure to join the waitlist to get notified of when new stock becomes available [here](https://www.tindie.com/products/kappachino/fluxpad-analog-keypad/)!|
 |---|
 
 # FLUXPAD Analog Keypad
