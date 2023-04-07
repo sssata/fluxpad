@@ -10,6 +10,9 @@ from scancode_to_hid_code import (ScanCodeList, ScanCode, get_name_list,
 
 UpdateScancodeCallback = Callable[[ScanCode], None]
 
+PADDING = 2
+
+
 class EncoderMap(ttk.Labelframe):
     """Class for an encoder keymap gui
     """
@@ -88,11 +91,11 @@ class MapEditFrame(ttk.Labelframe):
         self.columnconfigure(1, weight=1)
         self.columnconfigure(2, weight=1)
 
-        self.label_a = ttk.Label(self, text="Press key to set...")
-        self.label_a.grid(row=1, column=1)
+        self.label_a = ttk.Label(self, text="Press key or select from list: ")
+        self.label_a.grid(row=1, column=1, padx=PADDING, pady=PADDING)
 
         self.label_key = ttk.Combobox(self, text="None", state="readonly")
-        self.label_key.grid(row=1, column=2)
+        self.label_key.grid(row=1, column=2, padx=PADDING, pady=PADDING)
         self.label_key['values'] = get_name_list()
         self.label_key.bind('<<ComboboxSelected>>', self.on_select_combobox)
 
@@ -138,7 +141,6 @@ class KeymapFrame(ttk.Frame):
         # self.lf_encoder.grid(row=1, column=1, columnspan=2)
         # self.lf_encoder.set_cw_keycode(ScanCodeList.MEDIA_VOL_UP.value)
         # self.lf_encoder.set_ccw_keycode(ScanCodeList.MEDIA_VOL_DOWN.value)
-        PADDING = 2
         self.config(padding=PADDING)
         self.rowconfigure(1, pad=PADDING, weight=1)
         self.rowconfigure(2, pad=PADDING, weight=1)
@@ -217,7 +219,17 @@ class SettingsFrame(ttk.Frame):
     def __init__(self, master, *args, **kwargs):
         super().__init__(master, *args, **kwargs)
 
-        test_label = tk.Label(self, text="hello")
+        test_label = tk.Label(self, text="Coming Soon")
+        test_label.pack()
+
+
+class UtilitiesFrame(ttk.Frame):
+    """Represents the settings tab"""
+
+    def __init__(self, master, *args, **kwargs):
+        super().__init__(master, *args, **kwargs)
+
+        test_label = tk.Label(self, text="Coming Soon")
         test_label.pack()
 
 
@@ -226,8 +238,6 @@ class Application(ttk.Frame):
 
     def __init__(self, master=None):
         super().__init__(master=master)
-        # self.config()
-
 
         self.notebook = ttk.Notebook(self)
         self.config(padding=4)
@@ -237,12 +247,14 @@ class Application(ttk.Frame):
 
         self.frame_keymap = KeymapFrame(self.notebook)
         self.frame_settings = SettingsFrame(self.notebook)
+        self.frame_utilities = UtilitiesFrame(self.notebook)
 
         self.notebook.add(self.frame_keymap, text="Keymap")
         self.notebook.add(self.frame_settings, text="Settings")
+        self.notebook.add(self.frame_utilities, text="Utilities")
+        
         self.notebook.grid(row=1, column=1, sticky="NSEW")
         self.notebook.bind("<<NotebookTabChanged>>", self.on_notebook_tab_changed)
-
 
         self.btn_upload = ttk.Button(self, text="Upload")
         self.btn_upload.grid(row=2, column=1, sticky="NSEW")
@@ -253,27 +265,42 @@ class Application(ttk.Frame):
         # Load menu
         self.load_menu = tk.Menu(self.menubar, tearoff=0)
         self.menubar.add_cascade(label="Load", menu=self.load_menu)
-        self.load_menu.add_command(label="Load from File")
-        self.load_menu.add_command(label="Load from FLUXPAD")
+        self.load_menu.add_command(label="Load from File", command=self.on_load_from_file)
+        self.load_menu.add_command(label="Load from FLUXPAD", command=self.on_load_from_fluxpad)
 
         # Save menu
         self.save_menu = tk.Menu(self.menubar, tearoff=0)
         self.menubar.add_cascade(label="Save", menu=self.save_menu)
-        self.save_menu.add_command(label="Save to File")
-        self.save_menu.add_command(label="Save to FLUXPAD")
+        self.save_menu.add_command(label="Save to File", command=self.on_save_to_file)
+        self.save_menu.add_command(label="Save to FLUXPAD", command=self.on_save_to_fluxpad)
 
         # Show menu bar
         self.master.configure(menu=self.menubar)
 
     
     def on_notebook_tab_changed(self, event: tk.Event):
-        # logging.debug(self.notebook.index("current"))
-        # logging.debug(self.frame_keymap.winfo_viewable())
+        """"Turn on and off keyboard listensr based on which tab is active"""
+
         if self.notebook.index("current") == 0:  # Check if tab on top is keymap tab
             self.frame_keymap.lf_mapedit.is_active = True
         else: 
             self.frame_keymap.lf_mapedit.is_active = False
 
+    def on_load_from_file(self):
+        # TODO implement this
+        pass
+
+    def on_save_to_file(self):
+        # TODO implement this
+        pass
+    
+    def on_load_from_fluxpad(self):
+        # TODO implement this
+        pass
+    
+    def on_save_to_fluxpad(self):
+        # TODO implement this
+        pass
 
 if __name__ == "__main__":
 
