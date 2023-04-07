@@ -3,6 +3,7 @@ import sys
 from typing import TypedDict, NamedTuple
 sys.path.append('../APP')
 import scancode_to_hid_code
+import fluxpad_interface
 
 
 class TestEnumList(unittest.TestCase):
@@ -41,6 +42,7 @@ class TestTypedDict(unittest.TestCase):
         a = TestTDict(b=1)
         a["a"] = 1.1
         self.assertTrue(isinstance(a["a"], float))
+
 
 
 if __name__ == "__main__":

@@ -1,8 +1,9 @@
 import enum
 import json
 from collections import deque
-from typing import Deque, NamedTuple, Optional, TypedDict, Literal
+from typing import Deque, NamedTuple, Optional, TypedDict, Literal, Dict, Union, List, get_type_hints
 import logging
+import pathlib
 
 import serial
 import serial.tools.list_ports
@@ -32,12 +33,12 @@ class MessageKey:
     ACTUATE_HYSTERESIS = "h_a"
     RELEASE_HYSTERESIS = "h_r"
     ACTUATE_POINT = "p_a"
-    RELEASE_POINT = "p_a"
+    RELEASE_POINT = "p_r"
     RAPID_TRIGGER = "rt"
     RAW_ADC = "adc"
     HEIGHT = "ht"
     ACTUATE_DEBOUNCE = "d_a"
-    RELEASE_DEBOUNCE = "d_a"
+    RELEASE_DEBOUNCE = "d_r"
     ADC_SAMPLES = "a_s"
     CALIBRATION_UP = "c_u"
     CALIBRATION_DOWN = "c_d"
@@ -45,7 +46,7 @@ class MessageKey:
     DATASTREAM_FREQUENCY = "dstrm_freq"
 
 
-class Message:
+class BaseMessage:
 
     def __init__(self, init_dict: Optional[dict] = None) -> None:
         if init_dict is None:
@@ -57,7 +58,16 @@ class Message:
 
     def to_bytes(self):
         return self.to_string().encode("ASCII")
-
+    
+    def set_zeros(self):
+        """Set all message values to zero"""
+        for k, v in self.__class__.__dict__.items():
+            # Iterate through all class members and look for properties
+            if isinstance(v, property):
+                # print(get_type_hints(v.fset))
+                expected_type = next(iter(get_type_hints(v.fset).values()))
+                setattr(self, k, expected_type(0))  # Set property to zero to set the message value
+    
     @property
     def token(self):
         return self.data[MessageKey.TOKEN]
@@ -75,6 +85,47 @@ class Message:
     def command(self, cmd: CommandType):
         assert isinstance(cmd, CommandType)
         self.data[MessageKey.COMMAND] = cmd.value
+
+    @staticmethod
+    def _assert_uint8(value):
+        assert isinstance(value, int)
+        assert 0x00 <= value <= 0xFF
+
+
+class EncoderSettingsMessage(BaseMessage):
+
+    # KEY ID
+    @property
+    def key_id(self):
+        return self.data[MessageKey.KEY_ID]
+
+    @key_id.setter
+    def key_id(self, key_id: int):
+        self._assert_uint8(key_id)
+        self.data[MessageKey.KEY_ID] = key_id
+
+    # KEYMAP
+    @property
+    def key_code(self):
+        return self.data[MessageKey.KEY_CODE]
+
+    @key_code.setter
+    def key_code(self, key_code: int):
+        self._assert_uint8(key_code)
+        self.data[MessageKey.KEY_CODE] = key_code
+
+    @property
+    def key_type(self):
+        return self.data[MessageKey.KEY_TYPE]
+
+    @key_type.setter
+    def key_type(self, key_type: int):
+        self._assert_uint8(key_type)
+        assert key_type in list(KeyType)
+        self.data[MessageKey.KEY_TYPE] = key_type
+
+
+class DigitalSettingsMessage(BaseMessage):
 
     # KEY ID
     @property
@@ -104,7 +155,61 @@ class Message:
     @key_type.setter
     def key_type(self, key_type: int):
         self._assert_uint8(key_type)
+        assert key_type in list(KeyType)
         self.data[MessageKey.KEY_TYPE] = key_type
+
+    # DEBOUNCE
+    @property
+    def actuate_debounce(self):
+        return self.data[MessageKey.ACTUATE_DEBOUNCE]
+
+    @actuate_debounce.setter
+    def actuate_debounce(self, debounce_ms: int):
+        self._assert_uint8(debounce_ms)
+        self.data[MessageKey.ACTUATE_DEBOUNCE] = debounce_ms
+
+    @property
+    def release_debounce(self):
+        return self.data[MessageKey.RELEASE_DEBOUNCE]
+
+    @release_debounce.setter
+    def release_debounce(self, debounce_ms: int):
+        self._assert_uint8(debounce_ms)
+        self.data[MessageKey.RELEASE_DEBOUNCE] = debounce_ms
+
+class AnalogSettingsMessage(BaseMessage):
+
+    # KEY ID
+    @property
+    def key_id(self):
+        return self.data[MessageKey.KEY_ID]
+
+    @key_id.setter
+    def key_id(self, key_id: int):
+        self._assert_uint8(key_id)
+        assert key_id in list(KeyType)
+        self.data[MessageKey.KEY_ID] = key_id
+
+    # KEYMAP
+    @property
+    def key_code(self):
+        return self.data[MessageKey.KEY_CODE]
+
+    @key_code.setter
+    def key_code(self, key_code: int):
+        self._assert_uint8(key_code)
+        self.data[MessageKey.KEY_CODE] = key_code
+
+    @property
+    def key_type(self):
+        return self.data[MessageKey.KEY_TYPE]
+
+    @key_type.setter
+    def key_type(self, key_type: int):
+        self._assert_uint8(key_type)
+        assert key_type in list(KeyType)
+        self.data[MessageKey.KEY_TYPE] = key_type
+
 
     # HYSTERESIS
     @property
@@ -114,7 +219,7 @@ class Message:
     @actuate_hysteresis.setter
     def actuate_hysteresis(self, hysteresis_mm: float):
         assert isinstance(hysteresis_mm, float)
-        assert 0 < hysteresis_mm
+        assert 0 <= hysteresis_mm
         self.data[MessageKey.ACTUATE_HYSTERESIS] = hysteresis_mm
 
     @property
@@ -124,7 +229,7 @@ class Message:
     @release_hysteresis.setter
     def release_hysteresis(self, hysteresis_mm: float):
         assert isinstance(hysteresis_mm, float)
-        assert 0 < hysteresis_mm
+        assert 0 <= hysteresis_mm
         self.data[MessageKey.RELEASE_HYSTERESIS] = hysteresis_mm
 
     # POINT
@@ -135,7 +240,7 @@ class Message:
     @actuate_point.setter
     def actuate_point(self, height_mm: float):
         assert isinstance(height_mm, float)
-        assert 0 < height_mm
+        assert 0 <= height_mm
         self.data[MessageKey.ACTUATE_POINT] = height_mm
 
     @property
@@ -145,7 +250,7 @@ class Message:
     @release_point.setter
     def release_point(self, height_mm: float):
         assert isinstance(height_mm, float)
-        assert 0 < height_mm
+        assert 0 <= height_mm
         self.data[MessageKey.RELEASE_POINT] = height_mm
 
     # DEBOUNCE
@@ -163,7 +268,7 @@ class Message:
         return self.data[MessageKey.RELEASE_DEBOUNCE]
 
     @release_debounce.setter
-    def release_debounce(self, debounce_ms: float):
+    def release_debounce(self, debounce_ms: int):
         self._assert_uint8(debounce_ms)
         self.data[MessageKey.RELEASE_DEBOUNCE] = debounce_ms
 
@@ -175,7 +280,7 @@ class Message:
     @calibration_up.setter
     def calibration_up(self, up_adc: float):
         assert isinstance(up_adc, float)
-        assert 0 < up_adc < 4096
+        assert 0 <= up_adc <= 4096
         self.data[MessageKey.CALIBRATION_UP] = up_adc
 
     @property
@@ -185,7 +290,7 @@ class Message:
     @calibration_down.setter
     def calibration_down(self, down_adc: float):
         assert isinstance(down_adc, float)
-        assert 0 < down_adc < 4096
+        assert 0 <= down_adc <= 4096
         self.data[MessageKey.CALIBRATION_DOWN] = down_adc
 
     @property
@@ -193,7 +298,7 @@ class Message:
         return int(self.data[MessageKey.ADC_SAMPLES])
 
     @adc_samples.setter
-    def adc_samples(self, adc_samples: float):
+    def adc_samples(self, adc_samples: int):
         self._assert_uint8(adc_samples)
         self.data[MessageKey.ADC_SAMPLES] = adc_samples
 
@@ -203,7 +308,7 @@ class Message:
         return float(self.data[MessageKey.RAW_ADC])
 
     @raw_adc.setter
-    def raw_adc(self, dummy):
+    def raw_adc(self, dummy: int):
         """Dummy function for read cmd, doesn't actually set raw_adc"""
         self.data[MessageKey.RAW_ADC] = 0
 
@@ -212,7 +317,7 @@ class Message:
         return float(self.data[MessageKey.HEIGHT])
 
     @height_mm.setter
-    def height_mm(self, dummy):
+    def height_mm(self, dummy: int):
         """Dummy function for read cmd, doesn't actually set height_mm"""
         self.data[MessageKey.HEIGHT] = 0
 
@@ -225,10 +330,10 @@ class Message:
         assert isinstance(rapid_trigger_enable, bool)
         self.data[MessageKey.RAPID_TRIGGER] = rapid_trigger_enable
 
-    @staticmethod
-    def _assert_uint8(value):
-        assert isinstance(value, int)
-        assert 0x00 <= value <= 0xFF
+
+class KeySettingMessage(DigitalSettingsMessage, AnalogSettingsMessage, EncoderSettingsMessage):
+    """Composite class of all settings types"""
+    pass
 
 
 class Fluxpad:
@@ -246,7 +351,7 @@ class Fluxpad:
         self.port.bytesize = 8
         self.port.timeout = 0.1  # seconds
         self.last_token = 1
-        self.incoming_msgs: Deque[Message] = deque()
+        self.incoming_msgs: Deque[BaseMessage] = deque()
 
     def get_next_token(self):
         self.last_token += 1
@@ -260,13 +365,15 @@ class Fluxpad:
     def close(self):
         self.port.close()
 
-    def _send_request(self, message: Message):
+    def _send_request(self, message: BaseMessage):
+
+        message_type = type(message)
 
         # Add token
         message.token = self.get_next_token()
 
         # Send bytes
-        logging.debug(f"Sending message: {message.to_string()}")
+        logging.debug(f"Sending {message.__class__.__name__}: {message.to_string()}")
         self.port.write(message.to_bytes())
 
         # Receive bytes
@@ -276,17 +383,127 @@ class Fluxpad:
         incoming_string = incoming_bytes.decode("ASCII")
         logging.debug(f"Received message: {incoming_string}")
         incoming_json = json.loads(incoming_string)
-        incoming_message = Message(incoming_json)
-        assert incoming_message.token == message.token
+        incoming_message = message_type(incoming_json)
+        assert incoming_message.token == message.token, f"Token mismatch, expected {incoming_message.token}, got {message.token}"
         return incoming_message
 
-    def send_write_request(self, message: Message):
+    def send_write_request(self, message: BaseMessage):
+        """Send a write request to the fluxpad"""
+
         message.command = CommandType.WRITE
         return self._send_request(message)
 
-    def send_read_request(self, message: Message):
+    def send_read_request(self, message: BaseMessage):
+        """Send a read request to the fluxpad"""
+
         message.command = CommandType.READ
         return self._send_request(message)
+
+
+class DigitalSettings:
+    MESSAGE_KEY_LIST = [
+        MessageKey.ACTUATE_DEBOUNCE,
+        MessageKey.ACTUATE_HYSTERESIS,
+        MessageKey.ACTUATE_POINT,
+        MessageKey.RELEASE_DEBOUNCE,
+        MessageKey.RELEASE_HYSTERESIS,
+        MessageKey.RELEASE_POINT,
+        MessageKey.KEY_CODE,
+        MessageKey.KEY_TYPE
+    ]
+
+    def __init__(self, key_id) -> None:
+        self.d = dict()
+        self.d[MessageKey.KEY_ID] = key_id
+
+class AnalogSettings:
+    MESSAGE_KEY_LIST = [
+        MessageKey.ACTUATE_DEBOUNCE,
+        MessageKey.RELEASE_DEBOUNCE,
+        MessageKey.KEY_CODE,
+        MessageKey.KEY_TYPE
+    ]
+
+    def __init__(self, key_id) -> None:
+        self.d = dict()
+        self.d[MessageKey.KEY_ID] = key_id
+
+
+class EncoderSettings:
+    """Wrapper around Message object"""
+
+    MESSAGE_KEY_LIST = [
+        MessageKey.KEY_CODE,
+        MessageKey.KEY_TYPE
+    ]
+
+    def __init__(self, key_id) -> None:
+        self.d = dict()
+        self.d[MessageKey.KEY_ID] = key_id
+
+class FluxpadSettings:
+
+    KEY_SETTINGS_KEY = "key_settings"
+    
+    def __init__(self) -> None:
+        self.key_settings_list: List[Union[EncoderSettingsMessage, AnalogSettingsMessage, DigitalSettingsMessage]] = [
+            DigitalSettingsMessage(),
+            DigitalSettingsMessage(),
+            AnalogSettingsMessage(),
+            AnalogSettingsMessage(),
+            EncoderSettingsMessage(),
+            EncoderSettingsMessage(),
+        ]
+
+    def _set_key_ids(self):
+        key_id = 0
+        for key_settings in self.key_settings_list:
+            key_settings.key_id = key_id
+            key_id += 1
+
+    def load_from_keypad(self, fluxpad: Fluxpad):
+        """Load all settings from the given connected fluxpad"""
+
+        if not fluxpad.port.is_open:
+            raise ConnectionError("Fluxpad not connected")
+        
+        key_id = 0
+        for key_settings in self.key_settings_list:
+            try:
+                key_settings.set_zeros()
+                self._set_key_ids()
+                response = fluxpad.send_read_request(key_settings)
+                assert set(response.data.keys()) == set(key_settings.data.keys()), f"Difference: {set(response.data.keys()).symmetric_difference(set(key_settings.data.keys()))}"
+                logging.debug(f"Got settings for Key ID {key_id}")
+            except Exception:
+                logging.error(f"Failed to get settings for Key ID {key_id} with message {key_settings.data}", exc_info=True)
+            else:
+                key_settings.data = response.data.copy()
+            key_id += 1
+
+    def save_to_fluxpad(self, fluxpad: Fluxpad):
+        # TODO implement this
+        raise NotImplementedError()
+        
+    def load_from_file(self, path: pathlib.Path):
+        # TODO implement this
+        raise NotImplementedError()
+    
+    def save_to_file(self, path: pathlib.Path):
+        if path.exists():
+            logging.info(f"File at {path} will be overwritten")
+        else:
+            logging.info(f"File at {path} will be created")
+            path.parent.mkdir(parents=True, exist_ok=True)
+            path.touch(exist_ok=True)
+
+        # Construct master json to store all settings
+        root_dict = dict()
+        root_dict[self.KEY_SETTINGS_KEY] = [key_settings.data for key_settings in self.key_settings_list]\
+        
+        with path.open("w") as f:
+            json.dump(root_dict, f, indent=4)
+
 
 # FOR TESTING
 if __name__ == "__main__":
@@ -296,24 +513,40 @@ if __name__ == "__main__":
     fluxpad = Fluxpad(find_fluxpad_port())
     # fluxpad.open()
 
-    with fluxpad.port:
-        message = Message()
+    settings = FluxpadSettings()
+
+    with fluxpad.port as port:
+        message = DigitalSettingsMessage()
         message.key_id = 0
         message.key_type = KeyType.KEYBOARD
         message.key_code = ScanCodeList.KEY_A.value.hid_keycode
         response = fluxpad.send_write_request(message)
         print(response.data)
 
-        message = Message()
+        message = DigitalSettingsMessage()
         message.key_id = 0
         message.key_type = KeyType.NONE
         message.key_code = 0
         response = fluxpad.send_read_request(message)
         print(response.data)
 
-        message = Message()
+        message = AnalogSettingsMessage()
         message.key_id = 2
         message.raw_adc = 0
         message.height_mm = 0
         response = fluxpad.send_read_request(message)
         print(response.data)
+
+        new_message = DigitalSettingsMessage()
+        new_message.set_zeros()
+        print(new_message.data)
+
+        response = fluxpad.send_read_request(new_message)
+        print(response.data)
+    
+        settings.load_from_keypad(fluxpad)
+
+        for key_settings in settings.key_settings_list:
+            print(key_settings.data)
+
+        settings.save_to_file(pathlib.Path("testing.json"))
