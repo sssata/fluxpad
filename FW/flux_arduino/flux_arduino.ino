@@ -330,6 +330,7 @@ void fillDefaultStorageVars(StorageVars_t *_storage_vars){
 
     for (auto &analogSetting : _storage_vars->analogSettings) {
         analogSetting = {
+            .rapid_trigger_enable = true,
             .press_hysteresis_mm = FLOAT_TO_Q22_10(0.2),
             .release_hysteresis_mm = FLOAT_TO_Q22_10(0.2),
             .actuation_point_mm = FLOAT_TO_Q22_10(2.5),
@@ -463,7 +464,9 @@ void read_serial() {
                 // Handle analog key settings
                 uint32_t analog_key_id = key_id_to_analog_key_index(key_id);
                 AnalogSwitchSettings_t *currAnalogSettings = &(storage_vars.analogSettings[analog_key_id]);
-
+                if (request_msg.containsKey("rt")) {
+                    currAnalogSettings->rapid_trigger_enable = request_msg["rt"].as<bool>();
+                }
                 if (request_msg.containsKey("h_a")) {
                     currAnalogSettings->press_hysteresis_mm = FLOAT_TO_Q22_10(request_msg["h_a"].as<float>());
                 }
@@ -488,8 +491,8 @@ void read_serial() {
                 if (request_msg.containsKey("c_d")) {
                     currAnalogSettings->calibration_down_adc = FLOAT_TO_Q22_10(request_msg["c_d"].as<float>());
                 }
-                if (request_msg.containsKey("s")) {
-                    currAnalogSettings->samples = request_msg["s"].as<unsigned int>();
+                if (request_msg.containsKey("a_s")) {
+                    currAnalogSettings->samples = request_msg["a_s"].as<unsigned int>();
                 }
 
                 // Apply new settings to key
@@ -511,8 +514,12 @@ void read_serial() {
 
                 // Apply new settings to key
                 digitalKeys[digital_key_id].applySettings(currDigitalSettings);
+            } else if (is_encoder_key(key_id)) {
+                // Handle encoder key settings
+                // No encoder settings for now
             } else {
                 send_error_response_message("INVALID_KEY_ID");
+                return;
             }
         }
 
@@ -542,6 +549,7 @@ void read_serial() {
 
         if (request_msg.containsKey("key")) {
             uint32_t key_id = request_msg["key"].as<unsigned int>();
+            response_msg["key"] = key_id;
             if (request_msg.containsKey("k_t")) {
                 response_msg["k_t"] = static_cast<unsigned int>(storage_vars.keymap[key_id].keyType);
             }
@@ -553,6 +561,9 @@ void read_serial() {
                 // This repeated code is not great...
                 uint32_t analog_key_id = key_id_to_analog_key_index(key_id);
                 const AnalogSwitchSettings_t *currAnalogSettings = &(storage_vars.analogSettings[analog_key_id]);
+                if (request_msg.containsKey("rt")) {
+                    response_msg["rt"] = currAnalogSettings->rapid_trigger_enable;
+                }
                 if (request_msg.containsKey("h_a")) {
                     response_msg["h_a"] = Q22_10_TO_FLOAT(currAnalogSettings->press_hysteresis_mm);
                 }
@@ -577,8 +588,8 @@ void read_serial() {
                 if (request_msg.containsKey("c_d")) {
                     response_msg["c_d"] = Q22_10_TO_FLOAT(currAnalogSettings->calibration_down_adc);
                 }
-                if (request_msg.containsKey("s")) {
-                    response_msg["s"] = currAnalogSettings->samples;
+                if (request_msg.containsKey("a_s")) {
+                    response_msg["a_s"] = currAnalogSettings->samples;
                 }
                 if (request_msg.containsKey("adc")) {
                     response_msg["adc"] = Q22_10_TO_FLOAT(analogKeys[analog_key_id].current_reading);
@@ -596,8 +607,12 @@ void read_serial() {
                 if (request_msg.containsKey("d_r")) {
                     response_msg["d_r"] = currDigitalSettings->debounce_release_ms;
                 }
+            } else if (is_encoder_key(key_id)) {
+                // Handle encoder key settings
+                // No encoder settings for now
             } else {
                 send_error_response_message("INVALID_KEY_ID");
+                return;
             }
         }
 

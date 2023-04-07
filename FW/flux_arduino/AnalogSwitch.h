@@ -45,6 +45,7 @@ const q22_10_t reference_down_adc = INT_TO_Q22_10(3295);
  *
  */
 typedef struct {
+    bool rapid_trigger_enable;
     q22_10_t press_hysteresis_mm;
     q22_10_t release_hysteresis_mm;
     q22_10_t actuation_point_mm;
