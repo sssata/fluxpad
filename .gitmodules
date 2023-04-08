@@ -1,0 +1,3 @@
+[submodule "APP/Sun-Valley-ttk-theme"]
+	path = APP/Sun-Valley-ttk-theme
+	url = https://github.com/sssata/Sun-Valley-ttk-theme.git
