@@ -5,6 +5,7 @@ import logging
 from tkinter import font
 
 import pynput
+import darkdetect
 
 from scancode_to_hid_code import (ScanCodeList, ScanCode, get_name_list,
                                   pynput_event_to_scancode, key_name_to_scancode)
@@ -13,7 +14,7 @@ import use_sv_ttk
 UpdateScancodeCallback = Callable[[ScanCode], None]
 
 PADDING = 2
-
+IS_DARKMODE = False
 
 class EncoderMap(ttk.Labelframe):
     """Class for an encoder keymap gui
@@ -61,15 +62,18 @@ class KeyMap(ttk.Labelframe):
 
         self.scancode: Optional[ScanCode] = None
 
-        self.btn_key = ttk.Button(self, text="None", takefocus=False)
-        self.btn_key.pack(expand=True, fill="both", ipady=20)
-
         self.mystyle = ttk.Style(self)
-        # self.mystyle.theme_use()
-        btn_font = font.Font(family="Helvetica", size=20, weight="bold")
-        self.mystyle.map("Selected.TButton", background=[('active', 'red'),("!active", "red")])
-        self.mystyle.configure("TButton", font=btn_font)
-        self.mystyle.configure("Accent.TButton", font=btn_font)
+        btn_font = font.Font(family="Segoe UI", size=14, weight="bold")
+        # self.mystyle.map("Bold.Accent.TButton", foreground=[("active", "blue"), ("!active", "blue")], relief=[("active", "sunken"),("!active", "sunken")])
+        # self.mystyle.map("Bold.Accent.TButton", relief=[("pressed", "sunken"),("!pressed", "sunken")])
+        # self.mystyle.configure("Bold.Accent.TButton", background="blue")
+
+        self.mystyle.configure("Bold.TButton", font=btn_font)
+        self.mystyle.configure("Bold.Accent.TButton", font=btn_font)
+
+        self.btn_key = ttk.Button(self, text="None", takefocus=False, style="Bold.TButton")
+        self.btn_key.pack(expand=True, fill="both", ipady=20, pady=(4,0))
+
 
     def set_scancode(self, scancode: ScanCode):
         self.scancode = scancode
@@ -81,10 +85,10 @@ class KeyMap(ttk.Labelframe):
     
     def set_selected(self, selected: bool):
         if selected:
-            self.btn_key.configure(style="Accent.TButton")
+            self.btn_key.configure(style="Bold.Accent.TButton")
 
         else:
-            self.btn_key.configure(style="TButton")
+            self.btn_key.configure(style="Bold.TButton")
 
 
 class MapEditFrame(ttk.Labelframe):
@@ -99,7 +103,7 @@ class MapEditFrame(ttk.Labelframe):
         self.label_a = ttk.Label(self, text="Press key or select from list: ")
         self.label_a.grid(row=1, column=1, padx=PADDING, pady=PADDING)
 
-        self.label_key = ttk.Combobox(self, text="None", state="readonly")
+        self.label_key = ttk.Combobox(self, text="None", state="readonly", takefocus=False)
         self.label_key.grid(row=1, column=2, padx=PADDING, pady=PADDING)
         self.label_key['values'] = get_name_list()
         self.label_key.bind('<<ComboboxSelected>>', self.on_select_combobox)
@@ -127,6 +131,7 @@ class MapEditFrame(ttk.Labelframe):
         scancode = key_name_to_scancode(self.label_key.get())
         logging.debug(f"Selected {scancode}")
         self.on_scancode_update(scancode)
+        self.label_key.selection_clear()
 
     def on_scancode_update(self, scancode: ScanCode):
             self.label_key.set(scancode.name)
@@ -189,6 +194,8 @@ class KeymapFrame(ttk.Frame):
         self.lf_mapedit = MapEditFrame(self)
         self.lf_mapedit.grid(row=4, column=1, columnspan=2, sticky="NSEW")
         self.lf_mapedit.on_update_scancode_callback = self.on_scancode_update
+        self.lf_mapedit.label_key.configure(state="disabled")  # start off disabled because no key is selected yet
+
 
         self.selected_keymap: Optional[KeyMap] = None
 
@@ -201,11 +208,14 @@ class KeymapFrame(ttk.Frame):
             self.selected_keymap.set_selected(False)
             self.selected_keymap = None
             logging.debug(f"Deselected key: {keymap.key_name}")
+            self.lf_mapedit.label_key.configure(state="disabled")
         else:
             if self.selected_keymap is not None:
                 self.selected_keymap.set_selected(False)
             self.selected_keymap = keymap
             self.selected_keymap.set_selected(True)
+            self.lf_mapedit.label_key.configure(state="readonly")
+
 
             if keymap.scancode is not None:
                 self.lf_mapedit.label_key.set(keymap.scancode.name)
@@ -245,7 +255,7 @@ class Application(ttk.Frame):
         super().__init__(master=master)
 
         self.notebook = ttk.Notebook(self, takefocus=False)
-        self.config(padding=4)
+        # self.config(padding=0)
         self.columnconfigure(1, weight=1)
         self.rowconfigure(1, weight=1)
         self.rowconfigure(2, weight=0)
@@ -258,7 +268,7 @@ class Application(ttk.Frame):
         self.notebook.add(self.frame_settings, text="Settings")
         self.notebook.add(self.frame_utilities, text="Utilities")
         
-        self.notebook.grid(row=1, column=1, sticky="NSEW")
+        self.notebook.grid(row=1, column=1, sticky="NSEW", pady=(0, 4), padx=4)
         self.notebook.bind("<<NotebookTabChanged>>", self.on_notebook_tab_changed)
 
         self.btn_upload = ttk.Button(self, text="Upload")
@@ -314,12 +324,21 @@ if __name__ == "__main__":
     # keyboard.hook(callback=keyboard_callback)
 
     root = tk.Tk()
-    use_sv_ttk.set_theme("dark")
-    # root.attributes("-alpha", 0.5)
+    
+    try:
+        IS_DARKMODE = darkdetect.isDark()
+    except Exception:
+        logging.warning("Cannot determine darkmode")
+
+    if IS_DARKMODE:
+        ...
+        use_sv_ttk.set_theme("dark")
+    else:
+        ...
+        use_sv_ttk.set_theme("light")
+        
     # root.geometry("600x600")
     root.title("FLUXAPP")
     app = Application(master=root)
-    # app.grid(column=1, row=1, sticky="EW")
-    # app.update
     app.pack(expand=True, fill="both", side="top")
     app.mainloop()
