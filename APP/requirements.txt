@@ -1,3 +1,4 @@
+darkdetect
 pyserial
 pynput
 pyinstaller

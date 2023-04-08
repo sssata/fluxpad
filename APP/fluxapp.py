@@ -2,11 +2,13 @@ import tkinter as tk
 from tkinter import ttk
 from typing import Union, Optional, Callable, NewType, TypeVar
 import logging
+from tkinter import font
 
 import pynput
 
 from scancode_to_hid_code import (ScanCodeList, ScanCode, get_name_list,
                                   pynput_event_to_scancode, key_name_to_scancode)
+import use_sv_ttk
 
 UpdateScancodeCallback = Callable[[ScanCode], None]
 
@@ -59,12 +61,15 @@ class KeyMap(ttk.Labelframe):
 
         self.scancode: Optional[ScanCode] = None
 
-        self.btn_key = ttk.Button(self, text="None",)
+        self.btn_key = ttk.Button(self, text="None", takefocus=False)
         self.btn_key.pack(expand=True, fill="both", ipady=20)
 
         self.mystyle = ttk.Style(self)
         # self.mystyle.theme_use()
+        btn_font = font.Font(family="Helvetica", size=20, weight="bold")
         self.mystyle.map("Selected.TButton", background=[('active', 'red'),("!active", "red")])
+        self.mystyle.configure("TButton", font=btn_font)
+        self.mystyle.configure("Accent.TButton", font=btn_font)
 
     def set_scancode(self, scancode: ScanCode):
         self.scancode = scancode
@@ -76,7 +81,7 @@ class KeyMap(ttk.Labelframe):
     
     def set_selected(self, selected: bool):
         if selected:
-            self.btn_key.configure(style="Selected.TButton")
+            self.btn_key.configure(style="Accent.TButton")
 
         else:
             self.btn_key.configure(style="TButton")
@@ -239,12 +244,12 @@ class Application(ttk.Frame):
     def __init__(self, master=None):
         super().__init__(master=master)
 
-        self.notebook = ttk.Notebook(self)
+        self.notebook = ttk.Notebook(self, takefocus=False)
         self.config(padding=4)
         self.columnconfigure(1, weight=1)
         self.rowconfigure(1, weight=1)
         self.rowconfigure(2, weight=0)
-
+ 
         self.frame_keymap = KeymapFrame(self.notebook)
         self.frame_settings = SettingsFrame(self.notebook)
         self.frame_utilities = UtilitiesFrame(self.notebook)
@@ -309,6 +314,7 @@ if __name__ == "__main__":
     # keyboard.hook(callback=keyboard_callback)
 
     root = tk.Tk()
+    use_sv_ttk.set_theme("dark")
     # root.attributes("-alpha", 0.5)
     # root.geometry("600x600")
     root.title("FLUXAPP")
