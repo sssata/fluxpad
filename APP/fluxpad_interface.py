@@ -114,6 +114,13 @@ class EncoderSettingsMessage(BaseMessage):
         self._assert_uint8(key_code)
         self.data[MessageKey.KEY_CODE] = key_code
 
+    @key_code.deleter
+    def key_code(self):
+        try:
+            del self.data[MessageKey.KEY_CODE]
+        except KeyError:
+            pass
+
     @property
     def key_type(self):
         return self.data[MessageKey.KEY_TYPE]
@@ -123,6 +130,13 @@ class EncoderSettingsMessage(BaseMessage):
         self._assert_uint8(key_type)
         assert key_type in list(KeyType)
         self.data[MessageKey.KEY_TYPE] = key_type
+    
+    @key_type.deleter
+    def key_type(self):
+        try:
+            del self.data[MessageKey.KEY_TYPE]
+        except KeyError:
+            pass
 
 
 class DigitalSettingsMessage(BaseMessage):
@@ -283,6 +297,13 @@ class AnalogSettingsMessage(BaseMessage):
         assert 0 <= up_adc <= 4096
         self.data[MessageKey.CALIBRATION_UP] = up_adc
 
+    @calibration_up.deleter
+    def calibration_up(self):
+        try:
+            del self.data[MessageKey.CALIBRATION_UP]
+        except KeyError:
+            pass
+
     @property
     def calibration_down(self):
         return float(self.data[MessageKey.CALIBRATION_DOWN])
@@ -292,6 +313,13 @@ class AnalogSettingsMessage(BaseMessage):
         assert isinstance(down_adc, float)
         assert 0 <= down_adc <= 4096
         self.data[MessageKey.CALIBRATION_DOWN] = down_adc
+
+    @calibration_down.deleter
+    def calibration_down(self):
+        try:
+            del self.data[MessageKey.CALIBRATION_DOWN]
+        except KeyError:
+            pass
 
     @property
     def adc_samples(self):
@@ -467,27 +495,55 @@ class FluxpadSettings:
         if not fluxpad.port.is_open:
             raise ConnectionError("Fluxpad not connected")
         
-        key_id = 0
         for key_settings in self.key_settings_list:
             try:
                 key_settings.set_zeros()
                 self._set_key_ids()
                 response = fluxpad.send_read_request(key_settings)
                 assert set(response.data.keys()) == set(key_settings.data.keys()), f"Difference: {set(response.data.keys()).symmetric_difference(set(key_settings.data.keys()))}"
-                logging.debug(f"Got settings for Key ID {key_id}")
+                logging.debug(f"Got settings for Key ID {key_settings.key_id}")
             except Exception:
-                logging.error(f"Failed to get settings for Key ID {key_id} with message {key_settings.data}", exc_info=True)
+                logging.error(f"Failed to get settings for Key ID {key_settings.key_id} with message {key_settings.data}", exc_info=True)
             else:
                 key_settings.data = response.data.copy()
-            key_id += 1
 
-    def save_to_fluxpad(self, fluxpad: Fluxpad):
-        # TODO implement this
-        raise NotImplementedError()
+
+    def save_to_fluxpad(self, fluxpad: Fluxpad, include_calibration: bool = False):
+        """Save all settings to the given connected fluxpad"""
+        if not fluxpad.port.is_open:
+            raise ConnectionError("Fluxpad not connected")
+        
+        for current_key_settings in self.key_settings_list:
+            key_settings = current_key_settings
+            try:
+                if isinstance(key_settings, AnalogSettingsMessage) and not include_calibration:
+                    del key_settings.calibration_down
+                    del key_settings.calibration_up
+                assert isinstance(key_settings.key_id, int)  # check key id exists
+                response = fluxpad.send_write_request(key_settings)
+                # assert set(response.data.keys()) == set(key_settings.data.keys()), f"Difference: {set(response.data.keys()).symmetric_difference(set(key_settings.data.keys()))}"
+                logging.debug(f"Wrote settings for Key ID {key_settings.key_id}")
+            except Exception:
+                logging.error(f"Failed to write settings for Key ID {key_settings.key_id} with message {key_settings.data}", exc_info=True)
         
     def load_from_file(self, path: pathlib.Path):
         # TODO implement this
-        raise NotImplementedError()
+        # raise NotImplementedError()
+    
+        try:
+            ...
+            with path.open("r") as f:
+                root_json = json.load(f)
+        except Exception:
+            logging.error(f"Failed to load settings from {path}", exc_info=1)
+            return
+
+        try:
+            for json_object in root_json[self.KEY_SETTINGS_KEY]:
+                self.key_settings_list[json_object[MessageKey.KEY_ID]].data = json_object
+        except Exception:
+            logging.error(f"Failed to parse settings from {path}", exc_info=1)
+        
     
     def save_to_file(self, path: pathlib.Path):
         if path.exists():
@@ -549,4 +605,9 @@ if __name__ == "__main__":
         for key_settings in settings.key_settings_list:
             print(key_settings.data)
 
-        settings.save_to_file(pathlib.Path("testing.json"))
+        filepath = pathlib.Path("testy.json")
+        settings.save_to_file(filepath)
+
+        new_settings = FluxpadSettings()
+        new_settings.load_from_file(filepath)
+        new_settings.save_to_file(filepath.with_name("testy2.json"))

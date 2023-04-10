@@ -244,6 +244,8 @@ def key_name_to_scancode(key_name: str):
     """Get a ScanCode from keyname"""
     return next(filter(lambda x: x.name == key_name, SCANCODE_LIST), None)
 
+def key_type_and_code_to_scancode(key_type: KeyType, key_code: int):
+    return next(filter(lambda x: x.hid_keycode == key_code and x.hid_usage == key_type, SCANCODE_LIST), None)
 
 def get_name_list():
     string_list = [x.name for x in SCANCODE_LIST]
