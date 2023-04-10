@@ -235,28 +235,49 @@ class KeymapFrame(ttk.Frame):
 
 class SliderSetting(ttk.Labelframe):
 
-    def __init__(self, master, var_type: type = float, min_value = 0, max_value = 1, resolution = 0.1, *args, **kwargs):
+    def __init__(self, master, var_type: type = float, min_value = 0, max_value = 1, resolution = 0.1, decimal_places = 2, units: str = "", *args, **kwargs):
         super().__init__(master, *args, **kwargs)
 
         self.resolution = resolution
         self.var_type = var_type
+        self.min_value = min_value
+        self.max_value = max_value
+        self.decimal_places = decimal_places
+
+        # Grid config
+        self.rowconfigure(1, weight=0)
+        self.columnconfigure(1, weight=1)
+        self.columnconfigure(1, weight=0)
+
         self.value: Optional[var_type] = None
         self.double_var = tk.DoubleVar(self, min_value)
         self.string_var = tk.StringVar(self)
-        # self.trace = self.double_var.trace_add(mode="write", callback=self.on_slider_move)
         self.slider = TickScale(self, from_=min_value/resolution, to=max_value/resolution, variable=self.double_var, length=200, showvalue=False, resolution=1.0, takefocus=True, command=self.on_slider_move)
         self.slider.grid(row=1, column=1)
-        # self.slider.bind("<Button-1>", self.on_slider_click)
-        vcmd = (self.register(self.entry_validate),'%P')
-        self.entry = ttk.Spinbox(self, textvariable=self.string_var, validate="key", validatecommand=vcmd, width=5, from_=min_value, to=max_value, increment=resolution, command=self.on_spinbox_entry, name="hello")
-        self.trace = self.string_var.trace_add("write", lambda *args: self.on_spinbox_entry())
-        self.entry.grid(row=1, column=2)
-        self.entry.bind("<Return>", self.entry_defocus)
+        self.entry = ttk.Spinbox(self, textvariable=self.string_var, validate="key", validatecommand=(self.register(self.entry_validate),'%P'), width=5, from_=min_value, to=max_value, increment=resolution, name="hello")
+        self.entry.grid(row=1, column=2, padx=2)
+
+        self.units_label = ttk.Label(self, text=units)
+        self.units_label.grid(row=1, column=3)
+
+        # Wire things up
+        self.trace = self.string_var.trace_add("write", lambda *args: self.on_spinbox_entry())  # Trace spinbox entry
+        self.slider.scale.bind("<1>", lambda event: self.on_slider_click())  # Focus on scale click
+        self.slider.scale.bind("<2>", lambda event: self.on_slider_click())  # Focus on scale click
+        self.slider.scale.bind("<3>", lambda event: self.on_slider_click())  # Focus on scale click
+
+        self.entry.bind("<Return>", self.entry_defocus)  # Defocus on enter key
+        self.entry.bind("<FocusOut>", self.check_in_range)  # Enforce range on defocus
         # self.winfo_toplevel().bind("<Button -1>", self.click_event)
-# 
+        self.on_slider_move(1)
+
+    def on_slider_click(self):
+        logging.debug("hello")
+        self.slider.scale.focus()
+
 
     def on_slider_move(self, a):
-        self.string_var.set(f"{self.double_var.get()*self.resolution:.2f}")
+        self.string_var.set(f"{self.double_var.get()*self.resolution:.{self.decimal_places}f}")
         self.value = self.var_type(self.double_var.get()*self.resolution)
         logging.debug(f"Slider moved to {self.value}")
 
@@ -273,15 +294,23 @@ class SliderSetting(ttk.Labelframe):
         self.value = self.var_type(self.double_var.get()*self.resolution)
         logging.debug(f"Spinbox moved to {self.value}")
 
+    def check_in_range(self, event: tk.Event):
+        if self.value < self.min_value:
+            logging.debug("below range")
+            self.double_var.set(self.min_value/self.resolution)
+            self.on_slider_move(1)
 
-    def entry_validate(self, string):
-        logging.debug(f"entry {string}")
+        elif self.value > self.max_value:
+            logging.debug("above range")
+            self.double_var.set(self.max_value/self.resolution)
+            self.on_slider_move(1)
+
+        logging.debug("in range")
+
+    def entry_validate(self, string: str):
+        logging.debug(f"Entry {string}")
         regex = re.compile(r"(\+|\-)?[0-9.]*$")
         result = regex.match(string)
-        # try:
-        #     self.on_spinbox_entry()
-        # except Exception:
-        #     pass
         return (string == ""
                 or (string.count('+') <= 1
                     and string.count('-') <= 1
@@ -292,17 +321,10 @@ class SliderSetting(ttk.Labelframe):
     def entry_defocus(self, event: tk.Event):
         self.entry.tk_focusNext().focus()
 
-    def click_event(self, event: tk.Event):
-        # print(self.entry.)
-        x,y = root.winfo_pointerxy()                   # get the mouse position on screen
-        widget = root.winfo_containing(x,y)            # identify the widget at this location
-        print(widget)
-        widget = root.nametowidget(widget)
-        if not (widget == self.entry):                 # if the mouse is not over the text widget
-            root.focus()                               # focus on root
+    def set_value(self, value):
+        self.double_var.set(value/self.resolution)
+        self.on_slider_move(1)
 
-    # def on_entry(self, a, b, c):
-    #     ...
 
 class AnalogSettingsPanel(ttk.Labelframe):
     """Class for an encoder keymap gui
@@ -318,20 +340,28 @@ class AnalogSettingsPanel(ttk.Labelframe):
         self.rowconfigure(1, weight=0)
         self.rowconfigure(2, weight=0)
         self.rowconfigure(3, weight=0)
+        self.rowconfigure(4, weight=0)
+        self.rowconfigure(5, weight=0)
+        self.rowconfigure(6, weight=0)
+        self.rowconfigure(7, weight=0)
         self.columnconfigure(1, weight=1)
         # self.columnconfigure(2, weight=1)
 
         self.checkbox_rapid_trigger = ttk.Checkbutton(self, text="Rapid Trigger")
         self.checkbox_rapid_trigger.state(['!alternate'])  # Start unchecked
         self.checkbox_rapid_trigger.grid(row=1, column=1)
-        self.press_hysteresis = SliderSetting(self, text="Press Sensitivity", var_type=float, min_value=0, max_value=2, resolution=0.01)
+        self.press_hysteresis = SliderSetting(self, text="Rapid Trigger Upstroke", var_type=float, min_value=0.05, max_value=1, resolution=0.05, units="mm")
         self.press_hysteresis.grid(row=2, column=1, sticky="EW")
-        self.release_hysteresis = SliderSetting(self, text="Release Sensitivity")
+        self.release_hysteresis = SliderSetting(self, text=" Rapid Trigger Downstroke", var_type=float, min_value=0.05, max_value=1, resolution=0.05, units="mm")
         self.release_hysteresis.grid(row=3, column=1, sticky="EW")
-        self.upper_range = SliderSetting(self, text="Rapid Trigger Range Upper Limit")
-        self.upper_range.grid(row=4, column=1, sticky="EW")
-        self.lower_range = SliderSetting(self, text="Rapid Trigger Range Low Limit")
-        self.lower_range.grid(row=5, column=1, sticky="EW")
+        self.release_point = SliderSetting(self, text="Rapid Trigger Upper Limit", var_type=float, min_value=2, max_value=4, resolution=0.05, units="mm")
+        self.release_point.grid(row=4, column=1, sticky="EW")
+        self.actuation_point = SliderSetting(self, text="Rapid Trigger Lower Limit", var_type=float, min_value=0, max_value=2, resolution=0.05, units="mm")
+        self.actuation_point.grid(row=5, column=1, sticky="EW")
+        self.press_debounce = SliderSetting(self, text="Rapid Trigger Press Debounce", var_type=float, min_value=0, max_value=20, resolution=1, decimal_places=0, units="ms")
+        self.press_debounce.grid(row=6, column=1, sticky="EW")
+        self.release_debounce = SliderSetting(self, text="Rapid Trigger Release Debounce", var_type=float, min_value=0, max_value=20, resolution=1, decimal_places=0, units="ms")
+        self.release_debounce.grid(row=7, column=1, sticky="EW")
 
         # self.label_sensitivity = ttk.Label(self, text="Sensitivity")
         # self.label_sensitivity.grid(row=2, column=1)
@@ -360,8 +390,11 @@ class DigitalSettingsPanel(ttk.Labelframe):
         self.columnconfigure(1, weight=1)
         self.columnconfigure(2, weight=1)
 
-        self.debounce_setting = SliderSetting(self, text="Debouce", var_type=float, min_value=0, max_value=2, resolution=0.01)
-        self.debounce_setting.grid(row=1, column=1, sticky="EW")
+        self.debounce_press = SliderSetting(self, text="Press Debouce", var_type=float, min_value=0, max_value=20, resolution=1, units="ms")
+        self.debounce_press.grid(row=1, column=1, sticky="EW")
+
+        self.debounce_release = SliderSetting(self, text="Release Debouce", var_type=float, min_value=0, max_value=20, resolution=1, units="ms")
+        self.debounce_release.grid(row=2, column=1, sticky="EW")
 
     def set_scancode(self, scancode: ScanCode):
         self.scancode = scancode
@@ -399,10 +432,15 @@ class SelectKeySettingsFrame(ttk.Labelframe):
         self.configure(text="Select Key")
         self.columnconfigure(1, weight=1)
         self.columnconfigure(2, weight=1)
-        self.columnconfigure(3, weight=1)
-        self.columnconfigure(4, weight=1)
+        self.rowconfigure(1, weight=1)
+        self.rowconfigure(2, weight=1)
+        self.rowconfigure(3, weight=1)
+        self.rowconfigure(4, weight=1)
 
-        self.chk_per_key_digital = ttk.Checkbutton(self, text="Per Key Digital Settings")
+        self.is_per_key_digital = tk.BooleanVar(self)
+        self.is_per_key_analog = tk.BooleanVar(self)
+
+        self.chk_per_key_digital = ttk.Checkbutton(self, text="Per Key Digital Settings", variable=self.is_per_key_digital, command=self.on_per_key_digital_click)
         self.chk_per_key_digital.state(['!alternate'])  # Start unchecked
         self.chk_per_key_digital.grid(row=1, column=1, columnspan=2, sticky="W")
 
@@ -411,7 +449,7 @@ class SelectKeySettingsFrame(ttk.Labelframe):
         self.btn_digital_2 = ttk.Button(self, text="Digital Key 2")
         self.btn_digital_2.grid(row=2, column=2, sticky="EW")
 
-        self.chk_per_key_analog = ttk.Checkbutton(self, text="Per Key Analog Settings")
+        self.chk_per_key_analog = ttk.Checkbutton(self, text="Per Key Analog Settings", variable=self.is_per_key_analog, command=self.on_per_key_analog_click)
         self.chk_per_key_analog.state(['!alternate'])  # Start unchecked
         self.chk_per_key_analog.grid(row=3, column=1, columnspan=2, sticky="W")
 
@@ -420,7 +458,33 @@ class SelectKeySettingsFrame(ttk.Labelframe):
         self.btn_analog_2 = ttk.Button(self, text="Analog Key 2")
         self.btn_analog_2.grid(row=4, column=2, sticky="EW")
 
+        self.on_per_key_analog_click()
+        self.on_per_key_digital_click()
 
+    def on_per_key_analog_click(self):
+        if self.is_per_key_analog.get():
+            logging.debug("Set Per Key Analog")
+            self.btn_analog_1.grid_configure(columnspan=1)
+            self.btn_analog_1.configure(text="Analog Key 1")
+            self.btn_analog_2.grid(row=4, column=2, sticky="EW")
+        else:
+            logging.debug("Set Linked Analog")
+            self.btn_analog_1.grid_configure(columnspan=2)
+            self.btn_analog_2.grid_forget()
+            self.btn_analog_1.configure(text="Analog Keys")
+        
+    def on_per_key_digital_click(self):
+        print( self.chk_per_key_digital.state())
+        if self.is_per_key_digital.get():
+            logging.debug("Set Per Key Digital")
+            self.btn_digital_1.grid_configure(columnspan=1)
+            self.btn_digital_1.configure(text="Digital Key 1")
+            self.btn_digital_2.grid(row=2, column=2, sticky="EW")
+        else:
+            logging.debug("Set Linked Digital")
+            self.btn_digital_2.grid_forget()
+            self.btn_digital_1.grid_configure(columnspan=2)
+            self.btn_digital_1.configure(text="Digital Keys")
 
 
 class SettingsFrame(ttk.Frame):
@@ -446,6 +510,12 @@ class SettingsFrame(ttk.Frame):
 
         # self.scrollable_frame = ScrollableFrame(self)
         # self.scrollable_frame.grid(row=2, column=1, sticky="NSEW")
+        self.settings_panel_list = [
+            AnalogSettingsPanel(self),
+            AnalogSettingsPanel(self),
+            DigitalSettingsPanel(self),
+            DigitalSettingsPanel(self),
+        ]
         self.analog_settings_panel = AnalogSettingsPanel(self)
         self.analog_settings_panel.grid(row=2, column=1, sticky="NSEW")
         self.digital_settings_panel = DigitalSettingsPanel(self)
