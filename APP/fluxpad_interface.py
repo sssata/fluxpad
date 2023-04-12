@@ -286,6 +286,40 @@ class AnalogSettingsMessage(BaseMessage):
         self._assert_uint8(debounce_ms)
         self.data[MessageKey.RELEASE_DEBOUNCE] = debounce_ms
 
+    @property
+    def adc_samples(self):
+        return int(self.data[MessageKey.ADC_SAMPLES])
+
+    @adc_samples.setter
+    def adc_samples(self, adc_samples: int):
+        self._assert_uint8(adc_samples)
+        self.data[MessageKey.ADC_SAMPLES] = adc_samples
+
+    @property
+    def rapid_trigger(self):
+        return bool(self.data[MessageKey.RAPID_TRIGGER])
+
+    @rapid_trigger.setter
+    def rapid_trigger(self, rapid_trigger_enable: bool):
+        assert isinstance(rapid_trigger_enable, bool)
+        self.data[MessageKey.RAPID_TRIGGER] = rapid_trigger_enable
+
+
+class AnalogCalibrationMessage(BaseMessage):
+    """Analog key calibration message containing
+    calibration up and calibration down settings"""
+
+    # KEY ID
+    @property
+    def key_id(self):
+        return self.data[MessageKey.KEY_ID]
+
+    @key_id.setter
+    def key_id(self, key_id: int):
+        self._assert_uint8(key_id)
+        assert key_id in list(KeyType)
+        self.data[MessageKey.KEY_ID] = key_id
+    
     # CALIBRATION
     @property
     def calibration_up(self):
@@ -321,16 +355,22 @@ class AnalogSettingsMessage(BaseMessage):
         except KeyError:
             pass
 
+
+class AnalogReadMessage(BaseMessage):
+    """Analog key read message containing """
+
+    # KEY ID
     @property
-    def adc_samples(self):
-        return int(self.data[MessageKey.ADC_SAMPLES])
+    def key_id(self):
+        return self.data[MessageKey.KEY_ID]
 
-    @adc_samples.setter
-    def adc_samples(self, adc_samples: int):
-        self._assert_uint8(adc_samples)
-        self.data[MessageKey.ADC_SAMPLES] = adc_samples
+    @key_id.setter
+    def key_id(self, key_id: int):
+        self._assert_uint8(key_id)
+        assert key_id in list(KeyType)
+        self.data[MessageKey.KEY_ID] = key_id
 
-    # ANALOG KEY
+    # RAW ADC
     @property
     def raw_adc(self):
         return float(self.data[MessageKey.RAW_ADC])
@@ -349,17 +389,7 @@ class AnalogSettingsMessage(BaseMessage):
         """Dummy function for read cmd, doesn't actually set height_mm"""
         self.data[MessageKey.HEIGHT] = 0
 
-    @property
-    def rapid_trigger(self):
-        return bool(self.data[MessageKey.RAPID_TRIGGER])
-
-    @rapid_trigger.setter
-    def rapid_trigger(self, rapid_trigger_enable: bool):
-        assert isinstance(rapid_trigger_enable, bool)
-        self.data[MessageKey.RAPID_TRIGGER] = rapid_trigger_enable
-
-
-class KeySettingMessage(DigitalSettingsMessage, AnalogSettingsMessage, EncoderSettingsMessage):
+class KeySettingMessage(DigitalSettingsMessage, AnalogSettingsMessage, EncoderSettingsMessage, AnalogCalibrationMessage, AnalogReadMessage):
     """Composite class of all settings types"""
     pass
 
@@ -497,9 +527,12 @@ class FluxpadSettings:
         
         for key_settings in self.key_settings_list:
             try:
+                # Read Settings
                 key_settings.set_zeros()
                 self._set_key_ids()
                 response = fluxpad.send_read_request(key_settings)
+
+                # Check all requested keys exist
                 assert set(response.data.keys()) == set(key_settings.data.keys()), f"Difference: {set(response.data.keys()).symmetric_difference(set(key_settings.data.keys()))}"
                 logging.debug(f"Got settings for Key ID {key_settings.key_id}")
             except Exception:
@@ -588,8 +621,18 @@ if __name__ == "__main__":
 
         message = AnalogSettingsMessage()
         message.key_id = 2
-        message.raw_adc = 0
-        message.height_mm = 0
+        response = fluxpad.send_read_request(message)
+        print(response.data)
+
+        message = AnalogCalibrationMessage()
+        message.set_zeros()
+        message.key_id = 2
+        response = fluxpad.send_read_request(message)
+        print(response.data)
+
+        message = AnalogReadMessage()
+        message.set_zeros()
+        message.key_id = 2
         response = fluxpad.send_read_request(message)
         print(response.data)
 

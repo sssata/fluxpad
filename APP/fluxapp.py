@@ -1,6 +1,6 @@
 import tkinter as tk
 from tkinter import ttk
-from typing import Union, Optional, Callable, NewType, TypeVar
+from typing import Union, Optional, Callable, List
 import logging
 from tkinter import font
 import pathlib
@@ -379,7 +379,7 @@ class DigitalSettingsPanel(ttk.Labelframe):
 
     def __init__(self, master, *args, **kwargs):
         super().__init__(master, *args, **kwargs)
-        self.configure(text="Analog Key Settings")
+        self.configure(text="Digital Key Settings")
 
         # self.scancode: Optional[ScanCode] = None
         
@@ -440,23 +440,29 @@ class SelectKeySettingsFrame(ttk.Labelframe):
         self.is_per_key_digital = tk.BooleanVar(self)
         self.is_per_key_analog = tk.BooleanVar(self)
 
+        self.btn_list = [
+            ttk.Button(self, text="Digital Key 1"),
+            ttk.Button(self, text="Digital Key 2"),
+            ttk.Button(self, text="Analog Key 1"),
+            ttk.Button(self, text="Analog Key 2"),
+        ]
+
         self.chk_per_key_digital = ttk.Checkbutton(self, text="Per Key Digital Settings", variable=self.is_per_key_digital, command=self.on_per_key_digital_click)
         self.chk_per_key_digital.state(['!alternate'])  # Start unchecked
         self.chk_per_key_digital.grid(row=1, column=1, columnspan=2, sticky="W")
 
-        self.btn_digital_1 = ttk.Button(self, text="Digital Key 1")
-        self.btn_digital_1.grid(row=2, column=1, sticky="EW")
-        self.btn_digital_2 = ttk.Button(self, text="Digital Key 2")
-        self.btn_digital_2.grid(row=2, column=2, sticky="EW")
+        self.btn_list[0].grid(row=2, column=1, sticky="EW")
+        self.btn_list[1].grid(row=2, column=2, sticky="EW")
 
         self.chk_per_key_analog = ttk.Checkbutton(self, text="Per Key Analog Settings", variable=self.is_per_key_analog, command=self.on_per_key_analog_click)
         self.chk_per_key_analog.state(['!alternate'])  # Start unchecked
         self.chk_per_key_analog.grid(row=3, column=1, columnspan=2, sticky="W")
 
-        self.btn_analog_1 = ttk.Button(self, text="Analog Key 1")
-        self.btn_analog_1.grid(row=4, column=1, sticky="EW")
-        self.btn_analog_2 = ttk.Button(self, text="Analog Key 2")
-        self.btn_analog_2.grid(row=4, column=2, sticky="EW")
+        self.btn_list[2].grid(row=4, column=1, sticky="EW")
+        self.btn_list[3].grid(row=4, column=2, sticky="EW")
+
+        self.stl = ttk.Style(self)
+        self.stl.configure("Sel.TButton", foreground="red")
 
         self.on_per_key_analog_click()
         self.on_per_key_digital_click()
@@ -464,27 +470,27 @@ class SelectKeySettingsFrame(ttk.Labelframe):
     def on_per_key_analog_click(self):
         if self.is_per_key_analog.get():
             logging.debug("Set Per Key Analog")
-            self.btn_analog_1.grid_configure(columnspan=1)
-            self.btn_analog_1.configure(text="Analog Key 1")
-            self.btn_analog_2.grid(row=4, column=2, sticky="EW")
+            self.btn_list[2].grid_configure(columnspan=1)
+            self.btn_list[2].configure(text="Analog Key 1")
+            self.btn_list[3].grid(row=4, column=2, sticky="EW")
         else:
             logging.debug("Set Linked Analog")
-            self.btn_analog_1.grid_configure(columnspan=2)
-            self.btn_analog_2.grid_forget()
-            self.btn_analog_1.configure(text="Analog Keys")
+            self.btn_list[2].grid_configure(columnspan=2)
+            self.btn_list[3].grid_forget()
+            self.btn_list[2].configure(text="Analog Keys")
         
     def on_per_key_digital_click(self):
         print( self.chk_per_key_digital.state())
         if self.is_per_key_digital.get():
             logging.debug("Set Per Key Digital")
-            self.btn_digital_1.grid_configure(columnspan=1)
-            self.btn_digital_1.configure(text="Digital Key 1")
-            self.btn_digital_2.grid(row=2, column=2, sticky="EW")
+            self.btn_list[0].grid_configure(columnspan=1)
+            self.btn_list[0].configure(text="Digital Key 1")
+            self.btn_list[1].grid(row=2, column=2, sticky="EW")
         else:
             logging.debug("Set Linked Digital")
-            self.btn_digital_2.grid_forget()
-            self.btn_digital_1.grid_configure(columnspan=2)
-            self.btn_digital_1.configure(text="Digital Keys")
+            self.btn_list[1].grid_forget()
+            self.btn_list[0].grid_configure(columnspan=2)
+            self.btn_list[0].configure(text="Digital Keys")
 
 
 class SettingsFrame(ttk.Frame):
@@ -502,49 +508,66 @@ class SettingsFrame(ttk.Frame):
 
         self.key_select_frame = SelectKeySettingsFrame(self)
         self.key_select_frame.grid(row=1, column=1, sticky="NSEW")
-        self.key_select_frame.btn_digital_1.bind("<Button-1>", lambda event: self.on_select_key(event, 0))
-        self.key_select_frame.btn_digital_2.bind("<Button-1>", lambda event: self.on_select_key(event, 1))
-        self.key_select_frame.btn_analog_1.bind("<Button-1>", lambda event: self.on_select_key(event, 2))
-        self.key_select_frame.btn_analog_2.bind("<Button-1>", lambda event: self.on_select_key(event, 3))
+
+            
+        self.key_select_frame.btn_list[0].bind("<Button-1>", lambda event: self.on_select_key(event, 0))
+        self.key_select_frame.btn_list[1].bind("<Button-1>", lambda event: self.on_select_key(event, 1))
+        self.key_select_frame.btn_list[2].bind("<Button-1>", lambda event: self.on_select_key(event, 2))
+        self.key_select_frame.btn_list[3].bind("<Button-1>", lambda event: self.on_select_key(event, 3))
 
 
         # self.scrollable_frame = ScrollableFrame(self)
         # self.scrollable_frame.grid(row=2, column=1, sticky="NSEW")
-        self.settings_panel_list = [
-            AnalogSettingsPanel(self),
-            AnalogSettingsPanel(self),
+        self.settings_panel_list: List[Union[AnalogSettingsPanel, DigitalSettingsPanel]] = [
             DigitalSettingsPanel(self),
             DigitalSettingsPanel(self),
+            AnalogSettingsPanel(self),
+            AnalogSettingsPanel(self),
         ]
-        self.analog_settings_panel = AnalogSettingsPanel(self)
-        self.analog_settings_panel.grid(row=2, column=1, sticky="NSEW")
-        self.digital_settings_panel = DigitalSettingsPanel(self)
-        self.digital_settings_panel.grid(row=2, column=1, sticky="NSEW")
+
+        # self.on_select_key("dummy event", 2)
+        # self.analog_settings_panel = AnalogSettingsPanel(self)
+        # self.analog_settings_panel.grid(row=2, column=1, sticky="NSEW")
+        # self.digital_settings_panel = DigitalSettingsPanel(self)
+        # self.digital_settings_panel.grid(row=2, column=1, sticky="NSEW")
         
-        self.on_select_key(None, 0)
+        # Initialize State
+        self.selected_settings_panel = 2
+        self.on_select_key(None, 2)
+
+    def on_select_per_key_digital(self, event:tk.Event):
+        ...
+        logging.debug("Selected per key digital")
+    
+
+    def on_select_per_key_analog(self, event:tk.Event):
+        ...
+        logging.debug("Selected per key analog")
 
     
     def on_select_key(self, event: tk.Event, key_id: int):
-        if isinstance(self.fluxpad_settings.key_settings_list[key_id], fluxpad_interface.AnalogSettingsMessage):
-            # self.digital_settings_panel.grid()
-            logging.debug("Selected analog key")
-            self.digital_settings_panel.grid_forget()
-            # self.analog_settings_panel.grid_configure()
-            self.analog_settings_panel.grid(row=2, column=1, sticky="NSEW")
-
-
-        if isinstance(self.fluxpad_settings.key_settings_list[key_id], fluxpad_interface.DigitalSettingsMessage):
-            logging.debug("Selected digital key")
-            self.analog_settings_panel.grid_forget()
-            self.digital_settings_panel.grid(row=2, column=1, sticky="NSEW")
-            # self.digital_settings_panel.grid_configure()
-
+        """Callback for key selected"""
+        logging.debug(f"Selected key {key_id}")
         
-        # self.Settings
+        # Hide all settings frames
+        self.settings_panel_list[self.selected_settings_panel].grid_forget()
+        self.key_select_frame.btn_list[self.selected_settings_panel].state(["!pressed"])
 
-        # test_label = tk.Label(self, text="Coming Soon")
-        # test_label.pack()
+        # Show selected settings frame
+        self.settings_panel_list[key_id].grid(row=2, column=1, sticky="NSEW")
+        self.selected_settings_panel = key_id
 
+        # Change Set Title of settings frame
+        if isinstance(self.fluxpad_settings.key_settings_list[key_id], fluxpad_interface.AnalogSettingsMessage):
+            self.settings_panel_list[key_id].configure(text="Analog Keys")
+
+        # self.key_select_frame.btn_list[key_id].state(['pressed'])
+        self.key_select_frame.btn_list[key_id].configure(style="Accent.TButton")
+
+    def load_from_fluxpad_settings(self, fluxpad_settings: fluxpad_interface.FluxpadSettings):
+        
+        for key_setting in fluxpad_settings.key_settings_list:
+            self.key_select_frame.
 
 class UtilitiesFrame(ttk.Frame):
     """Represents the settings tab"""
