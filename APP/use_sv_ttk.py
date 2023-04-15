@@ -1,9 +1,17 @@
 from functools import partial
 from pathlib import Path
+import sys
 
 inited = False
 root = None
 
+
+if getattr(sys, 'frozen', False) and hasattr(sys, '_MEIPASS'):
+    print('running in a PyInstaller bundle')
+    SV_TCL_PATH = (Path(__file__).parent / "sv.tcl").resolve()
+else:
+    print('running in a normal Python process')
+    SV_TCL_PATH = (Path(__file__).parent / "Sun-Valley-ttk-theme" / "sv.tcl").resolve()
 
 def init_theme(func):
     def wrapper(*args, **kwargs):
@@ -13,7 +21,7 @@ def init_theme(func):
         if not inited:
             from tkinter import _default_root
 
-            path = (Path(__file__).parent /"Sun-Valley-ttk-theme" / "sv.tcl").resolve()
+            path = SV_TCL_PATH
 
             try:
                 _default_root.tk.call("source", str(path))
