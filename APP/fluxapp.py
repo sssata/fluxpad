@@ -252,11 +252,6 @@ class KeymapFrame(ttk.Frame):
         self.lf_enc_ccw.save_to_setting(fluxpad_settings.key_settings_list[4])
         self.lf_enc_cw.save_to_setting(fluxpad_settings.key_settings_list[5])
 
-        
-
-
-
-
 
 class AnalogSettingsPanel(ttk.Labelframe):
     """Class for an encoder keymap gui
@@ -571,18 +566,19 @@ class Application(ttk.Frame):
     def __init__(self, master=None):
         super().__init__(master=master)
 
-        self.notebook = ttk.Notebook(self, takefocus=False)
-        # self.config(padding=0)
-        self.fluxpad_settings = fluxpad_interface.FluxpadSettings()
-
         self.columnconfigure(1, weight=1)
         self.rowconfigure(1, weight=1)
         self.rowconfigure(2, weight=0)
- 
+
+        # Create notebook
+        self.notebook = ttk.Notebook(self, takefocus=False)
+
+        # Create tabs
         self.frame_keymap = KeymapFrame(self.notebook)
         self.frame_settings = SettingsFrame(self.notebook)
         self.frame_utilities = UtilitiesFrame(self.notebook)
 
+        # Add tabs
         self.notebook.add(self.frame_keymap, text="Keymap")
         self.notebook.add(self.frame_settings, text="Settings")
         self.notebook.add(self.frame_utilities, text="Utilities")
@@ -611,7 +607,32 @@ class Application(ttk.Frame):
         # Show menu bar
         self.master.configure(menu=self.menubar)
 
+        # Setup Fluxpad interface
+        self.fluxpad_settings = fluxpad_interface.FluxpadSettings()
+        self.fluxpad: Optional[fluxpad_interface.Fluxpad] = None
+        self.listener = fluxpad_interface.FluxpadListener(self.on_connected, self.on_disconnected)
+        self.listener.start()
+
+    def on_connected(self, fluxpad: fluxpad_interface.Fluxpad):
+        logging.info(f"Fluxpad Connected on port {fluxpad.port.name}")
+        self.fluxpad = fluxpad
+        self._on_connected_gui()
+
+    def on_disconnected(self):
+        logging.info(f"Fluxpad Disconnected")
+        self.fluxpad = None
+        self._on_disconnected_gui()
     
+    def _on_connected_gui(self):
+        self.btn_upload.state(["!disabled"])
+        self.save_menu.entryconfigure(1, state=tk.NORMAL)
+        self.load_menu.entryconfigure(1, state=tk.NORMAL)
+
+    def _on_disconnected_gui(self):
+        self.btn_upload.state(["disabled"])
+        self.save_menu.entryconfigure(1, state=tk.DISABLED)
+        self.load_menu.entryconfigure(1, state=tk.DISABLED)
+
     def on_notebook_tab_changed(self, event: tk.Event):
         """"Turn on and off keyboard listensr based on which tab is active"""
 
@@ -621,9 +642,7 @@ class Application(ttk.Frame):
             self.frame_keymap.lf_mapedit.is_active = False
 
     def _update_from_settings(self):
-
         self.frame_keymap.load_from_settings(self.fluxpad_settings)
-
         self.frame_settings.load_from_fluxpad_settings(self.fluxpad_settings)
 
     def _save_to_settings(self):
@@ -631,24 +650,22 @@ class Application(ttk.Frame):
         self.frame_settings.save_to_fluxpad_settings(self.fluxpad_settings)
 
     def on_load_from_file(self):
-        # TODO implement this
         self.fluxpad_settings.load_from_file(pathlib.Path(__file__).parent / "testy.json")
         self._update_from_settings()
-        # pass
 
     def on_save_to_file(self):
-        # TODO implement this
         self._save_to_settings()
         self.fluxpad_settings.save_to_file(pathlib.Path(__file__).parent / "testy_out.json")
-        pass
     
     def on_load_from_fluxpad(self):
-        # TODO implement this
+        with self.fluxpad.port:
+            self.fluxpad_settings.load_from_keypad(self.fluxpad)
         self._update_from_settings()
     
     def on_save_to_fluxpad(self):
-        # TODO implement this
-        pass
+        self._save_to_settings()
+        with self.fluxpad.port:
+            self.fluxpad_settings.save_to_fluxpad(self.fluxpad)
 
 if __name__ == "__main__":
 
