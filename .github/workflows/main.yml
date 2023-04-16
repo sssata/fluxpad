@@ -38,7 +38,10 @@ jobs:
         os: [ubuntu-latest, windows-latest]
 
     steps:
-    - uses: actions/checkout@v2
+    - name: Checkout with submodules
+      uses: actions/checkout@v3.5.2
+      submodules: 'recursive'
+      token: ${{ secrets.PAT_TOKEN }}
 
     - name: Create Executable
       uses: sayyid5416/pyinstaller@v1
