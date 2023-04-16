@@ -31,7 +31,7 @@ jobs:
           
   build-fluxapp:
 
-    runs-on: <windows-latest / ubuntu-latest / ..... etc>
+    runs-on: <windows-latest / ubuntu-latest>
 
     steps:
     - uses: actions/checkout@v2
