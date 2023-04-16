@@ -42,7 +42,6 @@ jobs:
       uses: actions/checkout@v3.5.2
       with:
         submodules: 'recursive'
-        token: ${{ secrets.PAT_TOKEN }}
 
     - name: Create Executable
       uses: sayyid5416/pyinstaller@v1
