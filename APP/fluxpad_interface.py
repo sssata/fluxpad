@@ -1,9 +1,11 @@
 import enum
 import json
 from collections import deque
-from typing import Deque, NamedTuple, Optional, TypedDict, Literal, Dict, Union, List, get_type_hints
+from typing import Deque, NamedTuple, Optional, TypedDict, Literal, Dict, Union, List, get_type_hints, Callable
 import logging
 import pathlib
+import threading
+import time
 
 import serial
 import serial.tools.list_ports
@@ -91,6 +93,10 @@ class BaseMessage:
         assert isinstance(value, int)
         assert 0x00 <= value <= 0xFF
 
+    @staticmethod
+    def _assert_uint16(value):
+        assert isinstance(value, int)
+        assert 0x00 <= value <= 0xFFFF
 
 class EncoderSettingsMessage(BaseMessage):
 
@@ -111,7 +117,7 @@ class EncoderSettingsMessage(BaseMessage):
 
     @key_code.setter
     def key_code(self, key_code: int):
-        self._assert_uint8(key_code)
+        self._assert_uint16(key_code)
         self.data[MessageKey.KEY_CODE] = key_code
 
     @key_code.deleter
@@ -159,7 +165,7 @@ class DigitalSettingsMessage(BaseMessage):
 
     @key_code.setter
     def key_code(self, key_code: int):
-        self._assert_uint8(key_code)
+        self._assert_uint16(key_code)
         self.data[MessageKey.KEY_CODE] = key_code
 
     @property
@@ -458,46 +464,114 @@ class Fluxpad:
         return self._send_request(message)
 
 
-class DigitalSettings:
-    MESSAGE_KEY_LIST = [
-        MessageKey.ACTUATE_DEBOUNCE,
-        MessageKey.ACTUATE_HYSTERESIS,
-        MessageKey.ACTUATE_POINT,
-        MessageKey.RELEASE_DEBOUNCE,
-        MessageKey.RELEASE_HYSTERESIS,
-        MessageKey.RELEASE_POINT,
-        MessageKey.KEY_CODE,
-        MessageKey.KEY_TYPE
-    ]
+class FluxpadListener():
+    """Listener for connected/disconnected events of a fluxpad"""
 
-    def __init__(self, key_id) -> None:
-        self.d = dict()
-        self.d[MessageKey.KEY_ID] = key_id
+    LISTEN_PERIOD_S = 0.5
+    
+    def __init__(self, on_connect: Callable[[Fluxpad], None], on_disconnect: Callable[[], None]) -> None:
+        self._listener_thread: Optional[threading.Thread] = None
+        self._stop_request = threading.Event()
+        self._prev_port: Optional[str] = None
+        self._on_connect_callback = on_connect
+        self._on_disconnect_callback = on_disconnect
 
-class AnalogSettings:
-    MESSAGE_KEY_LIST = [
-        MessageKey.ACTUATE_DEBOUNCE,
-        MessageKey.RELEASE_DEBOUNCE,
-        MessageKey.KEY_CODE,
-        MessageKey.KEY_TYPE
-    ]
+    def start(self):
+        """Start the listener thread"""
+        logging.debug("Starting listener")
+        self._stop_request.clear()
+        self._listener_thread = threading.Thread(target=self._worker, daemon=True)
+        self._listener_thread.start()
 
-    def __init__(self, key_id) -> None:
-        self.d = dict()
-        self.d[MessageKey.KEY_ID] = key_id
+    def stop(self):
+        """Stop the listener thread"""
+        logging.debug("Stopping listener")
+        if self._listener_thread is not None and self._listener_thread.is_alive():
+            self._stop_request.set()
+            self._listener_thread.join(timeout=1.0)
+            assert self._listener_thread.is_alive() == False, "Worker thread not stopped"
+            self._listener_thread = None
+
+    @property
+    def is_connected(self):
+        if self._prev_port is None:
+            return False
+        return True
+        
+    def _worker(self):
+        while True:
+            
+            # Handle thread stop event
+            if self._stop_request.wait(timeout=self.LISTEN_PERIOD_S):
+                logging.debug("Stop request event received from worker thread")
+                break
+
+            try:
+                port = find_fluxpad_port()
+                if port != self._prev_port:
+                    if isinstance(port, str):
+                        # Connected, fire on connect callback
+                        try:
+                            self._on_connect_callback(Fluxpad(port))
+                        except Exception:
+                            logging.error("on_connect callback error", exc_info=1)
+                    else:
+                        # Disconnected, fire on connect callback
+                        try:
+                            self._on_disconnect_callback()
+                        except Exception:
+                            logging.error("on_disconnect callback error", exc_info=1)
+
+            except Exception:
+                logging.error("Listener worker error", exc_info=1)
+            finally:
+                self._prev_port = port
+            
+        # Clear the stop request on the way out
+        self._stop_request.clear()
+        logging.debug("Workor thread stopped")
 
 
-class EncoderSettings:
-    """Wrapper around Message object"""
+# class DigitalSettings:
+#     MESSAGE_KEY_LIST = [
+#         MessageKey.ACTUATE_DEBOUNCE,
+#         MessageKey.ACTUATE_HYSTERESIS,
+#         MessageKey.ACTUATE_POINT,
+#         MessageKey.RELEASE_DEBOUNCE,
+#         MessageKey.RELEASE_HYSTERESIS,
+#         MessageKey.RELEASE_POINT,
+#         MessageKey.KEY_CODE,
+#         MessageKey.KEY_TYPE
+#     ]
 
-    MESSAGE_KEY_LIST = [
-        MessageKey.KEY_CODE,
-        MessageKey.KEY_TYPE
-    ]
+#     def __init__(self, key_id) -> None:
+#         self.d = dict()
+#         self.d[MessageKey.KEY_ID] = key_id
 
-    def __init__(self, key_id) -> None:
-        self.d = dict()
-        self.d[MessageKey.KEY_ID] = key_id
+# class AnalogSettings:
+#     MESSAGE_KEY_LIST = [
+#         MessageKey.ACTUATE_DEBOUNCE,
+#         MessageKey.RELEASE_DEBOUNCE,
+#         MessageKey.KEY_CODE,
+#         MessageKey.KEY_TYPE
+#     ]
+
+#     def __init__(self, key_id) -> None:
+#         self.d = dict()
+#         self.d[MessageKey.KEY_ID] = key_id
+
+
+# class EncoderSettings:
+#     """Wrapper around Message object"""
+
+#     MESSAGE_KEY_LIST = [
+#         MessageKey.KEY_CODE,
+#         MessageKey.KEY_TYPE
+#     ]
+
+#     def __init__(self, key_id) -> None:
+#         self.d = dict()
+#         self.d[MessageKey.KEY_ID] = key_id
 
 class FluxpadSettings:
 
@@ -549,9 +623,9 @@ class FluxpadSettings:
         for current_key_settings in self.key_settings_list:
             key_settings = current_key_settings
             try:
-                if isinstance(key_settings, AnalogSettingsMessage) and not include_calibration:
-                    del key_settings.calibration_down
-                    del key_settings.calibration_up
+                # if isinstance(key_settings, AnalogSettingsMessage) and not include_calibration:
+                #     del key_settings.calibration_down
+                #     del key_settings.calibration_up
                 assert isinstance(key_settings.key_id, int)  # check key id exists
                 response = fluxpad.send_write_request(key_settings)
                 # assert set(response.data.keys()) == set(key_settings.data.keys()), f"Difference: {set(response.data.keys()).symmetric_difference(set(key_settings.data.keys()))}"
@@ -601,54 +675,71 @@ if __name__ == "__main__":
     # fluxpad.open()
 
     settings = FluxpadSettings()
+    try:
+        with fluxpad.port as port:
+            message = DigitalSettingsMessage()
+            message.key_id = 0
+            message.key_type = KeyType.KEYBOARD
+            message.key_code = ScanCodeList.KEY_A.value.hid_keycode
+            response = fluxpad.send_write_request(message)
+            print(response.data)
 
-    with fluxpad.port as port:
-        message = DigitalSettingsMessage()
-        message.key_id = 0
-        message.key_type = KeyType.KEYBOARD
-        message.key_code = ScanCodeList.KEY_A.value.hid_keycode
-        response = fluxpad.send_write_request(message)
-        print(response.data)
+            message = DigitalSettingsMessage()
+            message.key_id = 0
+            message.key_type = KeyType.NONE
+            message.key_code = 0
+            response = fluxpad.send_read_request(message)
+            print(response.data)
 
-        message = DigitalSettingsMessage()
-        message.key_id = 0
-        message.key_type = KeyType.NONE
-        message.key_code = 0
-        response = fluxpad.send_read_request(message)
-        print(response.data)
+            message = AnalogSettingsMessage()
+            message.key_id = 2
+            response = fluxpad.send_read_request(message)
+            print(response.data)
 
-        message = AnalogSettingsMessage()
-        message.key_id = 2
-        response = fluxpad.send_read_request(message)
-        print(response.data)
+            message = AnalogCalibrationMessage()
+            message.set_zeros()
+            message.key_id = 2
+            response = fluxpad.send_read_request(message)
+            print(response.data)
 
-        message = AnalogCalibrationMessage()
-        message.set_zeros()
-        message.key_id = 2
-        response = fluxpad.send_read_request(message)
-        print(response.data)
+            message = AnalogReadMessage()
+            message.set_zeros()
+            message.key_id = 2
+            response = fluxpad.send_read_request(message)
+            print(response.data)
 
-        message = AnalogReadMessage()
-        message.set_zeros()
-        message.key_id = 2
-        response = fluxpad.send_read_request(message)
-        print(response.data)
+            new_message = DigitalSettingsMessage()
+            new_message.set_zeros()
+            print(new_message.data)
 
-        new_message = DigitalSettingsMessage()
-        new_message.set_zeros()
-        print(new_message.data)
+            response = fluxpad.send_read_request(new_message)
+            print(response.data)
+        
+            settings.load_from_keypad(fluxpad)
 
-        response = fluxpad.send_read_request(new_message)
-        print(response.data)
-    
-        settings.load_from_keypad(fluxpad)
+            for key_settings in settings.key_settings_list:
+                print(key_settings.data)
 
-        for key_settings in settings.key_settings_list:
-            print(key_settings.data)
+            filepath = pathlib.Path("testy.json")
+            settings.save_to_file(filepath)
 
-        filepath = pathlib.Path("testy.json")
-        settings.save_to_file(filepath)
+            new_settings = FluxpadSettings()
+            new_settings.load_from_file(filepath)
+            new_settings.save_to_file(filepath.with_name("testy2.json"))
 
-        new_settings = FluxpadSettings()
-        new_settings.load_from_file(filepath)
-        new_settings.save_to_file(filepath.with_name("testy2.json"))
+    except Exception:
+        logging.exception("Exception encountered")
+
+    def on_connect(fluxpad: Fluxpad):
+        print(f"Connected to fluxpad {fluxpad.port.name}")
+
+    def on_disconnect():
+        print("Disconnected from fluxpad")
+
+    listener = FluxpadListener(on_connect, on_disconnect)
+
+    listener.start()
+
+    time.sleep(10)
+
+    listener.stop()
