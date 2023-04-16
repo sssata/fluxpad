@@ -13,7 +13,7 @@ from scancode_to_hid_code import (ScanCodeList, ScanCode, get_name_list,
                                   pynput_event_to_scancode, key_name_to_scancode, key_type_and_code_to_scancode)
 import fluxpad_interface
 import use_sv_ttk
-from tickscale import TickScale
+from ttk_slider import SliderSetting
 
 UpdateScancodeCallback = Callable[[ScanCode], None]
 
@@ -94,6 +94,9 @@ class KeyMap(ttk.Labelframe):
         else:
             self.btn_key.configure(style="Bold.TButton")
 
+    def save_to_setting(self, setting: Union[fluxpad_interface.AnalogSettingsMessage, fluxpad_interface.DigitalSettingsMessage]):
+        setting.key_code = self.scancode.hid_keycode
+        setting.key_type = self.scancode.hid_usage
 
 class MapEditFrame(ttk.Labelframe):
     """Represents a keymap edit section"""
@@ -232,98 +235,27 @@ class KeymapFrame(ttk.Frame):
             logging.debug(f"Set key {self.selected_keymap.key_name} to scancode: {scancode.name}")
             self.selected_keymap.set_scancode(scancode)
 
-
-class SliderSetting(ttk.Labelframe):
-
-    def __init__(self, master, var_type: type = float, min_value = 0, max_value = 1, resolution = 0.1, decimal_places = 2, units: str = "", *args, **kwargs):
-        super().__init__(master, *args, **kwargs)
-
-        self.resolution = resolution
-        self.var_type = var_type
-        self.min_value = min_value
-        self.max_value = max_value
-        self.decimal_places = decimal_places
-
-        # Grid config
-        self.rowconfigure(1, weight=0)
-        self.columnconfigure(1, weight=1)
-        self.columnconfigure(1, weight=0)
-
-        self.value: Optional[var_type] = None
-        self.double_var = tk.DoubleVar(self, min_value)
-        self.string_var = tk.StringVar(self)
-        self.slider = TickScale(self, from_=min_value/resolution, to=max_value/resolution, variable=self.double_var, length=200, showvalue=False, resolution=1.0, takefocus=True, command=self.on_slider_move)
-        self.slider.grid(row=1, column=1)
-        self.entry = ttk.Spinbox(self, textvariable=self.string_var, validate="key", validatecommand=(self.register(self.entry_validate),'%P'), width=5, from_=min_value, to=max_value, increment=resolution, name="hello")
-        self.entry.grid(row=1, column=2, padx=2)
-
-        self.units_label = ttk.Label(self, text=units)
-        self.units_label.grid(row=1, column=3)
-
-        # Wire things up
-        self.trace = self.string_var.trace_add("write", lambda *args: self.on_spinbox_entry())  # Trace spinbox entry
-        self.slider.scale.bind("<1>", lambda event: self.on_slider_click())  # Focus on scale click
-        self.slider.scale.bind("<2>", lambda event: self.on_slider_click())  # Focus on scale click
-        self.slider.scale.bind("<3>", lambda event: self.on_slider_click())  # Focus on scale click
-
-        self.entry.bind("<Return>", self.entry_defocus)  # Defocus on enter key
-        self.entry.bind("<FocusOut>", self.check_in_range)  # Enforce range on defocus
-        # self.winfo_toplevel().bind("<Button -1>", self.click_event)
-        self.on_slider_move(1)
-
-    def on_slider_click(self):
-        logging.debug("hello")
-        self.slider.scale.focus()
+    def load_from_settings(self, fluxpad_settings: fluxpad_interface.FluxpadSettings):
+        self.lf_key1.set_scancode(key_type_and_code_to_scancode(fluxpad_settings.key_settings_list[0].key_type, fluxpad_settings.key_settings_list[0].key_code))
+        self.lf_key2.set_scancode(key_type_and_code_to_scancode(fluxpad_settings.key_settings_list[1].key_type, fluxpad_settings.key_settings_list[1].key_code))
+        self.lf_key3.set_scancode(key_type_and_code_to_scancode(fluxpad_settings.key_settings_list[2].key_type, fluxpad_settings.key_settings_list[2].key_code))
+        self.lf_key4.set_scancode(key_type_and_code_to_scancode(fluxpad_settings.key_settings_list[3].key_type, fluxpad_settings.key_settings_list[3].key_code))
+        self.lf_enc_ccw.set_scancode(key_type_and_code_to_scancode(fluxpad_settings.key_settings_list[4].key_type, fluxpad_settings.key_settings_list[4].key_code))
+        self.lf_enc_cw.set_scancode(key_type_and_code_to_scancode(fluxpad_settings.key_settings_list[5].key_type, fluxpad_settings.key_settings_list[5].key_code))
 
 
-    def on_slider_move(self, a):
-        self.string_var.set(f"{self.double_var.get()*self.resolution:.{self.decimal_places}f}")
-        self.value = self.var_type(self.double_var.get()*self.resolution)
-        logging.debug(f"Slider moved to {self.value}")
+    def save_to_settings(self, fluxpad_settings: fluxpad_interface.FluxpadSettings):
+        self.lf_key1.save_to_setting(fluxpad_settings.key_settings_list[0])
+        self.lf_key2.save_to_setting(fluxpad_settings.key_settings_list[1])
+        self.lf_key3.save_to_setting(fluxpad_settings.key_settings_list[2])
+        self.lf_key4.save_to_setting(fluxpad_settings.key_settings_list[3])
+        self.lf_enc_ccw.save_to_setting(fluxpad_settings.key_settings_list[4])
+        self.lf_enc_cw.save_to_setting(fluxpad_settings.key_settings_list[5])
 
-    def on_spinbox_entry(self):
-        # logging.debug(self.double_var.trace_info())
-        self.string_var.trace_remove("write", self.trace)
-        # logging.debug(f"set trace to {self.var_type(self.string_var.get())}")
-        try:
-            # self.slider.set(self.var_type(float(self.string_var.get())/self.resolution))
-            self.double_var.set(self.var_type(float(self.string_var.get())/self.resolution))
-        except Exception:
-            logging.debug(f"invalid number {self.string_var.get()}")
-        self.trace = self.string_var.trace_add(mode="write", callback=lambda *args: self.on_spinbox_entry())
-        self.value = self.var_type(self.double_var.get()*self.resolution)
-        logging.debug(f"Spinbox moved to {self.value}")
-
-    def check_in_range(self, event: tk.Event):
-        if self.value < self.min_value:
-            logging.debug("below range")
-            self.double_var.set(self.min_value/self.resolution)
-            self.on_slider_move(1)
-
-        elif self.value > self.max_value:
-            logging.debug("above range")
-            self.double_var.set(self.max_value/self.resolution)
-            self.on_slider_move(1)
-
-        logging.debug("in range")
-
-    def entry_validate(self, string: str):
-        logging.debug(f"Entry {string}")
-        regex = re.compile(r"(\+|\-)?[0-9.]*$")
-        result = regex.match(string)
-        return (string == ""
-                or (string.count('+') <= 1
-                    and string.count('-') <= 1
-                    and string.count('.') <= 1
-                    and result is not None
-                    and result.group(0) != ""))
         
-    def entry_defocus(self, event: tk.Event):
-        self.entry.tk_focusNext().focus()
 
-    def set_value(self, value):
-        self.double_var.set(value/self.resolution)
-        self.on_slider_move(None)
+
+
 
 
 class AnalogSettingsPanel(ttk.Labelframe):
@@ -332,7 +264,7 @@ class AnalogSettingsPanel(ttk.Labelframe):
 
     def __init__(self, master, *args, **kwargs):
         super().__init__(master, *args, **kwargs)
-        self.configure(text="Analog Key Settings")
+        self.configure(text="Analog Key Settings", padding=PADDING)
 
         # self.scancode: Optional[ScanCode] = None
         
@@ -350,19 +282,19 @@ class AnalogSettingsPanel(ttk.Labelframe):
         self.checkbox_rapid_trigger = ttk.Checkbutton(self, text="Rapid Trigger", variable=self.is_rapid_trigger)
         # self.checkbox_rapid_trigger.state(['!alternate'])  # Start unchecked
         self.is_rapid_trigger.set(False)  # Start unchecked
-        self.checkbox_rapid_trigger.grid(row=1, column=1)
+        self.checkbox_rapid_trigger.grid(row=1, column=1, sticky="W", padx=PADDING, pady=6)
         self.press_hysteresis = SliderSetting(self, text="Rapid Trigger Upstroke", var_type=float, min_value=0.05, max_value=1, resolution=0.05, units="mm")
-        self.press_hysteresis.grid(row=2, column=1, sticky="EW")
+        self.press_hysteresis.grid(row=2, column=1, sticky="EW", padx=PADDING, pady=PADDING)
         self.release_hysteresis = SliderSetting(self, text=" Rapid Trigger Downstroke", var_type=float, min_value=0.05, max_value=1, resolution=0.05, units="mm")
-        self.release_hysteresis.grid(row=3, column=1, sticky="EW")
+        self.release_hysteresis.grid(row=3, column=1, sticky="EW", padx=PADDING, pady=PADDING)
         self.release_point = SliderSetting(self, text="Rapid Trigger Upper Limit", var_type=float, min_value=2, max_value=4, resolution=0.05, units="mm")
-        self.release_point.grid(row=4, column=1, sticky="EW")
+        self.release_point.grid(row=4, column=1, sticky="EW", padx=PADDING, pady=PADDING)
         self.actuation_point = SliderSetting(self, text="Rapid Trigger Lower Limit", var_type=float, min_value=0, max_value=2, resolution=0.05, units="mm")
-        self.actuation_point.grid(row=5, column=1, sticky="EW")
-        self.press_debounce = SliderSetting(self, text="Rapid Trigger Press Debounce", var_type=float, min_value=0, max_value=20, resolution=1, decimal_places=0, units="ms")
-        self.press_debounce.grid(row=6, column=1, sticky="EW")
-        self.release_debounce = SliderSetting(self, text="Rapid Trigger Release Debounce", var_type=float, min_value=0, max_value=20, resolution=1, decimal_places=0, units="ms")
-        self.release_debounce.grid(row=7, column=1, sticky="EW")
+        self.actuation_point.grid(row=5, column=1, sticky="EW", padx=PADDING, pady=PADDING)
+        self.press_debounce = SliderSetting(self, text="Rapid Trigger Press Debounce", var_type=int, min_value=0, max_value=20, resolution=1, decimal_places=0, units="ms")
+        self.press_debounce.grid(row=6, column=1, sticky="EW", padx=PADDING, pady=PADDING)
+        self.release_debounce = SliderSetting(self, text="Rapid Trigger Release Debounce", var_type=int, min_value=0, max_value=20, resolution=1, decimal_places=0, units="ms")
+        self.release_debounce.grid(row=7, column=1, sticky="EW", padx=PADDING, pady=PADDING)
 
     def load_from_settings_message(self, message: fluxpad_interface.AnalogSettingsMessage):
         self.is_rapid_trigger.set(message.rapid_trigger)
@@ -370,8 +302,8 @@ class AnalogSettingsPanel(ttk.Labelframe):
         self.release_debounce.set_value(message.release_debounce)
         self.press_hysteresis.set_value(message.actuate_hysteresis)
         self.release_hysteresis.set_value(message.release_hysteresis)
-        self.actuation_point.set_value(message.actuate_point)
-        self.release_point.set_value(message.release_point)
+        self.actuation_point.set_value(message.actuate_point - 2)  # Bottom out is 2mm in settings, while it's 0mm in GUI
+        self.release_point.set_value(message.release_point - 2)
 
     def to_settings_message(self, message: fluxpad_interface.AnalogSettingsMessage):
         message.rapid_trigger = self.is_rapid_trigger.get()
@@ -379,14 +311,14 @@ class AnalogSettingsPanel(ttk.Labelframe):
         message.release_debounce = self.release_debounce.value
         message.actuate_hysteresis = self.press_hysteresis.value
         message.release_hysteresis = self.release_hysteresis.value
-        message.actuate_point = self.actuation_point.value
-        message.release_point = self.release_point.value
+        message.actuate_point = self.actuation_point.value + 2  # Bottom out is 2mm in settings, while it's 0mm in GUI
+        message.release_point = self.release_point.value + 2
 
 class DigitalSettingsPanel(ttk.Labelframe):
 
     def __init__(self, master, *args, **kwargs):
         super().__init__(master, *args, **kwargs)
-        self.configure(text="Digital Key Settings")
+        self.configure(text="Digital Key Settings", padding=PADDING)
 
         # self.scancode: Optional[ScanCode] = None
         
@@ -397,10 +329,10 @@ class DigitalSettingsPanel(ttk.Labelframe):
         self.columnconfigure(1, weight=1)
         self.columnconfigure(2, weight=1)
 
-        self.debounce_press = SliderSetting(self, text="Press Debouce", var_type=float, min_value=0, max_value=20, resolution=1, units="ms")
+        self.debounce_press = SliderSetting(self, text="Press Debouce", var_type=int, min_value=0, max_value=20, resolution=1, decimal_places=0, units="ms")
         self.debounce_press.grid(row=1, column=1, sticky="EW")
 
-        self.debounce_release = SliderSetting(self, text="Release Debouce", var_type=float, min_value=0, max_value=20, resolution=1, units="ms")
+        self.debounce_release = SliderSetting(self, text="Release Debouce", var_type=int, min_value=0, max_value=20, resolution=1, decimal_places=0, units="ms")
         self.debounce_release.grid(row=2, column=1, sticky="EW")
 
     def set_scancode(self, scancode: ScanCode):
@@ -415,33 +347,12 @@ class DigitalSettingsPanel(ttk.Labelframe):
         message.release_debounce = self.debounce_release.value
 
 
-class ScrollableFrame(ttk.Frame):
-    def __init__(self, container, *args, **kwargs):
-        super().__init__(container, *args, **kwargs)
-        canvas = tk.Canvas(self)
-        scrollbar = ttk.Scrollbar(self, orient="vertical", command=canvas.yview)
-        self.scrollable_frame = ttk.Frame(canvas)
-
-        self.scrollable_frame.bind(
-            "<Configure>",
-            lambda e: canvas.configure(
-                scrollregion=canvas.bbox("all")
-            )
-        )
-
-        canvas.create_window((0, 0), window=self.scrollable_frame, anchor="nw")
-
-        canvas.configure(yscrollcommand=scrollbar.set)
-
-        canvas.pack(side="left", fill="both", expand=True)
-        scrollbar.pack(side="right", fill="y")
-
 class SelectKeySettingsFrame(ttk.Labelframe):
-    
+    """Class representing the key selection panel on the setting tab"""
     
     def __init__(self, master, *args, **kwargs):
         super().__init__(master, *args, **kwargs)
-        self.configure(text="Select Key")
+        self.configure(text="Select Key", padding=PADDING)
         self.columnconfigure(1, weight=1)
         self.columnconfigure(2, weight=1)
         self.rowconfigure(1, weight=1)
@@ -461,17 +372,17 @@ class SelectKeySettingsFrame(ttk.Labelframe):
 
         self.chk_per_key_digital = ttk.Checkbutton(self, text="Per Key Digital Settings", variable=self.is_per_key_digital, command=self.on_per_key_digital_click)
         self.chk_per_key_digital.state(['!alternate'])  # Start unchecked
-        self.chk_per_key_digital.grid(row=1, column=1, columnspan=2, sticky="W")
+        self.chk_per_key_digital.grid(row=1, column=1, columnspan=2, sticky="W", padx=PADDING)
 
-        self.btn_list[0].grid(row=2, column=1, sticky="EW")
-        self.btn_list[1].grid(row=2, column=2, sticky="EW")
+        self.btn_list[0].grid(row=2, column=1, sticky="EW", padx=PADDING, pady=PADDING)
+        self.btn_list[1].grid(row=2, column=2, sticky="EW", padx=PADDING, pady=PADDING)
 
         self.chk_per_key_analog = ttk.Checkbutton(self, text="Per Key Analog Settings", variable=self.is_per_key_analog, command=self.on_per_key_analog_click)
         self.chk_per_key_analog.state(['!alternate'])  # Start unchecked
-        self.chk_per_key_analog.grid(row=3, column=1, columnspan=2, sticky="W")
+        self.chk_per_key_analog.grid(row=3, column=1, columnspan=2, sticky="W", padx=PADDING)
 
-        self.btn_list[2].grid(row=4, column=1, sticky="EW")
-        self.btn_list[3].grid(row=4, column=2, sticky="EW")
+        self.btn_list[2].grid(row=4, column=1, sticky="EW", padx=PADDING, pady=PADDING)
+        self.btn_list[3].grid(row=4, column=2, sticky="EW", padx=PADDING, pady=PADDING)
 
         self.stl = ttk.Style(self)
         self.stl.configure("Sel.TButton", foreground="red")
@@ -484,7 +395,7 @@ class SelectKeySettingsFrame(ttk.Labelframe):
             logging.debug("Set Per Key Analog")
             self.btn_list[2].grid_configure(columnspan=1)
             self.btn_list[2].configure(text="Analog Key 1")
-            self.btn_list[3].grid(row=4, column=2, sticky="EW")
+            self.btn_list[3].grid(row=4, column=2, sticky="EW", padx=PADDING, pady=PADDING)
         else:
             logging.debug("Set Linked Analog")
             self.btn_list[2].grid_configure(columnspan=2)
@@ -497,7 +408,7 @@ class SelectKeySettingsFrame(ttk.Labelframe):
             logging.debug("Set Per Key Digital")
             self.btn_list[0].grid_configure(columnspan=1)
             self.btn_list[0].configure(text="Digital Key 1")
-            self.btn_list[1].grid(row=2, column=2, sticky="EW")
+            self.btn_list[1].grid(row=2, column=2, sticky="EW", padx=PADDING, pady=PADDING)
         else:
             logging.debug("Set Linked Digital")
             self.btn_list[1].grid_forget()
@@ -508,10 +419,10 @@ class SelectKeySettingsFrame(ttk.Labelframe):
 class SettingsFrame(ttk.Frame):
     """Represents the settings tab"""
 
-    def __init__(self, master, fluxpad_settings: fluxpad_interface.FluxpadSettings, *args, **kwargs):
+    def __init__(self, master, *args, **kwargs):
         super().__init__(master, *args, **kwargs)
 
-        self.fluxpad_settings = fluxpad_settings
+        # self.fluxpad_settings = fluxpad_settings
 
         self.rowconfigure(1, weight=0)
         self.rowconfigure(2, weight=1)
@@ -527,6 +438,8 @@ class SettingsFrame(ttk.Frame):
         self.key_select_frame.btn_list[2].bind("<Button-1>", lambda event: self.on_select_key(event, 2))
         self.key_select_frame.btn_list[3].bind("<Button-1>", lambda event: self.on_select_key(event, 3))
 
+        self.key_select_frame.chk_per_key_digital.bind("<Button-1>", self.on_select_per_key_digital)
+        self.key_select_frame.chk_per_key_analog.bind("<Button-1>", self.on_select_per_key_analog)
 
         # self.scrollable_frame = ScrollableFrame(self)
         # self.scrollable_frame.grid(row=2, column=1, sticky="NSEW")
@@ -544,22 +457,28 @@ class SettingsFrame(ttk.Frame):
         # self.digital_settings_panel.grid(row=2, column=1, sticky="NSEW")
         
         # Initialize State
-        self.selected_settings_panel = 2
+        self.selected_settings_panel = -1
         self.on_select_key(None, 2)
 
     def on_select_per_key_digital(self, event:tk.Event):
-        ...
         logging.debug("Selected per key digital")
+        if self.key_select_frame.is_per_key_digital.get() and self.selected_settings_panel == 1:
+            self.on_select_key(None, 0)
     
 
     def on_select_per_key_analog(self, event:tk.Event):
-        ...
         logging.debug("Selected per key analog")
+        if self.key_select_frame.is_per_key_analog.get() and self.selected_settings_panel == 3:
+            self.on_select_key(None, 2)
 
     
     def on_select_key(self, event: tk.Event, key_id: int):
         """Callback for key selected"""
         logging.debug(f"Selected key {key_id}")
+
+        # Don't do anything if we're already on the right panel
+        if self.selected_settings_panel == key_id:
+            return
         
         # Hide all settings frames
         self.settings_panel_list[self.selected_settings_panel].grid_forget()
@@ -570,21 +489,71 @@ class SettingsFrame(ttk.Frame):
         self.selected_settings_panel = key_id
 
         # Change Set Title of settings frame
-        if isinstance(self.fluxpad_settings.key_settings_list[key_id], fluxpad_interface.AnalogSettingsMessage):
+        if isinstance(self.settings_panel_list[key_id], AnalogSettingsPanel) and not self.key_select_frame.is_per_key_analog.get():
             self.settings_panel_list[key_id].configure(text="Analog Keys")
+        else:
+            self.settings_panel_list[key_id].configure(text=f"Analog Key {key_id-1}")
+
+        if isinstance(self.settings_panel_list[key_id], DigitalSettingsPanel) and not self.key_select_frame.is_per_key_digital.get():
+            self.settings_panel_list[key_id].configure(text="Digital Keys")
+        else:
+            self.settings_panel_list[key_id].configure(text=f"Digital Key {key_id+1}")
+
 
         self.key_select_frame.btn_list[key_id].configure(style="Accent.TButton")
 
-    def load_from_fluxpad_settings(self, fluxpad_settings: fluxpad_interface.FluxpadSettings):
-        self.fluxpad_settings = fluxpad_settings
-        for key_setting in fluxpad_settings.key_settings_list:
-            if isinstance(key_setting, (fluxpad_interface.AnalogSettingsMessage, fluxpad_interface.DigitalSettingsMessage)):
-                self.settings_panel_list[key_setting.key_id].load_from_settings_message(key_setting)
+    def is_digital_equal(self, setting1: fluxpad_interface.DigitalSettingsMessage, setting2: fluxpad_interface.DigitalSettingsMessage):
+        if (setting1.actuate_debounce == setting2.actuate_debounce and
+            setting1.release_debounce == setting2.release_debounce):
+            return True
+        return False
+    
+    def is_analog_equal(self, setting1: fluxpad_interface.AnalogSettingsMessage, setting2: fluxpad_interface.AnalogSettingsMessage):
+        if (setting1.actuate_debounce == setting2.actuate_debounce and
+            setting1.release_debounce == setting2.release_debounce and
+            setting1.actuate_hysteresis == setting2.actuate_hysteresis and
+            setting1.release_hysteresis == setting2.release_hysteresis and
+            setting1.actuate_point == setting2.actuate_point and 
+            setting1.release_point == setting2.release_point and
+            setting1.rapid_trigger == setting2.rapid_trigger):
+            return True
+        return False
 
-    def save_to_fluxpad_settins(self):
-        for key_setting in self.fluxpad_settings:
-            if isinstance(key_setting, (fluxpad_interface.AnalogSettingsMessage, fluxpad_interface.DigitalSettingsMessage)):
-                self.settings_panel_list[key_setting.key_id].to_settings_message(key_setting)
+    def load_from_fluxpad_settings(self, fluxpad_settings: fluxpad_interface.FluxpadSettings):
+        # self.fluxpad_settings = fluxpad_settings
+        self.settings_panel_list[0].load_from_settings_message(fluxpad_settings.key_settings_list[0])
+        self.settings_panel_list[1].load_from_settings_message(fluxpad_settings.key_settings_list[1])
+        self.settings_panel_list[2].load_from_settings_message(fluxpad_settings.key_settings_list[2])
+        self.settings_panel_list[3].load_from_settings_message(fluxpad_settings.key_settings_list[3])
+
+        if (self.is_digital_equal(fluxpad_settings.key_settings_list[0], fluxpad_settings.key_settings_list[1])):
+            self.key_select_frame.is_per_key_digital.set(False)
+        else:
+            self.key_select_frame.is_per_key_digital.set(True)
+        self.key_select_frame.on_per_key_digital_click()
+
+        
+        if (self.is_analog_equal(fluxpad_settings.key_settings_list[2], fluxpad_settings.key_settings_list[3])):
+            self.key_select_frame.is_per_key_analog.set(False)
+        else:
+            self.key_select_frame.is_per_key_analog.set(True)
+        self.key_select_frame.on_per_key_analog_click()
+
+
+    def save_to_fluxpad_settings(self, fluxpad_settings: fluxpad_interface.FluxpadSettings):
+        self.settings_panel_list[0].to_settings_message(fluxpad_settings.key_settings_list[0])
+        if not self.key_select_frame.is_per_key_digital.get():
+            self.settings_panel_list[0].to_settings_message(fluxpad_settings.key_settings_list[1])
+        else:
+            self.settings_panel_list[1].to_settings_message(fluxpad_settings.key_settings_list[1])
+
+        self.settings_panel_list[2].to_settings_message(fluxpad_settings.key_settings_list[2])
+        
+        if not self.key_select_frame.is_per_key_analog.get():
+            self.settings_panel_list[2].to_settings_message(fluxpad_settings.key_settings_list[3])
+        else:
+            self.settings_panel_list[3].to_settings_message(fluxpad_settings.key_settings_list[3])
+
 
 class UtilitiesFrame(ttk.Frame):
     """Represents the settings tab"""
@@ -611,7 +580,7 @@ class Application(ttk.Frame):
         self.rowconfigure(2, weight=0)
  
         self.frame_keymap = KeymapFrame(self.notebook)
-        self.frame_settings = SettingsFrame(self.notebook, self.fluxpad_settings)
+        self.frame_settings = SettingsFrame(self.notebook)
         self.frame_utilities = UtilitiesFrame(self.notebook)
 
         self.notebook.add(self.frame_keymap, text="Keymap")
@@ -652,14 +621,14 @@ class Application(ttk.Frame):
             self.frame_keymap.lf_mapedit.is_active = False
 
     def _update_from_settings(self):
-        self.frame_keymap.lf_key1.set_scancode(key_type_and_code_to_scancode(self.fluxpad_settings.key_settings_list[0].key_type, self.fluxpad_settings.key_settings_list[0].key_code))
-        self.frame_keymap.lf_key2.set_scancode(key_type_and_code_to_scancode(self.fluxpad_settings.key_settings_list[1].key_type, self.fluxpad_settings.key_settings_list[1].key_code))
-        self.frame_keymap.lf_key3.set_scancode(key_type_and_code_to_scancode(self.fluxpad_settings.key_settings_list[2].key_type, self.fluxpad_settings.key_settings_list[2].key_code))
-        self.frame_keymap.lf_key4.set_scancode(key_type_and_code_to_scancode(self.fluxpad_settings.key_settings_list[3].key_type, self.fluxpad_settings.key_settings_list[3].key_code))
-        self.frame_keymap.lf_enc_ccw.set_scancode(key_type_and_code_to_scancode(self.fluxpad_settings.key_settings_list[4].key_type, self.fluxpad_settings.key_settings_list[4].key_code))
-        self.frame_keymap.lf_enc_cw.set_scancode(key_type_and_code_to_scancode(self.fluxpad_settings.key_settings_list[5].key_type, self.fluxpad_settings.key_settings_list[5].key_code))
+
+        self.frame_keymap.load_from_settings(self.fluxpad_settings)
 
         self.frame_settings.load_from_fluxpad_settings(self.fluxpad_settings)
+
+    def _save_to_settings(self):
+        self.frame_keymap.save_to_settings(self.fluxpad_settings)
+        self.frame_settings.save_to_fluxpad_settings(self.fluxpad_settings)
 
     def on_load_from_file(self):
         # TODO implement this
@@ -669,6 +638,8 @@ class Application(ttk.Frame):
 
     def on_save_to_file(self):
         # TODO implement this
+        self._save_to_settings()
+        self.fluxpad_settings.save_to_file(pathlib.Path(__file__).parent / "testy_out.json")
         pass
     
     def on_load_from_fluxpad(self):
@@ -694,7 +665,7 @@ if __name__ == "__main__":
 
     if IS_DARKMODE:
         ...
-        # use_sv_ttk.set_theme("dark")
+        use_sv_ttk.set_theme("dark")
     else:
         ...
         use_sv_ttk.set_theme("light")

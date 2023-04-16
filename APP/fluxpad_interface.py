@@ -238,7 +238,7 @@ class AnalogSettingsMessage(BaseMessage):
 
     @property
     def release_hysteresis(self):
-        return self.data[MessageKey.ACTUATE_HYSTERESIS]
+        return self.data[MessageKey.RELEASE_HYSTERESIS]
 
     @release_hysteresis.setter
     def release_hysteresis(self, hysteresis_mm: float):
@@ -560,11 +560,8 @@ class FluxpadSettings:
                 logging.error(f"Failed to write settings for Key ID {key_settings.key_id} with message {key_settings.data}", exc_info=True)
         
     def load_from_file(self, path: pathlib.Path):
-        # TODO implement this
-        # raise NotImplementedError()
-    
+        """Load all settings from the given file"""
         try:
-            ...
             with path.open("r") as f:
                 root_json = json.load(f)
         except Exception:
@@ -579,6 +576,7 @@ class FluxpadSettings:
         
     
     def save_to_file(self, path: pathlib.Path):
+        """Save all settings to the given file"""
         if path.exists():
             logging.info(f"File at {path} will be overwritten")
         else:
