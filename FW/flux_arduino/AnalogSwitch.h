@@ -71,6 +71,7 @@ class AnalogSwitch {
     uint32_t last_released_time_ms = 0;
 
     bool is_pressed = false;
+    bool was_pressed = false;
     bool is_setup = false;
     bool use_freerun_mode = true;
 
@@ -123,6 +124,7 @@ class AnalogSwitch {
         bool height_should_actuate = current_height_mm < settings.actuation_point_mm;
         bool height_should_release = current_height_mm > settings.release_point_mm;
 
+        was_pressed = is_pressed;
         switch (is_pressed) {
         case false: {
             // If we are released, we are looking for the right conditions to press the key

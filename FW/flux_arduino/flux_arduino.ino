@@ -172,8 +172,15 @@ void loop() {
             Serial.printf("%f %f ", Q22_10_TO_FLOAT(key.current_reading), Q22_10_TO_FLOAT(key.current_height_mm));
         }
 
-        if (key.is_pressed) {
-            pressHIDKey(&(storage_vars.keymap[key.id]));
+        if (storage_vars.keymap[key.id].keyType == KeyType_t::CONSUMER){ // Hack for consumer keys, fml
+            if (!key.was_pressed && key.is_pressed){
+                typeHIDKey(&(storage_vars.keymap[key.id]));
+            }
+        }
+        else{
+            if (key.is_pressed) {
+                pressHIDKey(&(storage_vars.keymap[key.id]));
+            }
         }
     }
     if (debug_mode) {
@@ -184,8 +191,15 @@ void loop() {
     for (DigitalSwitch &key : digitalKeys) {
         key.mainLoopService();
 
-        if (key.is_pressed) {
-            pressHIDKey(&(storage_vars.keymap[key.id]));
+        if (storage_vars.keymap[key.id].keyType == KeyType_t::CONSUMER){
+            if (!key.was_pressed && key.is_pressed){
+                typeHIDKey(&(storage_vars.keymap[key.id]));
+            }
+        }
+        else{
+            if (key.is_pressed) {
+                pressHIDKey(&(storage_vars.keymap[key.id]));
+            }
         }
     }
 
@@ -194,11 +208,10 @@ void loop() {
     if (encoder.valueChanged()) {
         switch (encoder.getValue()) {
         case 1:
-            typeHIDKey(storage_vars.keymap[ENC_UP_KEY_ID].keycode.value, storage_vars.keymap[ENC_UP_KEY_ID].keyType);
+            typeHIDKey(&(storage_vars.keymap[ENC_UP_KEY_ID]));
             break;
         case -1:
-            typeHIDKey(storage_vars.keymap[ENC_DOWN_KEY_ID].keycode.value,
-                       storage_vars.keymap[ENC_DOWN_KEY_ID].keyType);
+            typeHIDKey(&(storage_vars.keymap[ENC_DOWN_KEY_ID]));
             break;
         default:
             break;
@@ -220,13 +233,13 @@ void loop() {
     datastream_mode_service();
 }
 
-void typeHIDKey(char key, KeyType_t key_type) {
-    switch (key_type) {
+void typeHIDKey(const KeyMapEntry_t *entry) {
+    switch (entry->keyType) {
     case KeyType_t::KEYBOARD:
-        Keyboard.write(key);
+        Keyboard.write(KeyboardKeycode(entry->keycode.keyboard));
         break;
     case KeyType_t::CONSUMER:
-        Consumer.write(ConsumerKeycode(key));
+        Consumer.write(ConsumerKeycode(entry->keycode.consumer));
         break;
     case KeyType_t::MOUSE:
         // Unsupported for now
@@ -273,6 +286,8 @@ bool is_digital_key(uint32_t key_id) { return key_id <= 1; }
 bool is_analog_key(uint32_t key_id) { return 2 <= key_id && key_id <= 3; }
 
 bool is_encoder_key(uint32_t key_id) { return 4 <= key_id && key_id <= 5; }
+
+bool key_has_lighting(uint32_t key_id) { return key_id <= 3; }
 
 uint32_t key_id_to_analog_key_index(uint32_t key_id) { return (key_id - 2); }
 
@@ -400,6 +415,7 @@ void datastream_mode_service(){
     // TODO implmement this
 }
 
+
 /**
  * @brief Reads and processes incoming commands
  *
@@ -505,11 +521,11 @@ void read_serial() {
 
                 if (request_msg.containsKey("d_a")) {
                     currDigitalSettings->debounce_press_ms =
-                        static_cast<uint32_t>(request_msg["d_a"].as<unsigned int>());
+                        request_msg["d_a"].as<unsigned int>();
                 }
                 if (request_msg.containsKey("d_r")) {
                     currDigitalSettings->debounce_release_ms =
-                        static_cast<uint32_t>(request_msg["d_r"].as<unsigned int>());
+                        request_msg["d_r"].as<unsigned int>();
                 }
 
                 // Apply new settings to key
@@ -520,6 +536,24 @@ void read_serial() {
             } else {
                 send_error_response_message("INVALID_KEY_ID");
                 return;
+            }
+
+            if (key_has_lighting(key_id)){
+                if (request_msg.containsKey("l_m")) {
+                    keyLighting[key_id].settings.mode = LightingMode(request_msg["l_m"].as<unsigned int>());
+                }
+                if (request_msg.containsKey("l_d")) {
+                    keyLighting[key_id].settings.fade_duty_cycle = static_cast<uint8_t>(request_msg["l_d"].as<unsigned int>());
+                }
+                if (request_msg.containsKey("l_h")) {
+                    keyLighting[key_id].settings.fade_half_life_us = request_msg["l_h"].as<unsigned int>();
+                }
+                if (request_msg.containsKey("l_f")) {
+                    keyLighting[key_id].settings.flash_duration_us = request_msg["l_f"].as<unsigned int>();
+                }
+                if (request_msg.containsKey("l_s")) {
+                    keyLighting[key_id].settings.static_duty_cycle = static_cast<uint8_t>(request_msg["l_s"].as<unsigned int>());
+                }
             }
         }
 
@@ -614,21 +648,26 @@ void read_serial() {
                 send_error_response_message("INVALID_KEY_ID");
                 return;
             }
+
+            if (key_has_lighting(key_id)){
+                if (request_msg.containsKey("l_m")) {
+                    response_msg["l_m"] = keyLighting[key_id].settings.mode;
+                }
+                if (request_msg.containsKey("l_d")) {
+                    response_msg["l_d"] = keyLighting[key_id].settings.fade_duty_cycle;
+                }
+                if (request_msg.containsKey("l_h")) {
+                    response_msg["l_h"] = keyLighting[key_id].settings.fade_half_life_us;
+                }
+                if (request_msg.containsKey("l_f")) {
+                    response_msg["l_f"] = keyLighting[key_id].settings.flash_duration_us;
+                }
+                if (request_msg.containsKey("l_s")) {
+                    response_msg["l_s"] = keyLighting[key_id].settings.static_duty_cycle;
+                }
+            }
         }
 
-        // if (request_msg.containsKey("adc")) {
-        //     JsonObject adc_object = response_msg.createNestedObject("adc");
-        //     GCLK->CLKCTRL.bit.ID = static_cast<uint8_t>(GCLK_CLKCTRL_ID_ADC_Val);
-        //     while (GCLK->STATUS.bit.SYNCBUSY)
-        //         ;
-        //     adc_object["GCLK"] = static_cast<unsigned int>(GCLK->CLKCTRL.reg);
-        //     adc_object["CTRLA"] = static_cast<unsigned int>(ADC->CTRLA.reg);
-        //     adc_object["CTRLB"] = static_cast<unsigned int>(ADC->CTRLB.reg);
-        //     adc_object["AVGCTRL"] = static_cast<unsigned int>(ADC->AVGCTRL.reg);
-        //     adc_object["SAMPCTRL"] = static_cast<unsigned int>(ADC->SAMPCTRL.reg);
-        //     adc_object["GAINCORR"] = static_cast<unsigned int>(ADC->GAINCORR.reg);
-        //     adc_object["OFFSETCORR"] = static_cast<unsigned int>(ADC->OFFSETCORR.reg);
-        // }
     }
 
     // V: Get Version

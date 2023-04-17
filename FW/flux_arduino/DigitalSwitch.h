@@ -16,6 +16,7 @@ class DigitalSwitch {
     uint32_t last_release_time_ms;
     unsigned long last_toggle_time_ms;
     bool is_pressed;
+    bool was_pressed;
     DigitalSwitchSettings_t settings;
 
     DigitalSwitch(uint32_t pin, uint32_t id) : pin(pin), id(id) {}
@@ -30,9 +31,11 @@ class DigitalSwitch {
     void applySettings(DigitalSwitchSettings_t *_settings) {
         settings = *_settings;
         is_pressed = false;
+        was_pressed = false;
     }
 
     void mainLoopService() {
+        was_pressed = is_pressed;
         bool curr_state = !digitalRead(pin);
         unsigned long current_time_ms = millis();
 
