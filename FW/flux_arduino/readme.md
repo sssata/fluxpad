@@ -89,6 +89,13 @@ This is a list of valid keys that can appear in a `request message`
 | `a_s` | ADC Samples [0,32] | Number of ADC samples to take per loop | integer
 | `c_u` | Calibration ADC Up | Calibration ADC value of key in up position | number
 | `c_d` | Calibration ADC Down | Calibration ADC value of key in down position | number
+| `l_m` | Lighting Mode [0,4] | Lighting mode, Off, Fade, Flash, Static | number
+| `l_d` | Fade Duty Cycle [0,256] | Calibration ADC value of key in down position | integer
+| `l_h` | Fade Half Life [us]  | Fade Mode lighting half life in us | number
+| `l_f` | Flash Duration [us] | Flash Mode lighting duration in us | number
+| `l_s` | Static Duty Cycle [0,256] | Static Mode lighting brightness in duty cycle | integer
+
+
 | `dstrm` | Datastream mode | Datastream mode enable or disable | bool
 | `dstrm_freq` | Datastream Frequency [hz] | Datastream mode message frequency | int
 
