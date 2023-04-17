@@ -129,10 +129,13 @@ class MapEditFrame(ttk.Labelframe):
     def on_press(self, key: Union[pynput.keyboard.Key, pynput.keyboard.KeyCode]):
 
         # Only react to keyboard if pointer on applications
-        if self.winfo_containing(self.winfo_pointerx(), self.winfo_pointery()) is not None and self.is_active:
-            new_scancode = pynput_event_to_scancode(key)
-            logging.debug(f"Pressed {new_scancode.name}")
-            self.on_scancode_update(new_scancode)
+        try:
+            if self.winfo_containing(self.winfo_pointerx(), self.winfo_pointery()) is not None and self.is_active:
+                new_scancode = pynput_event_to_scancode(key)
+                logging.debug(f"Pressed {new_scancode.name}")
+                self.on_scancode_update(new_scancode)
+        except Exception:
+            logging.warning("Key listener error")
 
     def on_select_combobox(self, event: tk.Event):
         scancode = key_name_to_scancode(self.label_key.get())
