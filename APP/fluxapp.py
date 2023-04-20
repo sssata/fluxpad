@@ -4,6 +4,8 @@ from typing import Union, Optional, Callable, List
 import logging
 from tkinter import font
 import pathlib
+import time
+import threading
 import re
 
 import pynput
@@ -266,7 +268,6 @@ class AnalogSettingsPanel(ttk.Labelframe):
 
         # self.scancode: Optional[ScanCode] = None
         
-        # self.label_rapid_trigger = ttk.Label(self, text="Rapid Trigger")
         self.rowconfigure(1, weight=0)
         self.rowconfigure(2, weight=0)
         self.rowconfigure(3, weight=0)
@@ -320,18 +321,16 @@ class DigitalSettingsPanel(ttk.Labelframe):
 
         # self.scancode: Optional[ScanCode] = None
         
-        self.rowconfigure(1, weight=1)
-        self.rowconfigure(2, weight=1)
-        self.rowconfigure(3, weight=1)
-        self.rowconfigure(4, weight=1)
+        self.rowconfigure(1, weight=0)
+        self.rowconfigure(2, weight=0)
         self.columnconfigure(1, weight=1)
         self.columnconfigure(2, weight=1)
 
         self.debounce_press = SliderSetting(self, text="Press Debouce", var_type=int, min_value=0, max_value=20, resolution=1, decimal_places=0, units="ms")
-        self.debounce_press.grid(row=1, column=1, sticky="EW")
+        self.debounce_press.grid(row=1, column=1, sticky="EW", padx=PADDING, pady=PADDING)
 
         self.debounce_release = SliderSetting(self, text="Release Debouce", var_type=int, min_value=0, max_value=20, resolution=1, decimal_places=0, units="ms")
-        self.debounce_release.grid(row=2, column=1, sticky="EW")
+        self.debounce_release.grid(row=2, column=1, sticky="EW", padx=PADDING, pady=PADDING)
 
     def set_scancode(self, scancode: ScanCode):
         self.scancode = scancode
@@ -486,16 +485,18 @@ class SettingsFrame(ttk.Frame):
         self.settings_panel_list[key_id].grid(row=2, column=1, sticky="NSEW")
         self.selected_settings_panel = key_id
 
-        # Change Set Title of settings frame
-        if isinstance(self.settings_panel_list[key_id], AnalogSettingsPanel) and not self.key_select_frame.is_per_key_analog.get():
-            self.settings_panel_list[key_id].configure(text="Analog Keys")
-        else:
-            self.settings_panel_list[key_id].configure(text=f"Analog Key {key_id-1}")
+        # Change Title of settings frame according to circumstances
+        if isinstance(self.settings_panel_list[key_id], AnalogSettingsPanel):
+            if not self.key_select_frame.is_per_key_analog.get():
+                self.settings_panel_list[key_id].configure(text="Analog Keys")
+            else:
+                self.settings_panel_list[key_id].configure(text=f"Analog Key {key_id-1}")
 
-        if isinstance(self.settings_panel_list[key_id], DigitalSettingsPanel) and not self.key_select_frame.is_per_key_digital.get():
-            self.settings_panel_list[key_id].configure(text="Digital Keys")
-        else:
-            self.settings_panel_list[key_id].configure(text=f"Digital Key {key_id+1}")
+        elif isinstance(self.settings_panel_list[key_id], DigitalSettingsPanel):
+            if not self.key_select_frame.is_per_key_digital.get():
+                self.settings_panel_list[key_id].configure(text="Digital Keys")
+            else:
+                self.settings_panel_list[key_id].configure(text=f"Digital Key {key_id+1}")
 
 
         self.key_select_frame.btn_list[key_id].configure(style="Accent.TButton")
@@ -518,7 +519,6 @@ class SettingsFrame(ttk.Frame):
         return False
 
     def load_from_fluxpad_settings(self, fluxpad_settings: fluxpad_interface.FluxpadSettings):
-        # self.fluxpad_settings = fluxpad_settings
         self.settings_panel_list[0].load_from_settings_message(fluxpad_settings.key_settings_list[0])
         self.settings_panel_list[1].load_from_settings_message(fluxpad_settings.key_settings_list[1])
         self.settings_panel_list[2].load_from_settings_message(fluxpad_settings.key_settings_list[2])
@@ -553,14 +553,65 @@ class SettingsFrame(ttk.Frame):
             self.settings_panel_list[3].to_settings_message(fluxpad_settings.key_settings_list[3])
 
 
+class LightingFrame(ttk.Frame):
+    def __init__(self, master=None):
+        super().__init__(master=master)
+
+
+
+class AnalogCalibrationFrame(ttk.Frame):
+    BAR_WIDTH_PX = 100
+    BAR_HEIGHT_PX = 100
+    BAR_MAX_MM = 4
+
+    def __init__(self, master=None):
+        super().__init__(master=master)
+
+        self.height_bar = tk.Canvas(self, width=10, height=self.BAR_HEIGHT_PX, background="blue")
+        self.height_bar.grid(row=1, column=1, rowspan=2)
+        self.btn_set_up = ttk.Button(self, text="Set Full Release Point")
+        self.btn_set_up.grid(row=1, column=2)
+        self.btn_set_down = ttk.Button(self, text="Set Full Press Point")
+        self.btn_set_down.grid(row=2, column=2)
+
+    def update_height(self, height_mm):
+        bar_height_px = height_mm / self.BAR_MAX_MM * self.BAR_HEIGHT_PX
+        self.height_bar.delete("bar")
+        self.height_bar.create_rectangle(0,0, self.BAR_WIDTH_PX, bar_height_px, tags="bar")
+
+
+class CalibrationLabelframe(ttk.Labelframe):
+
+    def __init__(self, master=None):
+        super().__init__(master=master)
+        self.configure(text="Calibration")
+        self.columnconfigure(1, weight=1)
+        self.rowconfigure(1, weight=1)
+
+        self.notebook = ttk.Notebook(self, takefocus=False)
+        self.analog_cal_frame_list = [
+            AnalogCalibrationFrame(self.notebook),
+            AnalogCalibrationFrame(self.notebook)
+        ]
+        
+        self.notebook.add(self.analog_cal_frame_list[0], text="Analog Button 1")
+        self.notebook.add(self.analog_cal_frame_list[1], text="Analog Button 2")
+        self.notebook.grid(row=1, column=1)
+
+
 class UtilitiesFrame(ttk.Frame):
-    """Represents the settings tab"""
+    """Top level frame of the utilities tab"""
 
     def __init__(self, master, *args, **kwargs):
         super().__init__(master, *args, **kwargs)
 
+        self.calibration_labelframe = CalibrationLabelframe(self)
+        self.calibration_labelframe.pack(fill="x", expand=True)
+
         test_label = tk.Label(self, text="Coming Soon")
-        test_label.pack()
+        test_label.pack(fill="x", expand=True)
+        
+        # self.fluxpad: Optional[fluxpad_interface.Fluxpad] = None
 
 
 class Application(ttk.Frame):
@@ -580,6 +631,7 @@ class Application(ttk.Frame):
         self.frame_keymap = KeymapFrame(self.notebook)
         self.frame_settings = SettingsFrame(self.notebook)
         self.frame_utilities = UtilitiesFrame(self.notebook)
+        self.lighting_frame = LightingFrame(self.notebook)
 
         # Add tabs
         self.notebook.add(self.frame_keymap, text="Keymap")
@@ -616,13 +668,17 @@ class Application(ttk.Frame):
         self.listener = fluxpad_interface.FluxpadListener(self.on_connected, self.on_disconnected)
         self.listener.start()
 
+        self.calibration_worker_start_event = threading.Event()
+        self.calibration_worker_thread = threading.Thread(target=self._calibration_worker, daemon=True)
+        self.calibration_worker_thread.start()
+
     def on_connected(self, fluxpad: fluxpad_interface.Fluxpad):
         logging.info(f"Fluxpad Connected on port {fluxpad.port.name}")
         self.fluxpad = fluxpad
         self._on_connected_gui()
 
     def on_disconnected(self):
-        logging.info(f"Fluxpad Disconnected")
+        logging.info("Fluxpad Disconnected")
         self.fluxpad = None
         self._on_disconnected_gui()
     
@@ -630,19 +686,37 @@ class Application(ttk.Frame):
         self.btn_upload.state(["!disabled"])
         self.save_menu.entryconfigure(1, state=tk.NORMAL)
         self.load_menu.entryconfigure(1, state=tk.NORMAL)
+        self.calibration_worker_start_event.set()
 
     def _on_disconnected_gui(self):
         self.btn_upload.state(["disabled"])
         self.save_menu.entryconfigure(1, state=tk.DISABLED)
         self.load_menu.entryconfigure(1, state=tk.DISABLED)
+        self.calibration_worker_start_event.clear()
+
+    def _calibration_worker(self):
+        while True:
+            if self.calibration_worker_start_event.wait():
+                self.fluxpad.port.open()
+                try:
+                    message = fluxpad_interface.AnalogReadMessage()
+                    message.height_mm = 0
+                    message.key_id = 2
+                    response = self.fluxpad.send_read_request(message)
+                    self.frame_utilities.calibration_labelframe.analog_cal_frame_list[0].update_height(response.)
+
+                except Exception:
+                    logging.error("Exception at calibration worker", exc_info=1)
+                time.sleep(0.5)
 
     def on_notebook_tab_changed(self, event: tk.Event):
-        """"Turn on and off keyboard listensr based on which tab is active"""
+        """"Turn on and off keyboard listener and calibration worker based on which tab is active"""
 
         if self.notebook.index("current") == 0:  # Check if tab on top is keymap tab
             self.frame_keymap.lf_mapedit.is_active = True
         else: 
             self.frame_keymap.lf_mapedit.is_active = False
+                
 
     def _update_from_settings(self):
         self.frame_keymap.load_from_settings(self.fluxpad_settings)
@@ -656,14 +730,14 @@ class Application(ttk.Frame):
         self.fluxpad_settings.load_from_file(pathlib.Path(__file__).parent / "testy.json")
         self._update_from_settings()
 
-    def on_save_to_file(self):
-        self._save_to_settings()
-        self.fluxpad_settings.save_to_file(pathlib.Path(__file__).parent / "testy_out.json")
-    
     def on_load_from_fluxpad(self):
         with self.fluxpad.port:
             self.fluxpad_settings.load_from_keypad(self.fluxpad)
         self._update_from_settings()
+    
+    def on_save_to_file(self):
+        self._save_to_settings()
+        self.fluxpad_settings.save_to_file(pathlib.Path(__file__).parent / "testy_out.json")
     
     def on_save_to_fluxpad(self):
         self._save_to_settings()
