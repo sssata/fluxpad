@@ -128,20 +128,31 @@ class AnalogSwitch {
         switch (is_pressed) {
         case false: {
             // If we are released, we are looking for the right conditions to press the key
+            if (!settings.rapid_trigger_enable) {
+            }
 
             // Update max distance
             if (current_height_mm > max_height_mm) {
-                max_height_mm = min(settings.release_point_mm, current_height_mm);  // Cap at guaranteed release distance
+                max_height_mm = min(settings.release_point_mm, current_height_mm); // Cap at guaranteed release distance
             }
 
             // Check if should press
+            bool no_rapid_trigger_should_press =
+                !settings.rapid_trigger_enable && current_height_mm < settings.actuation_point_mm;
             bool hysteresis_should_press = abs(max_height_mm - current_height_mm) > settings.press_hysteresis_mm;
-            bool should_press = (hysteresis_should_press || height_should_actuate) && !height_should_release;
+            bool should_press = settings.rapid_trigger_enable &&
+                                ((hysteresis_should_press || height_should_actuate) && !height_should_release);
             // Serial.printf("hyp: %d, hp: %d, sp: %d\n", hysteresis_should_press, height_should_actuate, should_press);
 
             // Update debounce timer
-            if (!should_press) {
-                last_released_time_ms = current_time_ms;
+            if (settings.rapid_trigger_enable) {
+                if (!should_press) {
+                    last_released_time_ms = current_time_ms;
+                }
+            } else {
+                if (!no_rapid_trigger_should_press) {
+                    last_released_time_ms = current_time_ms;
+                }
             }
 
             // Check debounce timer
@@ -149,26 +160,36 @@ class AnalogSwitch {
                 // All conditions for press fullfilled for at least debounce time
                 // Transition to pressed state
                 is_pressed = true;
-                resetMinMaxDistance();  // Reset max height
+                resetMinMaxDistance(); // Reset max height
             }
             break;
         }
         case true: {
             // If we are pressed, we are looking for the right conditions to release the key
-            
+
             // Update min distance
             if (current_height_mm < min_height_mm) {
-                min_height_mm = max(settings.actuation_point_mm, current_height_mm);  // Cap at guaranteed actuation distance
+                min_height_mm =
+                    max(settings.actuation_point_mm, current_height_mm); // Cap at guaranteed actuation distance
             }
 
             // Check if should release
+            bool no_rapid_trigger_should_release =
+                !settings.rapid_trigger_enable && current_height_mm > settings.release_point_mm;
             bool hysteresis_should_release = abs(current_height_mm - min_height_mm) > settings.release_hysteresis_mm;
             bool should_release = (hysteresis_should_release || height_should_release) && !height_should_actuate;
-            // Serial.printf("hyr: %d, hr: %d, sr: %d\n", hysteresis_should_release, height_should_release, should_release);
+            // Serial.printf("hyr: %d, hr: %d, sr: %d\n", hysteresis_should_release, height_should_release,
+            // should_release);
 
             // Update debounce timer
-            if (!should_release) {
-                last_pressed_time_ms = current_time_ms;
+            if (settings.rapid_trigger_enable) {
+                if (!should_release) {
+                    last_pressed_time_ms = current_time_ms;
+                }
+            } else {
+                if (!no_rapid_trigger_should_release) {
+                    last_pressed_time_ms = current_time_ms;
+                }
             }
 
             // Check debounce timer
