@@ -6,6 +6,7 @@ block_cipher = None
 added_files = [
          ( 'Sun-Valley-ttk-theme/theme', 'theme' ),
          ( 'Sun-Valley-ttk-theme/sv.tcl', '.' ),
+         ( 'images/*.png', 'images' ),
          ]
 
 a = Analysis(
