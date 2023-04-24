@@ -1,7 +1,7 @@
 import enum
 import json
 from collections import deque
-from typing import Deque, NamedTuple, Optional, TypedDict, Literal, Dict, Union, List, get_type_hints, Callable
+from typing import Deque, NamedTuple, Optional, TypedDict, Literal, Dict, Union, List, get_type_hints, Callable, TypeVar
 import logging
 import pathlib
 import threading
@@ -395,9 +395,11 @@ class AnalogReadMessage(BaseMessage):
         """Dummy function for read cmd, doesn't actually set height_mm"""
         self.data[MessageKey.HEIGHT] = 0
 
-class KeySettingMessage(DigitalSettingsMessage, AnalogSettingsMessage, EncoderSettingsMessage, AnalogCalibrationMessage, AnalogReadMessage):
-    """Composite class of all settings types"""
-    pass
+# class KeySettingMessage(DigitalSettingsMessage, AnalogSettingsMessage, EncoderSettingsMessage, AnalogCalibrationMessage, AnalogReadMessage):
+#     """Composite class of all settings types"""
+#     pass
+
+AnyMessage = TypeVar("AnyMessage", DigitalSettingsMessage, AnalogSettingsMessage, EncoderSettingsMessage, AnalogCalibrationMessage, AnalogReadMessage, Union[DigitalSettingsMessage, AnalogSettingsMessage, EncoderSettingsMessage, AnalogCalibrationMessage, AnalogReadMessage])
 
 
 class Fluxpad:
@@ -429,7 +431,7 @@ class Fluxpad:
     def close(self):
         self.port.close()
 
-    def _send_request(self, message: BaseMessage):
+    def _send_request(self, message: AnyMessage):
 
         message_type = type(message)
 
@@ -451,13 +453,13 @@ class Fluxpad:
         assert incoming_message.token == message.token, f"Token mismatch, expected {incoming_message.token}, got {message.token}"
         return incoming_message
 
-    def send_write_request(self, message: BaseMessage):
+    def send_write_request(self, message: AnyMessage) -> AnyMessage:
         """Send a write request to the fluxpad"""
 
         message.command = CommandType.WRITE
         return self._send_request(message)
 
-    def send_read_request(self, message: BaseMessage):
+    def send_read_request(self, message: AnyMessage) -> AnyMessage:
         """Send a read request to the fluxpad"""
 
         message.command = CommandType.READ
@@ -623,12 +625,8 @@ class FluxpadSettings:
         for current_key_settings in self.key_settings_list:
             key_settings = current_key_settings
             try:
-                # if isinstance(key_settings, AnalogSettingsMessage) and not include_calibration:
-                #     del key_settings.calibration_down
-                #     del key_settings.calibration_up
                 assert isinstance(key_settings.key_id, int)  # check key id exists
                 response = fluxpad.send_write_request(key_settings)
-                # assert set(response.data.keys()) == set(key_settings.data.keys()), f"Difference: {set(response.data.keys()).symmetric_difference(set(key_settings.data.keys()))}"
                 logging.debug(f"Wrote settings for Key ID {key_settings.key_id}")
             except Exception:
                 logging.error(f"Failed to write settings for Key ID {key_settings.key_id} with message {key_settings.data}", exc_info=True)
@@ -720,7 +718,7 @@ if __name__ == "__main__":
             for key_settings in settings.key_settings_list:
                 print(key_settings.data)
 
-            filepath = pathlib.Path("testy.json")
+            filepath = pathlib.Path("testing/testy.json")
             settings.save_to_file(filepath)
 
             new_settings = FluxpadSettings()
