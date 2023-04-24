@@ -39,8 +39,9 @@ jobs:
 
     steps:
     - name: Checkout with submodules
-      uses: actions/checkout@v3.5.2
+      uses: actions/checkout@v3
       with:
+        lfs: true
         submodules: 'recursive'
 
     - name: Create Executable
