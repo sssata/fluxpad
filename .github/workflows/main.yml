@@ -39,10 +39,10 @@ jobs:
 
     steps:
     - name: Checkout with submodules
-      uses: actions/checkout@v3.5.2
+      uses: actions/checkout@v3
       with:
-        submodules: 'recursive'
         lfs: true
+        submodules: 'recursive'
 
     - name: Create Executable
       uses: sayyid5416/pyinstaller@v1
