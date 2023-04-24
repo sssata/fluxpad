@@ -113,9 +113,11 @@ class KeyMap(ttk.Labelframe):
         else:
             self.btn_key.configure(style="Bold.TButton")
 
-    def save_to_setting(self, setting: Union[fluxpad_interface.AnalogSettingsMessage, fluxpad_interface.DigitalSettingsMessage]):
+    def save_to_setting(self, setting: Union[fluxpad_interface.AnalogSettingsMessage, fluxpad_interface.DigitalSettingsMessage], key_id: Optional[int] = None):
         setting.key_code = self.scancode.hid_keycode
         setting.key_type = self.scancode.hid_usage
+        if key_id is not None:
+            setting.key_id = key_id
 
 class MapEditFrame(ttk.Labelframe):
     """Represents a keymap edit section"""
@@ -267,12 +269,12 @@ class KeymapFrame(ttk.Frame):
 
 
     def save_to_settings(self, fluxpad_settings: fluxpad_interface.FluxpadSettings):
-        self.lf_key1.save_to_setting(fluxpad_settings.key_settings_list[0])
-        self.lf_key2.save_to_setting(fluxpad_settings.key_settings_list[1])
-        self.lf_key3.save_to_setting(fluxpad_settings.key_settings_list[2])
-        self.lf_key4.save_to_setting(fluxpad_settings.key_settings_list[3])
-        self.lf_enc_cw.save_to_setting(fluxpad_settings.key_settings_list[4])
-        self.lf_enc_ccw.save_to_setting(fluxpad_settings.key_settings_list[5])
+        self.lf_key1.save_to_setting(fluxpad_settings.key_settings_list[0], 0)
+        self.lf_key2.save_to_setting(fluxpad_settings.key_settings_list[1], 1)
+        self.lf_key3.save_to_setting(fluxpad_settings.key_settings_list[2], 2)
+        self.lf_key4.save_to_setting(fluxpad_settings.key_settings_list[3], 3)
+        self.lf_enc_cw.save_to_setting(fluxpad_settings.key_settings_list[4], 4)
+        self.lf_enc_ccw.save_to_setting(fluxpad_settings.key_settings_list[5], 5)
 
 
 class AnalogSettingsPanel(ttk.Labelframe):
@@ -312,6 +314,14 @@ class AnalogSettingsPanel(ttk.Labelframe):
         self.release_debounce = SliderSetting(self, text="Rapid Trigger Release Debounce", var_type=int, min_value=0, max_value=20, resolution=1, decimal_places=0, units="ms")
         self.release_debounce.grid(row=7, column=1, sticky="EW", padx=PADDING, pady=PADDING)
 
+        self.press_debounce.set_value(1)
+        self.release_debounce.set_value(6)
+        self.press_hysteresis.set_value(0.1)
+        self.release_hysteresis.set_value(0.4)
+        self.release_point.set_value(3.7)
+        self.actuation_point.set_value(0.3)
+
+
     def load_from_settings_message(self, message: fluxpad_interface.AnalogSettingsMessage):
         self.is_rapid_trigger.set(message.rapid_trigger)
         self.press_debounce.set_value(message.actuate_debounce)
@@ -348,6 +358,9 @@ class DigitalSettingsPanel(ttk.Labelframe):
 
         self.debounce_release = SliderSetting(self, text="Release Debouce", var_type=int, min_value=0, max_value=20, resolution=1, decimal_places=0, units="ms")
         self.debounce_release.grid(row=2, column=1, sticky="EW", padx=PADDING, pady=PADDING)
+
+        self.debounce_press.set_value(1)
+        self.debounce_release.set_value(6)
 
     def set_scancode(self, scancode: ScanCode):
         self.scancode = scancode
@@ -650,7 +663,7 @@ class UtilitiesFrame(ttk.Frame):
         self.calibration_labelframe = CalibrationLabelframe(self)
         self.calibration_labelframe.grid(row=1, column=1, sticky="NEW")
 
-        test_label = tk.Label(self, text="Coming Soon")
+        test_label = tk.Label(self, text="Warning: keypad may not work as expected with utilities tab open")
         test_label.grid(row=2, column=1, sticky="NEW")
         
         # self.fluxpad: Optional[fluxpad_interface.Fluxpad] = None
@@ -844,7 +857,7 @@ class Application(ttk.Frame):
         self.notebook.grid(row=1, column=1, sticky="NSEW", pady=(0, 4), padx=4)
         self.notebook.bind("<<NotebookTabChanged>>", self.on_notebook_tab_changed)
 
-        self.btn_upload = ttk.Button(self, text="Save to Fluxpad")
+        self.btn_upload = ttk.Button(self, text="Save to Fluxpad", command=self.on_save_to_fluxpad)
         self.btn_upload.grid(row=2, column=1, sticky="NSEW", padx=PADDING, pady=PADDING)
 
         # Create menubar
@@ -874,6 +887,7 @@ class Application(ttk.Frame):
 
         # Setup Fluxpad interface
         self.fluxpad_settings = fluxpad_interface.FluxpadSettings()
+        self._save_to_settings()
         self.fluxpad: Optional[fluxpad_interface.Fluxpad] = None
         self.listener = fluxpad_interface.FluxpadListener(self.on_connected, self.on_disconnected)
         self.listener.start()
@@ -922,9 +936,8 @@ class Application(ttk.Frame):
                                 self.fluxpad.port.close()
                         except fluxpad_interface.serial.SerialException:
                             logging.info(f"Serial exception {self.fluxpad.port.name}")
-                            # pass
                         else:
-                            logging.info(f"Closed port {self.fluxpad.port.name}")
+                            logging.info(f"Closed port")
                         break
 
                     self.worker_busy = True
@@ -940,11 +953,10 @@ class Application(ttk.Frame):
                         self.frame_utilities.calibration_labelframe.analog_cal_frame_list[selected_analog_key].update_height(response.height_mm - 2)
                     except fluxpad_interface.serial.SerialException:
                         logging.info(f"Serial exception {self.fluxpad.port.name}")
-                        pass
                     except Exception:
                         logging.error("Exception at calibration worker", exc_info=1)
-
-                    self.worker_busy = False
+                    finally:
+                        self.worker_busy = False
                     time.sleep(self.CALIBRATION_MODE_UPDATE_PERIOD_S)
                 
 
@@ -958,8 +970,6 @@ class Application(ttk.Frame):
             self.on_calibration_tab = False
             logging.debug("Waiting for port to close")
             time.sleep(0.1)
-            self.update_idletasks()
-            self.update()
         newWindow = CalibrationTopLevel(self, is_up, self.fluxpad, key_id)
         newWindow.wait_window()
         self.grab_set()
@@ -989,22 +999,38 @@ class Application(ttk.Frame):
         self.frame_settings.save_to_fluxpad_settings(self.fluxpad_settings)
 
     def on_load_from_file(self):
-        self.fluxpad_settings.load_from_file(pathlib.Path(__file__).parent / "testy.json")
-        self._update_from_settings()
+        try:
+            self.fluxpad_settings.load_from_file(pathlib.Path(__file__).parent / "testy.json")
+            self._update_from_settings()
+        except Exception:
+            logging.error("Exception occoured while loading from fluxpad", exc_info=True)
+            messagebox.showerror("Error Loading from fluxpad", f"Exception:\n{traceback.format_exc}")
 
     def on_load_from_fluxpad(self):
-        with self.fluxpad.port:
-            self.fluxpad_settings.load_from_keypad(self.fluxpad)
-        self._update_from_settings()
+        try:
+            with self.fluxpad.port:
+                self.fluxpad_settings.load_from_keypad(self.fluxpad)
+            self._update_from_settings()
+        except Exception:
+            logging.error("Exception occoured while loading from fluxpad", exc_info=True)
+            messagebox.showerror("Error Loading from fluxpad", f"Exception:\n{traceback.format_exc}")
     
     def on_save_to_file(self):
-        self._save_to_settings()
-        self.fluxpad_settings.save_to_file(pathlib.Path(__file__).parent / "testy_out.json")
+        try:
+            self._save_to_settings()
+            self.fluxpad_settings.save_to_file(pathlib.Path(__file__).parent / "testy_out.json")
+        except Exception:
+            logging.error("Exception occoured while saving to file", exc_info=True)
+            messagebox.showerror("Error Saving to fluxpad", f"Exception:\n{traceback.format_exc}")
     
     def on_save_to_fluxpad(self):
-        self._save_to_settings()
-        with self.fluxpad.port:
-            self.fluxpad_settings.save_to_fluxpad(self.fluxpad)
+        try:
+            self._save_to_settings()
+            with self.fluxpad.port:
+                self.fluxpad_settings.save_to_fluxpad(self.fluxpad)
+        except Exception:
+            logging.error("Exception occoured while saving to fluxpad", exc_info=True)
+            messagebox.showerror("Error Saving to fluxpad", f"Exception:\n{traceback.format_exc}")
 
 if __name__ == "__main__":
 
