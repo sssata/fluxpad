@@ -1,12 +1,17 @@
 import tkinter as tk
 from tkinter import ttk
-from typing import Union, Optional, Callable, List
+from typing import Union, Optional, Callable, List, Type
+from collections import deque
 import logging
 from tkinter import font
 import pathlib
 import time
 import threading
 import re
+import statistics
+from tkinter import messagebox
+import math
+import traceback
 
 import pynput
 import darkdetect
@@ -459,14 +464,18 @@ class SettingsFrame(ttk.Frame):
 
     def on_select_per_key_digital(self, event:tk.Event):
         logging.debug("Selected per key digital")
+
+        # Switch back to analog key 1 if currently on analog key 2
         if self.key_select_frame.is_per_key_digital.get() and self.selected_settings_panel == 1:
-            self.on_select_key(None, 0)
+            self.on_select_key(tk.Event(), 0)
     
 
     def on_select_per_key_analog(self, event:tk.Event):
         logging.debug("Selected per key analog")
+
+        # Switch back to digital key 1 if currently on digital key 2
         if self.key_select_frame.is_per_key_analog.get() and self.selected_settings_panel == 3:
-            self.on_select_key(None, 2)
+            self.on_select_key(tk.Event(), 2)
 
     
     def on_select_key(self, event: tk.Event, key_id: int):
@@ -517,12 +526,16 @@ class SettingsFrame(ttk.Frame):
             setting1.rapid_trigger == setting2.rapid_trigger):
             return True
         return False
+    
+    def assert_type(self, value, type: Type[fluxpad_interface.AnyMessage]):
+        assert isinstance(value, type)
+        return value
 
     def load_from_fluxpad_settings(self, fluxpad_settings: fluxpad_interface.FluxpadSettings):
-        self.settings_panel_list[0].load_from_settings_message(fluxpad_settings.key_settings_list[0])
-        self.settings_panel_list[1].load_from_settings_message(fluxpad_settings.key_settings_list[1])
-        self.settings_panel_list[2].load_from_settings_message(fluxpad_settings.key_settings_list[2])
-        self.settings_panel_list[3].load_from_settings_message(fluxpad_settings.key_settings_list[3])
+        self.settings_panel_list[0].load_from_settings_message(self.assert_type(fluxpad_settings.key_settings_list[0], fluxpad_interface.DigitalSettingsMessage))
+        self.settings_panel_list[1].load_from_settings_message(self.assert_type(fluxpad_settings.key_settings_list[1], fluxpad_interface.DigitalSettingsMessage))
+        self.settings_panel_list[2].load_from_settings_message(self.assert_type(fluxpad_settings.key_settings_list[2], fluxpad_interface.AnalogSettingsMessage))
+        self.settings_panel_list[3].load_from_settings_message(self.assert_type(fluxpad_settings.key_settings_list[3], fluxpad_interface.AnalogSettingsMessage))
 
         if (self.is_digital_equal(fluxpad_settings.key_settings_list[0], fluxpad_settings.key_settings_list[1])):
             self.key_select_frame.is_per_key_digital.set(False)
@@ -560,24 +573,28 @@ class LightingFrame(ttk.Frame):
 
 
 class AnalogCalibrationFrame(ttk.Frame):
-    BAR_WIDTH_PX = 100
+    BAR_WIDTH_PX = 20
     BAR_HEIGHT_PX = 100
     BAR_MAX_MM = 4
 
     def __init__(self, master=None):
         super().__init__(master=master)
+        self.columnconfigure(1, weight=0)
+        self.columnconfigure(2, weight=1)
 
-        self.height_bar = tk.Canvas(self, width=10, height=self.BAR_HEIGHT_PX, background="blue")
+        self.height_bar = tk.Canvas(self, width=self.BAR_WIDTH_PX, height=self.BAR_HEIGHT_PX, background="green", highlightthickness=0, borderwidth=0)
         self.height_bar.grid(row=1, column=1, rowspan=2)
-        self.btn_set_up = ttk.Button(self, text="Set Full Release Point")
-        self.btn_set_up.grid(row=1, column=2)
-        self.btn_set_down = ttk.Button(self, text="Set Full Press Point")
-        self.btn_set_down.grid(row=2, column=2)
+        self.btn_set_up = ttk.Button(self, text="Set Switch Up Position", width=20)
+        self.btn_set_up.grid(row=1, column=2, sticky="W")
+        self.btn_set_down = ttk.Button(self, text="Set Switch Down Position", width=20)
+        self.btn_set_down.grid(row=2, column=2, sticky="W")
 
     def update_height(self, height_mm):
+        logging.debug(f"height_mm {height_mm}")
         bar_height_px = height_mm / self.BAR_MAX_MM * self.BAR_HEIGHT_PX
         self.height_bar.delete("bar")
-        self.height_bar.create_rectangle(0,0, self.BAR_WIDTH_PX, bar_height_px, tags="bar")
+        self.height_bar.create_rectangle(0, self.BAR_HEIGHT_PX, self.BAR_WIDTH_PX, self.BAR_HEIGHT_PX - bar_height_px, tags="bar", fill="red", width=0)
+        self.height_bar.update()        
 
 
 class CalibrationLabelframe(ttk.Labelframe):
@@ -598,6 +615,15 @@ class CalibrationLabelframe(ttk.Labelframe):
         self.notebook.add(self.analog_cal_frame_list[1], text="Analog Button 2")
         self.notebook.grid(row=1, column=1)
 
+        self.notebook.bind("<<NotebookTabChanged>>", self.on_notebook_tab_changed)
+        self.current_selected_analog_key = 0
+
+    def on_notebook_tab_changed(self, event: tk.Event):
+        """"Turn on and off keyboard listener and calibration worker based on which tab is active"""
+        self.current_selected_analog_key = self.notebook.index("current")
+
+        # if self.notebook.index("current") == 0:  # Check if tab on top is keymap tab
+
 
 class UtilitiesFrame(ttk.Frame):
     """Top level frame of the utilities tab"""
@@ -614,8 +640,155 @@ class UtilitiesFrame(ttk.Frame):
         # self.fluxpad: Optional[fluxpad_interface.Fluxpad] = None
 
 
+class CalibrationTopLevel(tk.Toplevel):
+
+    NUMBER_OF_SAMPLES = 20
+    SAMPLE_PERIOD_S = 0.05
+
+    UP_MAX_STD_DEV = 40
+    UP_MAX_ADC = 1500
+    UP_MIN_ADC = 0
+
+    DOWN_MAX_STD_DEV = 200
+    DOWN_MAX_ADC = 4096
+    DOWN_MIN_ADC = 2100
+
+    def __init__(self, master, is_up, fluxpad: fluxpad_interface.Fluxpad, key_id, *args, **kwargs):
+        super().__init__(master, *args, **kwargs)
+        self.is_up = is_up
+        self.key_id = key_id
+        self.fluxpad = fluxpad
+        if self.is_up: 
+            self.title("Calibrate Up Positon")
+        else:
+            self.title("Calibrate Down Positon")
+
+        self.columnconfigure(1, weight=0)
+        self.columnconfigure(2, weight=1)
+        self.rowconfigure(1, weight=0)
+        self.rowconfigure(2, weight=0)
+        self.rowconfigure(3, weight=1)
+
+        # Instructions
+        self.instructions = tk.Canvas(self, width=500, height=240)
+        self.instructions.create_image(0,0, )
+        self.instructions.grid(row=1, column=1, columnspan=2)
+
+        # Progress bar
+
+        self.pb = ttk.Progressbar(self, maximum=100, length=200, orient='horizontal', mode='indeterminate')
+        self.pb.grid(row=2, column=1, columnspan=2, sticky="EW")
+
+        # Cancel Button
+        self.btn_cancel = ttk.Button(self, text="Cancel", state="disabled")
+        self.btn_cancel.grid(row=3, column=1, sticky="EW")
+
+        # Calibrate Button
+        self.btn_calibrate = ttk.Button(self, text="Calibrate", command=self.on_calibrate)
+        self.btn_calibrate.grid(row=3, column=2, sticky="EW")
+        
+        # Wait for port to close
+        while self.fluxpad.port.is_open:
+            time.sleep(0.1)
+            logging.debug("Waiting for port to close...")
+        logging.debug("Port closed")
+
+        # Activate button
+        self.btn_cancel.state(["!disabled"])
+        self.grab_set()
+
+        self.update()
+        self.update_idletasks()
+    
+    def on_calibrate(self):
+        self.update()
+        self.update_idletasks()
+        pb_step_size = 100/self.NUMBER_OF_SAMPLES
+        message = fluxpad_interface.AnalogReadMessage()
+        message.raw_adc = 0
+        message.key_id = self.key_id
+
+        # Collect raw adc samples
+        read_adc_queue = deque()
+        try:
+            with self.fluxpad.port:
+                for i in range(self.NUMBER_OF_SAMPLES):
+                    response = self.fluxpad.send_read_request(message)
+                    read_adc_queue.append(response.raw_adc)
+                    self.pb.step(pb_step_size)
+                    time.sleep(self.SAMPLE_PERIOD_S)
+                    self.update()
+
+        except Exception:
+            logging.error("Error gathering data during calibration", exc_info=True)
+            messagebox.showerror("Calibration Error", f"Exception {traceback.format_exc()}")
+            self.destroy()
+            return
+
+        # Prepare calibration validation
+        if self.is_up:
+            max_std_dev = self.UP_MAX_STD_DEV
+            max_adc = self.UP_MAX_ADC
+            min_adc = self.UP_MIN_ADC
+
+        else:
+            max_std_dev = self.DOWN_MAX_STD_DEV
+            max_adc = self.DOWN_MAX_ADC
+            min_adc = self.DOWN_MIN_ADC
+
+        # Run calibration validation
+        std_dev = statistics.pstdev(read_adc_queue)
+        mean = statistics.mean(read_adc_queue)
+        logging.info(f"Std dev: {std_dev}, Mean: {mean}")
+        error_str = None
+        if std_dev > max_std_dev:
+            error_str = f"Std Deviation is too high: {std_dev} > {max_std_dev}"
+            logging.error(error_str)
+
+        if mean > max_adc:
+            error_str = f"Reading is too high: {mean:.0f} > {max_adc}, is the button fully released?"
+            logging.error(error_str)
+        
+        if mean < min_adc:
+            error_str = f"Reading is too low: {mean:.0f} < {min_adc}, is the button fully depressed?"
+            logging.error(error_str)
+                    
+        if error_str is not None:
+            messagebox.showerror("Calibration Error", f"Failed to calibrate:\n{error_str}")
+            self.destroy()
+            return
+        
+        # Prepare calibration message
+        calibrate_message = fluxpad_interface.AnalogCalibrationMessage()
+        calibrate_message.key_id = self.key_id
+        if self.is_up:
+            calibrate_message.calibration_up = mean
+        else:
+            calibrate_message.calibration_down = mean
+
+        # Send calibration message
+        try:
+            with self.fluxpad.port:
+                self.fluxpad.send_write_request(calibrate_message)
+                calibrate_echo = self.fluxpad.send_read_request(calibrate_message)
+                if self.is_up:
+                    assert math.isclose(mean, calibrate_echo.calibration_up, rel_tol=1e-4), f"{mean} not equal to {calibrate_echo.calibration_up}"
+                else:
+                    assert math.isclose(mean, calibrate_echo.calibration_down, rel_tol=1e-4), f"{mean} not equal to {calibrate_echo.calibration_down}"
+        except Exception:
+            messagebox.showerror("Calibration Error", f"Exception {traceback.format_exc()}")
+            self.destroy()
+            return
+        
+        self.destroy()
+        return
+
+
+
 class Application(ttk.Frame):
     """Top Level application frame"""
+
+    CALIBRATION_MODE_UPDATE_PERIOD_S = 0.05
 
     def __init__(self, master=None):
         super().__init__(master=master)
@@ -631,7 +804,7 @@ class Application(ttk.Frame):
         self.frame_keymap = KeymapFrame(self.notebook)
         self.frame_settings = SettingsFrame(self.notebook)
         self.frame_utilities = UtilitiesFrame(self.notebook)
-        self.lighting_frame = LightingFrame(self.notebook)
+        self.frame_lighting = LightingFrame(self.notebook)
 
         # Add tabs
         self.notebook.add(self.frame_keymap, text="Keymap")
@@ -659,6 +832,13 @@ class Application(ttk.Frame):
         self.save_menu.add_command(label="Save to File", command=self.on_save_to_file)
         self.save_menu.add_command(label="Save to FLUXPAD", command=self.on_save_to_fluxpad)
 
+        # Wire calibration button to callback
+        self.frame_utilities.calibration_labelframe.analog_cal_frame_list[0].btn_set_up.configure(command=lambda: self.on_calibrate_button(is_up=True, key_id=2))
+        self.frame_utilities.calibration_labelframe.analog_cal_frame_list[0].btn_set_down.configure(command=lambda: self.on_calibrate_button(is_up=False, key_id=2))
+
+        self.frame_utilities.calibration_labelframe.analog_cal_frame_list[1].btn_set_up.configure(command=lambda: self.on_calibrate_button(is_up=True, key_id=3))
+        self.frame_utilities.calibration_labelframe.analog_cal_frame_list[1].btn_set_down.configure(command=lambda: self.on_calibrate_button(is_up=False, key_id=3))
+
         # Show menu bar
         self.master.configure(menu=self.menubar)
 
@@ -668,7 +848,6 @@ class Application(ttk.Frame):
         self.listener = fluxpad_interface.FluxpadListener(self.on_connected, self.on_disconnected)
         self.listener.start()
 
-        self.calibration_worker_start_event = threading.Event()
         self.calibration_worker_thread = threading.Thread(target=self._calibration_worker, daemon=True)
         self.calibration_worker_thread.start()
 
@@ -686,28 +865,59 @@ class Application(ttk.Frame):
         self.btn_upload.state(["!disabled"])
         self.save_menu.entryconfigure(1, state=tk.NORMAL)
         self.load_menu.entryconfigure(1, state=tk.NORMAL)
-        self.calibration_worker_start_event.set()
 
     def _on_disconnected_gui(self):
         self.btn_upload.state(["disabled"])
         self.save_menu.entryconfigure(1, state=tk.DISABLED)
         self.load_menu.entryconfigure(1, state=tk.DISABLED)
-        self.calibration_worker_start_event.clear()
 
     def _calibration_worker(self):
         while True:
-            if self.calibration_worker_start_event.wait():
-                self.fluxpad.port.open()
-                try:
-                    message = fluxpad_interface.AnalogReadMessage()
-                    message.height_mm = 0
-                    message.key_id = 2
-                    response = self.fluxpad.send_read_request(message)
-                    self.frame_utilities.calibration_labelframe.analog_cal_frame_list[0].update_height(response.)
 
-                except Exception:
-                    logging.error("Exception at calibration worker", exc_info=1)
-                time.sleep(0.5)
+            # Wait for fluxpad connection and calibration tap open
+            if self.fluxpad is not None and self.on_calibration_tab:
+                while True:
+
+                    if self.fluxpad is None or not self.on_calibration_tab:
+                        logging.debug("Stopping")
+                        try:
+                            if self.fluxpad is not None and self.fluxpad.port.is_open:
+                                self.fluxpad.port.close()
+                        except fluxpad_interface.serial.SerialException:
+                            pass
+                        else:
+                            logging.info(f"Closed port {self.fluxpad.port.name}")
+                        break
+
+                    try:
+                        if not self.fluxpad.port.is_open:
+                            self.fluxpad.port.open()
+                            logging.info(f"Opened port {self.fluxpad.port.name}")
+                        selected_analog_key = self.frame_utilities.calibration_labelframe.current_selected_analog_key
+                        message = fluxpad_interface.AnalogReadMessage()
+                        message.height_mm = 0
+                        message.key_id = selected_analog_key + 2  # convert from analog key name (ie analog key 1 or 2) to key id
+                        response = self.fluxpad.send_read_request(message)
+                        self.frame_utilities.calibration_labelframe.analog_cal_frame_list[selected_analog_key].update_height(response.height_mm - 2)
+                    except fluxpad_interface.serial.SerialException:
+                        pass
+                    except Exception:
+                        logging.error("Exception at calibration worker", exc_info=1)
+
+                    time.sleep(self.CALIBRATION_MODE_UPDATE_PERIOD_S)
+                
+
+            time.sleep(self.CALIBRATION_MODE_UPDATE_PERIOD_S)
+
+    def on_calibrate_button(self, is_up, key_id):
+        assert 2 <= key_id <=3, "Invalid key id"
+        self.on_calibration_tab = False
+        newWindow = CalibrationTopLevel(self, is_up, self.fluxpad, key_id)
+        newWindow.wait_window()
+        self.grab_set()
+        logging.info("Calibration complete")
+        self.on_notebook_tab_changed(tk.Event())
+        self.update()
 
     def on_notebook_tab_changed(self, event: tk.Event):
         """"Turn on and off keyboard listener and calibration worker based on which tab is active"""
@@ -716,7 +926,13 @@ class Application(ttk.Frame):
             self.frame_keymap.lf_mapedit.is_active = True
         else: 
             self.frame_keymap.lf_mapedit.is_active = False
-                
+        
+        if self.notebook.index("current") == 2:  # Check if tab on top is utilities tab
+            # self.calibration_worker_start_event.set()
+            self.on_calibration_tab = True
+        else:
+            self.on_calibration_tab = False
+            # self.calibration_worker_start_event.clear()
 
     def _update_from_settings(self):
         self.frame_keymap.load_from_settings(self.fluxpad_settings)
