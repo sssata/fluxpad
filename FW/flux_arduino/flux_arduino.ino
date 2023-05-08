@@ -103,7 +103,9 @@ KeyLighting keyLighting[] = {
 StaticJsonDocument<1024> request_msg;
 StaticJsonDocument<1024> response_msg;
 
-bool datastream_mode = false;
+// bool datastream_mode = false;
+uint32_t datastream_period_ms = 0;
+uint32_t last_datatream_time_ms = 0;
 
 void setup() {
 
@@ -413,6 +415,14 @@ void send_error_response_message(const char *error_string) {
  */
 void datastream_mode_service(){
     // TODO implmement this
+
+    if (datastream_period_ms > 0){
+        uint32_t curr_time_ms = millis();
+        if (curr_time_ms - last_datatream_time_ms >= datastream_period_ms){
+            last_datatream_time_ms = curr_time_ms;
+            // Serial.write("");
+        }
+    }
 }
 
 
@@ -447,9 +457,11 @@ void read_serial() {
         Serial.println(F("No cmd key found"));
     }
 
-    // Release all keys
-    Keyboard.releaseAll();
-    Consumer.releaseAll();
+    // Release all keys if message deals with keymap
+    if (request_msg.containsKey("k_t") || request_msg.containsKey("k_c")) {
+        Keyboard.releaseAll();
+        Consumer.releaseAll();
+    }
 
     response_msg.clear();
 
@@ -571,7 +583,7 @@ void read_serial() {
 
         // Set datastream mode
         if (request_msg.containsKey("dstrm")){
-            datastream_mode = request_msg["dstrm"].as<bool>();
+            datastream_period_ms = request_msg["dstrm"].as<unsigned int>();
         }
 
         saveFlashStorage(&storage_vars);

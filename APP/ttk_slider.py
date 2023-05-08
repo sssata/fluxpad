@@ -49,7 +49,6 @@ class SliderSetting(ttk.Labelframe):
         self.on_slider_move(None)
 
     def on_slider_click(self):
-        logging.debug("hello")
         self.slider.scale.focus()
 
 
