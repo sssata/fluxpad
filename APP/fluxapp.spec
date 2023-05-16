@@ -7,6 +7,7 @@ added_files = [
          ( 'Sun-Valley-ttk-theme/theme', 'theme' ),
          ( 'Sun-Valley-ttk-theme/sv.tcl', '.' ),
          ( 'images/*.png', 'images' ),
+         ( 'images/*.ico', 'images' ),
          ( 'tools/*.exe', 'tools' ),
          ( 'binaries/*.bin', 'binaries' ),
 ]
@@ -35,7 +36,7 @@ exe = EXE(
     a.zipfiles,
     a.datas,
     [],
-    name='fluxapp',
+    name='FLUXAPP',
     debug=False,
     bootloader_ignore_signals=False,
     strip=False,
@@ -48,4 +49,5 @@ exe = EXE(
     target_arch=None,
     codesign_identity=None,
     entitlements_file=None,
+    icon="images/FluxappIcon.png"
 )

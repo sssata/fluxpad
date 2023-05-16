@@ -10,6 +10,7 @@ import time
 import threading
 import statistics
 from tkinter import messagebox
+from tkinter import filedialog
 import math
 import traceback
 import sys
@@ -622,6 +623,17 @@ class LightingFrame(ttk.Frame):
     def __init__(self, master=None):
         super().__init__(master=master)
 
+        self.rowconfigure(1, weight=0)
+        self.rowconfigure(2, weight=1)
+
+        self.columnconfigure(1, weight=1)
+
+        self.key_select_frame = SelectKeySettingsFrame(self)
+        self.key_select_frame.grid(row=1, column=1, sticky="NSEW")
+
+        self.label_wip = ttk.Label(self, text="Lighting Settings Coming Soon")
+        self.label_wip.grid(row=2, column=1)
+
 
 
 class AnalogCalibrationFrame(ttk.Frame):
@@ -695,10 +707,9 @@ class UtilitiesFrame(ttk.Frame):
         test_label = tk.Label(self, text="Warning: keypad may not work as expected with utilities tab open")
         test_label.grid(row=2, column=1, sticky="NEW")
 
+        # Don't show firmware update for now
         self.firmware_update_frame = firmware_updater.FirmwareUpdateFrame(self)
-        self.firmware_update_frame.grid(row=3, column=1, sticky="NEW")
-        
-        # self.fluxpad: Optional[fluxpad_interface.Fluxpad] = None
+        # self.firmware_update_frame.grid(row=3, column=1, sticky="NEW")
 
 
 class CalibrationTopLevel(tk.Toplevel):
@@ -880,12 +891,13 @@ class Application(ttk.Frame):
         # Create tabs
         self.frame_keymap = KeymapFrame(self.notebook)
         self.frame_settings = SettingsFrame(self.notebook)
-        self.frame_utilities = UtilitiesFrame(self.notebook)
         self.frame_lighting = LightingFrame(self.notebook)
+        self.frame_utilities = UtilitiesFrame(self.notebook)
 
         # Add tabs
         self.notebook.add(self.frame_keymap, text="Keymap")
         self.notebook.add(self.frame_settings, text="Settings")
+        self.notebook.add(self.frame_lighting, text="Lighting")
         self.notebook.add(self.frame_utilities, text="Utilities")
         
         self.notebook.grid(row=1, column=1, sticky="NSEW", pady=(0, 4), padx=4)
@@ -919,7 +931,10 @@ class Application(ttk.Frame):
         # Show menu bar
         self.master.configure(menu=self.menubar)
 
-        # Setup Fluxpad interface
+        # Default GUI state to fluxpad disconnected
+        self.on_disconnected()
+
+        # Setup Fluxpad interface and connection listener
         self.fluxpad_settings = fluxpad_interface.FluxpadSettings()
         self._save_to_settings()
         self.fluxpad: Optional[fluxpad_interface.Fluxpad] = None
@@ -945,8 +960,9 @@ class Application(ttk.Frame):
         self.save_menu.entryconfigure(1, state=tk.NORMAL)
         self.load_menu.entryconfigure(1, state=tk.NORMAL)
         self.ask_load_from_fluxpad()
-        self.frame_utilities.firmware_update_frame.enable_update()
+
         # Wire firmware update button to callback
+        self.frame_utilities.firmware_update_frame.enable_update()
         self.frame_utilities.firmware_update_frame.set_fluxpad(self.fluxpad)
 
     def _on_disconnected_gui(self):
@@ -1024,7 +1040,7 @@ class Application(ttk.Frame):
         else: 
             self.frame_keymap.lf_mapedit.is_active = False
         
-        if self.notebook.index("current") == 2:  # Check if tab on top is utilities tab
+        if self.notebook.index("current") == 3:  # Check if tab on top is utilities tab
             self.on_calibration_tab = True
         else:
             self.on_calibration_tab = False
@@ -1034,16 +1050,24 @@ class Application(ttk.Frame):
         self.frame_settings.load_from_fluxpad_settings(self.fluxpad_settings)
 
     def _save_to_settings(self):
+        """Take all settings currently set in the GUI and load them to the self.fluxpad_settings object"""
         self.frame_keymap.save_to_settings(self.fluxpad_settings)
         self.frame_settings.save_to_fluxpad_settings(self.fluxpad_settings)
 
     def on_load_from_file(self):
         try:
-            self.fluxpad_settings.load_from_file(pathlib.Path(__file__).parent / "testy.json")
+            load_file = filedialog.askopenfilename(
+                parent=self,
+                filetypes=[("Fluxpad settings file", ".json")]
+            )
+            pathlib.Path(load_file)
+            self.fluxpad_settings.load_from_file(pathlib.Path(load_file))
             self._update_from_settings()
         except Exception:
             logging.error("Exception occoured while loading from fluxpad", exc_info=True)
-            messagebox.showerror("Error Loading from fluxpad", f"Exception:\n{traceback.format_exc}")
+            messagebox.showerror("Error Loading from fluxpad", f"Exception:\n{traceback.format_exc()}")
+        else:
+            messagebox.showinfo("Loaded settings",f"Loaded settings from file: {load_file}")
 
     def on_load_from_fluxpad(self):
         try:
@@ -1051,25 +1075,36 @@ class Application(ttk.Frame):
                 self.fluxpad_settings.load_from_keypad(self.fluxpad)
             self._update_from_settings()
         except Exception:
-            logging.error("Exception occoured while loading from fluxpad", exc_info=True)
-            messagebox.showerror("Error Loading from fluxpad", f"Exception:\n{traceback.format_exc}")
+            logging.error("Exception occoured while loading from FLUXPAD", exc_info=True)
+            messagebox.showerror("Error Loading from FLUXPAD", f"Exception:\n{traceback.format_exc()}")
+        else:
+            messagebox.showinfo("Loaded settings","Loaded settings from FLUXPAD")
     
     def on_save_to_file(self):
         try:
+            save_file = filedialog.asksaveasfilename(
+                parent=self,
+                defaultextension=".json",
+                filetypes=[("Fluxpad settings file", ".json")]
+            )
             self._save_to_settings()
-            self.fluxpad_settings.save_to_file(pathlib.Path(__file__).parent / "testy_out.json")
+            self.fluxpad_settings.save_to_file(pathlib.Path(save_file))
         except Exception:
             logging.error("Exception occoured while saving to file", exc_info=True)
-            messagebox.showerror("Error Saving to fluxpad", f"Exception:\n{traceback.format_exc}")
-    
+            messagebox.showerror("Error Saving to FLUXPAD", f"Exception:\n{traceback.format_exc()}")
+        else:
+            messagebox.showinfo("Saved settings", f"Saved settings to {save_file}")
+
     def on_save_to_fluxpad(self):
         try:
             self._save_to_settings()
             with self.fluxpad.port:
                 self.fluxpad_settings.save_to_fluxpad(self.fluxpad)
         except Exception:
-            logging.error("Exception occoured while saving to fluxpad", exc_info=True)
-            messagebox.showerror("Error Saving to fluxpad", f"Exception:\n{traceback.format_exc}")
+            logging.error("Exception occoured while saving to FLUXPAD", exc_info=True)
+            messagebox.showerror("Error Saving to FLUXPAD", f"Exception:\n{traceback.format_exc}")
+        else:
+            messagebox.showinfo("Saved settings", "Saved settings to FLUXPAD")
 
 if __name__ == "__main__":
 
@@ -1102,6 +1137,7 @@ if __name__ == "__main__":
     root.geometry(f"{WIDTH}x{HEIGHT}+{x}+{y}")
     root.resizable(width=False, height=False)
     root.title("FLUXAPP")
+    root.iconbitmap((IMAGE_DIR / "FluxappIcon.ico").resolve())
     app = Application(master=root)
     app.pack(expand=True, fill="both", side="top")
     app.mainloop()
