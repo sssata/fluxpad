@@ -1,3 +1,4 @@
+# Built-in
 import tkinter as tk
 from tkinter import ttk
 from typing import Union, Optional, Callable, List, Type
@@ -9,19 +10,24 @@ import time
 import threading
 import statistics
 from tkinter import messagebox
+from tkinter import filedialog
 import math
 import traceback
 import sys
 from PIL import Image, ImageTk
 
+# Third Party
 import pynput
 import darkdetect
 
+# First Party
 from scancode_to_hid_code import (ScanCodeList, ScanCode, get_name_list,
                                   pynput_event_to_scancode, key_name_to_scancode, key_type_and_code_to_scancode)
 import fluxpad_interface
 import use_sv_ttk
 from ttk_slider import SliderSetting
+import firmware_updater
+
 
 UpdateScancodeCallback = Callable[[ScanCode], None]
 
@@ -31,12 +37,15 @@ IS_DARKMODE = False
 CALIBRATION_BAR_BG_COLOR = '#a0a0a0'
 CALIBRATION_BAR_FG_COLOR = '#005fb8'
 
+
 if getattr(sys, 'frozen', False) and hasattr(sys, '_MEIPASS'):
     print('running in a PyInstaller bundle')
     IMAGE_DIR = (pathlib.Path(__file__).parent / "images").resolve()
+    BOSSAC_PATH = (pathlib.Path(__file__).parent / "tools" / "bossac.exe").resolve()
 else:
     print('running in a normal Python process')
     IMAGE_DIR = (pathlib.Path(__file__).parent / "images").resolve()
+    BOSSAC_PATH = (pathlib.Path(__file__).parent / "tools" / "bossac.exe").resolve()
 
 
 class EncoderMap(ttk.Labelframe):
@@ -114,6 +123,7 @@ class KeyMap(ttk.Labelframe):
             self.btn_key.configure(style="Bold.TButton")
 
     def save_to_setting(self, setting: Union[fluxpad_interface.AnalogSettingsMessage, fluxpad_interface.DigitalSettingsMessage], key_id: Optional[int] = None):
+        assert self.scancode is not None
         setting.key_code = self.scancode.hid_keycode
         setting.key_type = self.scancode.hid_usage
         if key_id is not None:
@@ -297,7 +307,7 @@ class AnalogSettingsPanel(ttk.Labelframe):
         self.columnconfigure(1, weight=1)
         # self.columnconfigure(2, weight=1)
         self.is_rapid_trigger = tk.BooleanVar(self)
-        self.checkbox_rapid_trigger = ttk.Checkbutton(self, text="Rapid Trigger", variable=self.is_rapid_trigger)
+        self.checkbox_rapid_trigger = ttk.Checkbutton(self, text="Rapid Trigger", variable=self.is_rapid_trigger, command=self.on_rapid_trigger_change)
         # self.checkbox_rapid_trigger.state(['!alternate'])  # Start unchecked
         self.is_rapid_trigger.set(False)  # Start unchecked
         self.checkbox_rapid_trigger.grid(row=1, column=1, sticky="W", padx=PADDING, pady=6)
@@ -305,21 +315,38 @@ class AnalogSettingsPanel(ttk.Labelframe):
         self.press_hysteresis.grid(row=2, column=1, sticky="EW", padx=PADDING, pady=PADDING)
         self.release_hysteresis = SliderSetting(self, text=" Rapid Trigger Upstroke", var_type=float, min_value=0.05, max_value=1, resolution=0.05, units="mm")
         self.release_hysteresis.grid(row=3, column=1, sticky="EW", padx=PADDING, pady=PADDING)
-        self.release_point = SliderSetting(self, text="Rapid Trigger Upper Limit", var_type=float, min_value=2, max_value=4, resolution=0.05, units="mm")
+        self.release_point = SliderSetting(self, text="Rapid Trigger Range Upper Limit", var_type=float, min_value=2, max_value=4, resolution=0.05, units="mm")
         self.release_point.grid(row=4, column=1, sticky="EW", padx=PADDING, pady=PADDING)
-        self.actuation_point = SliderSetting(self, text="Rapid Trigger Lower Limit", var_type=float, min_value=0, max_value=2, resolution=0.05, units="mm")
+        self.actuation_point = SliderSetting(self, text="Rapid Trigger Range Lower Limit", var_type=float, min_value=0, max_value=2, resolution=0.05, units="mm")
         self.actuation_point.grid(row=5, column=1, sticky="EW", padx=PADDING, pady=PADDING)
         self.press_debounce = SliderSetting(self, text="Rapid Trigger Press Debounce", var_type=int, min_value=0, max_value=20, resolution=1, decimal_places=0, units="ms")
         self.press_debounce.grid(row=6, column=1, sticky="EW", padx=PADDING, pady=PADDING)
         self.release_debounce = SliderSetting(self, text="Rapid Trigger Release Debounce", var_type=int, min_value=0, max_value=20, resolution=1, decimal_places=0, units="ms")
         self.release_debounce.grid(row=7, column=1, sticky="EW", padx=PADDING, pady=PADDING)
 
+        # Set default values
         self.press_debounce.set_value(1)
         self.release_debounce.set_value(6)
         self.press_hysteresis.set_value(0.1)
         self.release_hysteresis.set_value(0.4)
         self.release_point.set_value(3.7)
         self.actuation_point.set_value(0.3)
+        self.on_rapid_trigger_change()
+
+
+    def on_rapid_trigger_change(self):
+
+        if self.is_rapid_trigger.get():
+            self.release_point.configure(text="Rapid Trigger Range Upper Limit")
+            self.actuation_point.configure(text="Rapid Trigger Range Lower Limit")
+            self.release_hysteresis.slider.state(["!disabled"])
+            self.press_hysteresis.slider.state(["!disabled"])
+
+        else:
+            self.release_point.configure(text="Release Point")
+            self.actuation_point.configure(text="Actuation Point")
+            self.release_hysteresis.slider.state(["disabled"])
+            self.press_hysteresis.slider.state(["disabled"])
 
 
     def load_from_settings_message(self, message: fluxpad_interface.AnalogSettingsMessage):
@@ -330,6 +357,7 @@ class AnalogSettingsPanel(ttk.Labelframe):
         self.release_hysteresis.set_value(message.release_hysteresis)
         self.actuation_point.set_value(message.actuate_point - 2)  # Bottom out is 2mm in settings, while it's 0mm in GUI
         self.release_point.set_value(message.release_point - 2)
+        self.on_rapid_trigger_change()
 
     def to_settings_message(self, message: fluxpad_interface.AnalogSettingsMessage):
         message.rapid_trigger = self.is_rapid_trigger.get()
@@ -595,6 +623,17 @@ class LightingFrame(ttk.Frame):
     def __init__(self, master=None):
         super().__init__(master=master)
 
+        self.rowconfigure(1, weight=0)
+        self.rowconfigure(2, weight=1)
+
+        self.columnconfigure(1, weight=1)
+
+        self.key_select_frame = SelectKeySettingsFrame(self)
+        self.key_select_frame.grid(row=1, column=1, sticky="NSEW")
+
+        self.label_wip = ttk.Label(self, text="Lighting Settings Coming Soon")
+        self.label_wip.grid(row=2, column=1)
+
 
 
 class AnalogCalibrationFrame(ttk.Frame):
@@ -651,6 +690,8 @@ class CalibrationLabelframe(ttk.Labelframe):
         # if self.notebook.index("current") == 0:  # Check if tab on top is keymap tab
 
 
+
+
 class UtilitiesFrame(ttk.Frame):
     """Top level frame of the utilities tab"""
 
@@ -665,12 +706,16 @@ class UtilitiesFrame(ttk.Frame):
 
         test_label = tk.Label(self, text="Warning: keypad may not work as expected with utilities tab open")
         test_label.grid(row=2, column=1, sticky="NEW")
-        
-        # self.fluxpad: Optional[fluxpad_interface.Fluxpad] = None
+
+        # Don't show firmware update for now
+        self.firmware_update_frame = firmware_updater.FirmwareUpdateFrame(self)
+        # self.firmware_update_frame.grid(row=3, column=1, sticky="NEW")
 
 
 class CalibrationTopLevel(tk.Toplevel):
+    """Top Level window that holds the calibration routine"""
 
+    # Calibration settings and validation constants
     NUMBER_OF_SAMPLES = 20
     SAMPLE_PERIOD_S = 0.05
 
@@ -741,6 +786,7 @@ class CalibrationTopLevel(tk.Toplevel):
         self.destroy()
     
     def on_calibrate(self):
+        """Callback that runs when calibrate button is pressed"""
         self.btn_cancel.state(["disabled"])
         self.update()
         self.update_idletasks()
@@ -824,7 +870,6 @@ class CalibrationTopLevel(tk.Toplevel):
 
         messagebox.showinfo("Calibration Complete", f"Analog Key {self.key_id-1} {'up' if self.is_up else 'down'} position calibrated to\n{mean:.0f} ADC counts")
         self.destroy()
-        return
 
 
 
@@ -846,12 +891,13 @@ class Application(ttk.Frame):
         # Create tabs
         self.frame_keymap = KeymapFrame(self.notebook)
         self.frame_settings = SettingsFrame(self.notebook)
-        self.frame_utilities = UtilitiesFrame(self.notebook)
         self.frame_lighting = LightingFrame(self.notebook)
+        self.frame_utilities = UtilitiesFrame(self.notebook)
 
         # Add tabs
         self.notebook.add(self.frame_keymap, text="Keymap")
         self.notebook.add(self.frame_settings, text="Settings")
+        self.notebook.add(self.frame_lighting, text="Lighting")
         self.notebook.add(self.frame_utilities, text="Utilities")
         
         self.notebook.grid(row=1, column=1, sticky="NSEW", pady=(0, 4), padx=4)
@@ -885,7 +931,10 @@ class Application(ttk.Frame):
         # Show menu bar
         self.master.configure(menu=self.menubar)
 
-        # Setup Fluxpad interface
+        # Default GUI state to fluxpad disconnected
+        self.on_disconnected()
+
+        # Setup Fluxpad interface and connection listener
         self.fluxpad_settings = fluxpad_interface.FluxpadSettings()
         self._save_to_settings()
         self.fluxpad: Optional[fluxpad_interface.Fluxpad] = None
@@ -912,10 +961,16 @@ class Application(ttk.Frame):
         self.load_menu.entryconfigure(1, state=tk.NORMAL)
         self.ask_load_from_fluxpad()
 
+        # Wire firmware update button to callback
+        self.frame_utilities.firmware_update_frame.enable_update()
+        self.frame_utilities.firmware_update_frame.set_fluxpad(self.fluxpad)
+
     def _on_disconnected_gui(self):
         self.btn_upload.state(["disabled"])
         self.save_menu.entryconfigure(1, state=tk.DISABLED)
         self.load_menu.entryconfigure(1, state=tk.DISABLED)
+        self.frame_utilities.firmware_update_frame.disable_update()
+
 
     def ask_load_from_fluxpad(self):
         should_load = messagebox.askyesno("Fluxpad Connected", "Load settings from connected FLUXPAD?")
@@ -985,7 +1040,7 @@ class Application(ttk.Frame):
         else: 
             self.frame_keymap.lf_mapedit.is_active = False
         
-        if self.notebook.index("current") == 2:  # Check if tab on top is utilities tab
+        if self.notebook.index("current") == 3:  # Check if tab on top is utilities tab
             self.on_calibration_tab = True
         else:
             self.on_calibration_tab = False
@@ -995,16 +1050,24 @@ class Application(ttk.Frame):
         self.frame_settings.load_from_fluxpad_settings(self.fluxpad_settings)
 
     def _save_to_settings(self):
+        """Take all settings currently set in the GUI and load them to the self.fluxpad_settings object"""
         self.frame_keymap.save_to_settings(self.fluxpad_settings)
         self.frame_settings.save_to_fluxpad_settings(self.fluxpad_settings)
 
     def on_load_from_file(self):
         try:
-            self.fluxpad_settings.load_from_file(pathlib.Path(__file__).parent / "testy.json")
+            load_file = filedialog.askopenfilename(
+                parent=self,
+                filetypes=[("Fluxpad settings file", ".json")]
+            )
+            pathlib.Path(load_file)
+            self.fluxpad_settings.load_from_file(pathlib.Path(load_file))
             self._update_from_settings()
         except Exception:
             logging.error("Exception occoured while loading from fluxpad", exc_info=True)
-            messagebox.showerror("Error Loading from fluxpad", f"Exception:\n{traceback.format_exc}")
+            messagebox.showerror("Error Loading from fluxpad", f"Exception:\n{traceback.format_exc()}")
+        else:
+            messagebox.showinfo("Loaded settings",f"Loaded settings from file: {load_file}")
 
     def on_load_from_fluxpad(self):
         try:
@@ -1012,25 +1075,36 @@ class Application(ttk.Frame):
                 self.fluxpad_settings.load_from_keypad(self.fluxpad)
             self._update_from_settings()
         except Exception:
-            logging.error("Exception occoured while loading from fluxpad", exc_info=True)
-            messagebox.showerror("Error Loading from fluxpad", f"Exception:\n{traceback.format_exc}")
+            logging.error("Exception occoured while loading from FLUXPAD", exc_info=True)
+            messagebox.showerror("Error Loading from FLUXPAD", f"Exception:\n{traceback.format_exc()}")
+        else:
+            messagebox.showinfo("Loaded settings","Loaded settings from FLUXPAD")
     
     def on_save_to_file(self):
         try:
+            save_file = filedialog.asksaveasfilename(
+                parent=self,
+                defaultextension=".json",
+                filetypes=[("Fluxpad settings file", ".json")]
+            )
             self._save_to_settings()
-            self.fluxpad_settings.save_to_file(pathlib.Path(__file__).parent / "testy_out.json")
+            self.fluxpad_settings.save_to_file(pathlib.Path(save_file))
         except Exception:
             logging.error("Exception occoured while saving to file", exc_info=True)
-            messagebox.showerror("Error Saving to fluxpad", f"Exception:\n{traceback.format_exc}")
-    
+            messagebox.showerror("Error Saving to FLUXPAD", f"Exception:\n{traceback.format_exc()}")
+        else:
+            messagebox.showinfo("Saved settings", f"Saved settings to {save_file}")
+
     def on_save_to_fluxpad(self):
         try:
             self._save_to_settings()
             with self.fluxpad.port:
                 self.fluxpad_settings.save_to_fluxpad(self.fluxpad)
         except Exception:
-            logging.error("Exception occoured while saving to fluxpad", exc_info=True)
-            messagebox.showerror("Error Saving to fluxpad", f"Exception:\n{traceback.format_exc}")
+            logging.error("Exception occoured while saving to FLUXPAD", exc_info=True)
+            messagebox.showerror("Error Saving to FLUXPAD", f"Exception:\n{traceback.format_exc}")
+        else:
+            messagebox.showinfo("Saved settings", "Saved settings to FLUXPAD")
 
 if __name__ == "__main__":
 
@@ -1063,6 +1137,7 @@ if __name__ == "__main__":
     root.geometry(f"{WIDTH}x{HEIGHT}+{x}+{y}")
     root.resizable(width=False, height=False)
     root.title("FLUXAPP")
+    root.iconbitmap((IMAGE_DIR / "FluxappIcon.ico").resolve())
     app = Application(master=root)
     app.pack(expand=True, fill="both", side="top")
     app.mainloop()
