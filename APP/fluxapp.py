@@ -564,12 +564,15 @@ class SettingsFrame(ttk.Frame):
         self.key_select_frame.btn_list[key_id].configure(style="Accent.TButton")
 
     def is_digital_equal(self, setting1: fluxpad_interface.DigitalSettingsMessage, setting2: fluxpad_interface.DigitalSettingsMessage):
+        """Check if two given digital settings messages have equal values"""
         if (setting1.actuate_debounce == setting2.actuate_debounce and
             setting1.release_debounce == setting2.release_debounce):
             return True
         return False
     
     def is_analog_equal(self, setting1: fluxpad_interface.AnalogSettingsMessage, setting2: fluxpad_interface.AnalogSettingsMessage):
+        """Check if two given analog settings messages have equal values"""
+
         if (setting1.actuate_debounce == setting2.actuate_debounce and
             setting1.release_debounce == setting2.release_debounce and
             setting1.actuate_hysteresis == setting2.actuate_hysteresis and
@@ -585,6 +588,7 @@ class SettingsFrame(ttk.Frame):
         return value
 
     def load_from_fluxpad_settings(self, fluxpad_settings: fluxpad_interface.FluxpadSettings):
+        """Load GUI components from given fluxpad settings"""
         self.settings_panel_list[0].load_from_settings_message(self.assert_type(fluxpad_settings.key_settings_list[0], fluxpad_interface.DigitalSettingsMessage))
         self.settings_panel_list[1].load_from_settings_message(self.assert_type(fluxpad_settings.key_settings_list[1], fluxpad_interface.DigitalSettingsMessage))
         self.settings_panel_list[2].load_from_settings_message(self.assert_type(fluxpad_settings.key_settings_list[2], fluxpad_interface.AnalogSettingsMessage))
@@ -1046,6 +1050,7 @@ class Application(ttk.Frame):
             self.on_calibration_tab = False
 
     def _update_from_settings(self):
+        """Update the GUI to match the current self.fluxpad_settings"""
         self.frame_keymap.load_from_settings(self.fluxpad_settings)
         self.frame_settings.load_from_fluxpad_settings(self.fluxpad_settings)
 
@@ -1053,6 +1058,11 @@ class Application(ttk.Frame):
         """Take all settings currently set in the GUI and load them to the self.fluxpad_settings object"""
         self.frame_keymap.save_to_settings(self.fluxpad_settings)
         self.frame_settings.save_to_fluxpad_settings(self.fluxpad_settings)
+
+    def _fix_adc_samples(self):
+        """Sets the ADC Samples to 22"""
+        self.fluxpad_settings.key_settings_list[2].adc_samples = 22
+        self.fluxpad_settings.key_settings_list[3].adc_samples = 22
 
     def on_load_from_file(self):
         try:
@@ -1062,6 +1072,7 @@ class Application(ttk.Frame):
             )
             pathlib.Path(load_file)
             self.fluxpad_settings.load_from_file(pathlib.Path(load_file))
+            self._fix_adc_samples()
             self._update_from_settings()
         except Exception:
             logging.error("Exception occoured while loading from fluxpad", exc_info=True)
@@ -1073,6 +1084,7 @@ class Application(ttk.Frame):
         try:
             with self.fluxpad.port:
                 self.fluxpad_settings.load_from_keypad(self.fluxpad)
+            self._fix_adc_samples()
             self._update_from_settings()
         except Exception:
             logging.error("Exception occoured while loading from FLUXPAD", exc_info=True)
@@ -1102,7 +1114,7 @@ class Application(ttk.Frame):
                 self.fluxpad_settings.save_to_fluxpad(self.fluxpad)
         except Exception:
             logging.error("Exception occoured while saving to FLUXPAD", exc_info=True)
-            messagebox.showerror("Error Saving to FLUXPAD", f"Exception:\n{traceback.format_exc}")
+            messagebox.showerror("Error Saving to FLUXPAD", f"Exception:\n{traceback.format_exc()}")
         else:
             messagebox.showinfo("Saved settings", "Saved settings to FLUXPAD")
 
