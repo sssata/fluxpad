@@ -40,6 +40,8 @@ const q22_10_t reference_down_mm = FLOAT_TO_Q22_10(2.0f);
 const q22_10_t reference_up_adc = INT_TO_Q22_10(1024);
 const q22_10_t reference_down_adc = INT_TO_Q22_10(3295);
 
+const size_t ADC_SAMPLES_N = 22;
+
 /**
  * @brief Stores all operational settings for an analog switch
  *
@@ -109,9 +111,9 @@ class AnalogSwitch {
     void mainLoopService() {
         unsigned long current_time_ms = millis();
         if (use_freerun_mode) {
-            takeAvgReadingFreerun(settings.samples);
+            takeAvgReadingFreerun(ADC_SAMPLES_N);
         } else {
-            takeAvgReading(settings.samples);
+            takeAvgReading(ADC_SAMPLES_N);
         }
         // Serial.printf("current_reading: %lu, max_reading: %lu, min_reading:
         // %lu ", current_reading, max_reading, min_reading);
@@ -258,7 +260,6 @@ class AnalogSwitch {
             ADC->INTFLAG.reg = ADC_INTFLAG_RESRDY; // Clear ready flag
             sum += INT_TO_Q22_10(result);
         }
-        // current_reading = sum / samples;
         current_reading = sum / samples;
 
         ADC->CTRLA.bit.ENABLE = 0; // Turn off ADC
