@@ -6,19 +6,21 @@
 // #define ENCODER_DO_NOT_USE_INTERRUPTS
 #include <RotaryEncoder.h>
 
-#include <EEPROM.h>
 #include <ArduinoJson.h>
+#include <EEPROM.h>
 // #include <ADCInput.h>
 
-#include "USBService.hpp"
 #include "AnalogSwitch.h"
 #include "DigitalSwitch.h"
 #include "KeyLighting.h"
+#include "USBService.hpp"
 #include "tusb_config.h"
 // #include "usb_descriptors.h"
 
-// #include "rp2_common/hardware_adc/include/hardware/adc.h"
-// #include "rp2_common/hardware_dma/include/hardware/dma.h"
+// #include "rp2_common/har"
+#include <ADCInput.h>
+#include <hardware/adc.h>
+
 // #include "USBHID.h"
 // #include "USBDevice.h"
 // #include "USBDescriptor.h"
@@ -36,14 +38,14 @@
 
 #define VERSION 1
 
-
 // PIN DEFINITIONS
 constexpr uint32_t ENC_A_PIN = 1u;
 constexpr uint32_t ENC_B_PIN = 0u;
-constexpr uint32_t KEY0_PIN = 4u;
-constexpr uint32_t KEY1_PIN = 9u;
-constexpr uint32_t KEY2_PIN = 6u;
-constexpr uint32_t KEY3_PIN = 8u;
+constexpr uint32_t KEY0_PIN = 20u;
+constexpr uint32_t KEY1_PIN = 21u;
+constexpr uint32_t KEY2_PIN = A2;
+constexpr uint32_t KEY3_PIN = A1;
+constexpr uint32_t KEY4_PIN = A0;
 
 #define KEY0_LIGHT_PIN 3u
 #define KEY1_LIGHT_PIN 7u
@@ -53,7 +55,7 @@ constexpr uint32_t KEY3_PIN = 8u;
 #define LED_PIN 13u
 
 // GLOBALS
-constexpr uint32_t normal_mode_freq_hz = 1000;
+constexpr uint32_t normal_mode_freq_hz = 2000;
 
 constexpr int WRITTEN_SIGNATURE = 0xABCDEF01;
 constexpr uint16_t storedAddress = 0;
@@ -72,10 +74,8 @@ uint32_t print_period_us = 2 * 1000 * 1000;
 
 unsigned long last_time_us;
 
-
 // ENUMS
 enum class KeyType_t { NONE = 0, KEYBOARD = 1, CONSUMER = 2, MOUSE = 3 };
-
 
 // STRUCTS
 typedef struct {
@@ -104,15 +104,14 @@ StorageVars_t storage_vars;
 // EncoderTool::PolledEncoder encoder;
 RotaryEncoder encoder(ENC_A_PIN, ENC_A_PIN);
 
-
 DigitalSwitch digitalKeys[] = {
     DigitalSwitch(KEY0_PIN, 0),
     DigitalSwitch(KEY1_PIN, 1),
 };
 
 AnalogSwitch analogKeys[] = {
-    AnalogSwitch(KEY2_PIN, 2),
-    AnalogSwitch(KEY3_PIN, 3),
+    AnalogSwitch(KEY4_PIN, 2),
+    // AnalogSwitch(KEY3_PIN, 3),
 };
 
 KeyLighting keyLighting[] = {
@@ -121,6 +120,8 @@ KeyLighting keyLighting[] = {
     KeyLighting(KEY2_LIGHT_PIN, &(analogKeys[0].is_pressed)),
     KeyLighting(KEY3_LIGHT_PIN, &(analogKeys[1].is_pressed)),
 };
+
+// ADCInput adc_input(A0, A1, A2);
 
 StaticJsonDocument<1024> request_msg;
 StaticJsonDocument<1024> response_msg;
@@ -142,6 +143,9 @@ void setup() {
     // Keyboard.begin();
     // Consumer.begin();
     usb_service_setup();
+    // adc_input.setFrequency(5000);
+    // adc_input.setBuffers(100, 16);
+    // adc_input.begin();
 
     // encoder.begin(ENC_A_PIN, ENC_B_PIN, EncoderTool::CountMode::quarter, INPUT_PULLUP);
     // encoder = RotaryEncoder(ENC_A_PIN, ENC_A_PIN);
@@ -172,7 +176,7 @@ void setup() {
 
 uint32_t last_blink_time_us = 0;
 int blink_state = 0;
-uint32_t blink_period_us = 500*1000;
+uint32_t blink_period_us = 500 * 1000;
 
 void loop() {
 
@@ -187,60 +191,67 @@ void loop() {
     if (!debug_mode) {
         if (curr_time_us - last_print_us > print_period_us) {
             float loop_freq = (static_cast<float>(loop_count) / (static_cast<float>(print_period_us) / 1000000.0f));
-            printf("Loop freq: %f\n", loop_freq);
+            Serial.printf("Loop freq: %f\n", loop_freq);
             loop_count = 0;
             last_print_us += print_period_us;
         }
     }
-    
-    if(curr_time_us - last_blink_time_us > blink_period_us){
-        if (blink_state == 1){
+
+    if (curr_time_us - last_blink_time_us > blink_period_us) {
+        if (blink_state == 1) {
             blink_state = 0;
-        }
-        else {
+        } else {
             blink_state = 1;
         }
         digitalWrite(3, blink_state);
         last_blink_time_us = curr_time_us;
-        Serial.write("hi\n");
     }
 
     // Keyboard.removeAll();
 
     // Scan analog keys
-    // for (AnalogSwitch &key : analogKeys) {
-    //     key.mainLoopService();
-    //     if (debug_mode) {
-    //         Serial.printf("%f %f ", Q22_10_TO_FLOAT(key.current_reading), Q22_10_TO_FLOAT(key.current_height_mm));
-    //     }
 
-    //     if (storage_vars.keymap[key.id].keyType == KeyType_t::CONSUMER){ // Hack for consumer keys, fml
-    //         if (!key.was_pressed && key.is_pressed){
-    //             typeHIDKey(&(storage_vars.keymap[key.id]));
-    //         }
-    //     }
-    //     else{
-    //         if (key.is_pressed) {
-    //             pressHIDKey(&(storage_vars.keymap[key.id]));
-    //         }
+    // for (size_t i = 0; i < sizeof(analogKeys) / sizeof(analogKeys[0]); i++) {
+    //     if (adc_input.available()) {
+    //         adc_input.read();
     //     }
     // }
-    // if (debug_mode) {
-    //     Serial.printf("\n");
-    // }
+    for (AnalogSwitch &key : analogKeys) {
+        // key.setCurrentReading(adc_input.);
+        key.mainLoopService();
+        if (debug_mode) {
+            Serial.printf("%f %f ", Q22_10_TO_FLOAT(key.current_reading), Q22_10_TO_FLOAT(key.current_height_mm));
+        }
+
+        if (storage_vars.keymap[key.id].keyType == KeyType_t::CONSUMER) { // Hack for consumer keys, fml
+            if (!key.was_pressed && key.is_pressed) {
+                typeHIDKey(&(storage_vars.keymap[key.id]));
+            }
+        } else {
+            if (key.is_pressed) {
+                pressHIDKey(&(storage_vars.keymap[key.id]));
+            } else {
+                releaseHIDKey(&(storage_vars.keymap[key.id]));
+            }
+        }
+    }
+    if (debug_mode) {
+        Serial.printf("\n");
+    }
 
     // Scan digital keys
     for (DigitalSwitch &key : digitalKeys) {
         key.mainLoopService();
 
-        if (storage_vars.keymap[key.id].keyType == KeyType_t::CONSUMER){
-            if (!key.was_pressed && key.is_pressed){
+        if (storage_vars.keymap[key.id].keyType == KeyType_t::CONSUMER) {
+            if (!key.was_pressed && key.is_pressed) {
                 typeHIDKey(&(storage_vars.keymap[key.id]));
             }
-        }
-        else{
+        } else {
             if (key.is_pressed) {
                 pressHIDKey(&(storage_vars.keymap[key.id]));
+            } else {
+                releaseHIDKey(&(storage_vars.keymap[key.id]));
             }
         }
     }
@@ -296,6 +307,7 @@ void pressHIDKey(const KeyMapEntry_t *entry) {
     switch (entry->keyType) {
     case KeyType_t::KEYBOARD:
         // Keyboard.add(KeyboardKeycode(entry->keycode.keyboard));
+        keyboard_press_key(entry->keycode.keyboard);
         break;
     case KeyType_t::CONSUMER:
         // Consumer.press(ConsumerKeycode(entry->keycode.consumer));
@@ -312,6 +324,7 @@ void releaseHIDKey(const KeyMapEntry_t *entry) {
     switch (entry->keyType) {
     case KeyType_t::KEYBOARD:
         // Keyboard.remove(KeyboardKeycode(entry->keycode.keyboard));
+        keyboard_release_key(entry->keycode.keyboard);
         break;
     case KeyType_t::CONSUMER:
         // Consumer.release(ConsumerKeycode(entry->keycode.consumer));
@@ -344,14 +357,14 @@ bool saveFlashStorage(const StorageVars_t *_storage_vars) {
 
     // if (!EEPROM.getCommitASAP()) {
     //     Serial.printf("CommitASAP not set. Need commit()");
-        EEPROM.commit();
+    EEPROM.commit();
     // }
 
     return false;
 }
 
-void fillDefaultStorageVars(StorageVars_t *_storage_vars){
-    
+void fillDefaultStorageVars(StorageVars_t *_storage_vars) {
+
     // Set Default keymap
     _storage_vars->keymap[0] = {
         .keycode = {HID_KEY_A},
@@ -452,20 +465,19 @@ void send_error_response_message(const char *error_string) {
 
 /**
  * @brief Datastream mode service function, called periodically in main loop
- * 
+ *
  */
-void datastream_mode_service(){
+void datastream_mode_service() {
     // TODO implmement this
 
-    if (datastream_period_ms > 0){
+    if (datastream_period_ms > 0) {
         uint32_t curr_time_ms = millis();
-        if (curr_time_ms - last_datatream_time_ms >= datastream_period_ms){
+        if (curr_time_ms - last_datatream_time_ms >= datastream_period_ms) {
             last_datatream_time_ms = curr_time_ms;
             // Serial.write("");
         }
     }
 }
-
 
 /**
  * @brief Reads and processes incoming commands
@@ -573,12 +585,10 @@ void read_serial() {
                 DigitalSwitchSettings_t *currDigitalSettings = &(storage_vars.digitalSettings[digital_key_id]);
 
                 if (request_msg.containsKey("d_a")) {
-                    currDigitalSettings->debounce_press_ms =
-                        request_msg["d_a"].as<unsigned int>();
+                    currDigitalSettings->debounce_press_ms = request_msg["d_a"].as<unsigned int>();
                 }
                 if (request_msg.containsKey("d_r")) {
-                    currDigitalSettings->debounce_release_ms =
-                        request_msg["d_r"].as<unsigned int>();
+                    currDigitalSettings->debounce_release_ms = request_msg["d_r"].as<unsigned int>();
                 }
 
                 // Apply new settings to key
@@ -591,12 +601,13 @@ void read_serial() {
                 return;
             }
 
-            if (key_has_lighting(key_id)){
+            if (key_has_lighting(key_id)) {
                 if (request_msg.containsKey("l_m")) {
                     keyLighting[key_id].settings.mode = LightingMode(request_msg["l_m"].as<unsigned int>());
                 }
                 if (request_msg.containsKey("l_d")) {
-                    keyLighting[key_id].settings.fade_duty_cycle = static_cast<uint8_t>(request_msg["l_d"].as<unsigned int>());
+                    keyLighting[key_id].settings.fade_duty_cycle =
+                        static_cast<uint8_t>(request_msg["l_d"].as<unsigned int>());
                 }
                 if (request_msg.containsKey("l_h")) {
                     keyLighting[key_id].settings.fade_half_life_us = request_msg["l_h"].as<unsigned int>();
@@ -605,14 +616,15 @@ void read_serial() {
                     keyLighting[key_id].settings.flash_duration_us = request_msg["l_f"].as<unsigned int>();
                 }
                 if (request_msg.containsKey("l_s")) {
-                    keyLighting[key_id].settings.static_duty_cycle = static_cast<uint8_t>(request_msg["l_s"].as<unsigned int>());
+                    keyLighting[key_id].settings.static_duty_cycle =
+                        static_cast<uint8_t>(request_msg["l_s"].as<unsigned int>());
                 }
             }
         }
 
         if (request_msg.containsKey("debug")) {
             uint32_t debug_mode_freq_hz = request_msg["debug"].as<unsigned int>();
-            
+
             printf("debug mode freq: %d hz\n", (int)(debug_mode_freq_hz));
             if (debug_mode_freq_hz == 0) {
                 debug_mode = false;
@@ -624,7 +636,7 @@ void read_serial() {
         }
 
         // Set datastream mode
-        if (request_msg.containsKey("dstrm")){
+        if (request_msg.containsKey("dstrm")) {
             datastream_period_ms = request_msg["dstrm"].as<unsigned int>();
         }
 
@@ -703,7 +715,7 @@ void read_serial() {
                 return;
             }
 
-            if (key_has_lighting(key_id)){
+            if (key_has_lighting(key_id)) {
                 if (request_msg.containsKey("l_m")) {
                     response_msg["l_m"] = keyLighting[key_id].settings.mode;
                 }

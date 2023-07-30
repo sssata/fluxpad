@@ -2,7 +2,9 @@
 #pragma once
 
 // #include "FIR_filter.hpp"
+#include <ADCInput.h>
 #include <stdint.h>
+
 // #include <cstdlib>
 
 // Q22.10 fixed point
@@ -75,27 +77,28 @@ class AnalogSwitch {
     bool was_pressed = false;
     bool is_setup = false;
     bool use_freerun_mode = true;
+    ADCInput adc_input;
 
     AnalogSwitchSettings_t settings;
 
-    AnalogSwitch(uint32_t pin, uint32_t id) : pin(pin), id(id) {}
+    AnalogSwitch(uint32_t pin, uint32_t id) : pin(pin), id(id), adc_input(pin) {}
 
     /**
      * @brief Setup hardware for analog key
      */
     void setup() {
-        pinMode(pin, INPUT);
+        // pinMode(pin, INPUT);
         // setADCConversionTime(128, 0);
         // ADC->REFCTRL.bit.REFCOMP = 1;
         // while (ADC->STATUS.bit.SYNCBUSY)
-            // ;
+        // ;
 
         // loadADCFactoryCalibration();
 
         resetMinMaxDistance();
         is_pressed = false;
         is_setup = true;
-        analogRead(pin);
+        // analogRead(pin);
         last_pressed_time_ms = millis();
         last_released_time_ms = millis();
     }
@@ -109,11 +112,12 @@ class AnalogSwitch {
 
     void mainLoopService() {
         unsigned long current_time_ms = millis();
-        if (use_freerun_mode) {
-            // takeAvgReadingFreerun(settings.samples);
-        } else {
-            takeAvgReading(settings.samples);
-        }
+        // if (use_freerun_mode) {
+        //     // takeAvgReadingFreerun(settings.samples);
+        // } else {
+        //     takeAvgReading(settings.samples);
+        // }
+        takeAvgReading(settings.samples);
         // Serial.printf("current_reading: %lu, max_reading: %lu, min_reading:
         // %lu ", current_reading, max_reading, min_reading);
         // Serial.printf("press_hys: %lu, release_hys: %lu ",
@@ -140,7 +144,8 @@ class AnalogSwitch {
             // Check if should press
             bool no_rapid_trigger_should_press =
                 !settings.rapid_trigger_enable && current_height_mm < settings.actuation_point_mm;
-            bool hysteresis_should_press = abs(static_cast<int>(max_height_mm - current_height_mm)) > settings.press_hysteresis_mm;
+            bool hysteresis_should_press =
+                abs(static_cast<int>(max_height_mm - current_height_mm)) > settings.press_hysteresis_mm;
             bool should_press = settings.rapid_trigger_enable &&
                                 ((hysteresis_should_press || height_should_actuate) && !height_should_release);
             // Serial.printf("hyp: %d, hp: %d, sp: %d\n", hysteresis_should_press, height_should_actuate, should_press);
@@ -177,7 +182,8 @@ class AnalogSwitch {
             // Check if should release
             bool no_rapid_trigger_should_release =
                 !settings.rapid_trigger_enable && current_height_mm > settings.release_point_mm;
-            bool hysteresis_should_release = abs(static_cast<int>(current_height_mm - min_height_mm)) > settings.release_hysteresis_mm;
+            bool hysteresis_should_release =
+                abs(static_cast<int>(current_height_mm - min_height_mm)) > settings.release_hysteresis_mm;
             bool should_release = (hysteresis_should_release || height_should_release) && !height_should_actuate;
             // Serial.printf("hyr: %d, hr: %d, sr: %d\n", hysteresis_should_release, height_should_release,
             // should_release);
@@ -218,11 +224,18 @@ class AnalogSwitch {
      */
     void takeAvgReading(size_t no_of_measurements) {
         q22_10_t sum = 0;
+        // adc_input.begin();
         for (size_t i = 0; i < no_of_measurements; i++) {
+            // while (!adc_input.available())
+            // ;
+            // sum += INT_TO_Q22_10(adc_input.read());
             sum += INT_TO_Q22_10(analogRead(pin));
         }
+        // adc_input.end();
         current_reading = sum / no_of_measurements;
     }
+
+    void setCurrentReading(uint32_t reading_counts) { INT_TO_Q22_10(reading_counts); }
 
     /**
      * @brief Read n samples from pin in ADC freerun mode
@@ -345,7 +358,8 @@ class AnalogSwitch {
     //     uint32_t linearity =
     //         (*((uint32_t *)ADC_FUSES_LINEARITY_0_ADDR) & ADC_FUSES_LINEARITY_0_Msk) >> ADC_FUSES_LINEARITY_0_Pos;
     //     linearity |=
-    //         ((*((uint32_t *)ADC_FUSES_LINEARITY_1_ADDR) & ADC_FUSES_LINEARITY_1_Msk) >> ADC_FUSES_LINEARITY_1_Pos) << 5;
+    //         ((*((uint32_t *)ADC_FUSES_LINEARITY_1_ADDR) & ADC_FUSES_LINEARITY_1_Msk) >> ADC_FUSES_LINEARITY_1_Pos) <<
+    //         5;
 
     //     // Write the calibration data
     //     syncADC();

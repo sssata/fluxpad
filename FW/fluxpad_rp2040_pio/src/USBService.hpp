@@ -31,27 +31,6 @@ void usb_service_setup() {
 }
 
 /**
- * @brief Service that handles all USB HID Device comms. Should be run every loop
- *
- */
-void usb_service() {
-    if (usb_hid.ready()) {
-        digitalWrite(5, 1);
-    } else {
-        digitalWrite(5, 0);
-    }
-
-    // usb_hid.sendReport();
-    // Remote wakeup
-    // if (TinyUSBDevice.suspended() &&) {
-    //     // Wake up host if we are in suspend mode
-    //     // and REMOTE_WAKEUP feature is enabled by host
-    //     TinyUSBDevice.remoteWakeup();
-    // }
-    wakeup_service();
-}
-
-/**
  * @brief Service that handles USB remote wakeup functionality
  * Should be called once every loop
  *
@@ -80,6 +59,29 @@ void wakeup_service() {
 }
 
 /**
+ * @brief Service that handles all USB HID Device comms. Should be run every loop
+ *
+ */
+void usb_service() {
+    if (usb_hid.ready()) {
+        digitalWrite(5, 1);
+        usb_hid.keyboardReport(RID_KEYBOARD, 0, pressed_keys);
+    } else {
+        digitalWrite(5, 0);
+    }
+
+    // usb_hid.sendReport();
+    // Remote wakeup
+    // if (TinyUSBDevice.suspended() &&) {
+    //     // Wake up host if we are in suspend mode
+    //     // and REMOTE_WAKEUP feature is enabled by host
+    //     TinyUSBDevice.remoteWakeup();
+    // }
+
+    wakeup_service();
+}
+
+/**
  * @brief Press the given keyboard keycode
  *
  * @param key
@@ -90,7 +92,7 @@ void press_and_release_consumer(uint16_t key) {
 }
 
 void keyboard_press_key(uint8_t key) {
-    for (size_t i = sizeof(pressed_keys) - 1; i < sizeof(pressed_keys); i++) {
+    for (size_t i = 0; i < sizeof(pressed_keys); i++) {
         // If key already exists in pressed keys, just return
         if (pressed_keys[i] == key) {
             return;
@@ -110,14 +112,16 @@ void keyboard_press_key(uint8_t key) {
 void keyboard_release_key(uint8_t key) {
     for (size_t i = 0; i < sizeof(pressed_keys); i++) {
         if (pressed_keys[i] == key) {
+            Serial.printf("shift %d", i);
             // Check for last key
-            if (i == sizeof(pressed_keys) - 1) {
+            if (i >= sizeof(pressed_keys) - 1) {
                 pressed_keys[i] = 0;
             }
 
             // Shift keys over
             else {
-                memmove(pressed_keys + i, pressed_keys + i + 1, sizeof(pressed_keys) - 1);
+                Serial.printf("shift %d", i);
+                memmove(pressed_keys + i, pressed_keys + i + 1, sizeof(pressed_keys) - i - 1);
             }
         }
     }
