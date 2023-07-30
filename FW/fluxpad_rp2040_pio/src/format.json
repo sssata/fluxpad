@@ -1,0 +1,25 @@
+
+{
+    "cmd": "W",
+    "map": [
+        {
+            "n": "number, inclusive min=0, inclusive max=5",
+            "code": "number, inclusive min=0, inclusive max=255",
+            "type": "inclusive min=0, inclusive max=1"
+        }
+    ],
+    "d_s": {
+        "d1": "number, mm, actuation hysteresis",
+        "d0": "number, mm, actuation hysteresis"
+    },
+    "a_s": {
+        "h1": "number, mm, actuation hysteresis",
+        "h0": "number, mm, release hysteresis",
+        "p1": "number, mm, actuation point",
+        "p0": "number, mm, release point",
+        "d1": "number, us, debounce actuate",
+        "d0": "number, us, debounce actuate",
+        "s": "int, unitless, samples"
+    },
+    "debug": "int"
+}
