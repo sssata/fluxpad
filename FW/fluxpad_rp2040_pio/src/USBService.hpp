@@ -1,6 +1,9 @@
 #include <Arduino.h>
 
-#include "Adafruit_TinyUSB.h"
+#include "HIDConsumerService.hpp"
+#include "HIDKeyboardService.hpp"
+#include "USBCommon.hpp"
+#include <Adafruit_TinyUSB.h>
 
 // Report ID
 enum {
@@ -9,24 +12,26 @@ enum {
     RID_CONSUMER_CONTROL, // Media, volume etc ..
 };
 
-uint8_t pressed_keys[6];
-
-uint16_t pressed_consumer_key;
-bool consumer_key_pressed;
+// uint8_t pressed_keys[6];
 
 uint8_t pressed_mouse_buttons;
+
+// uint8_t report[REPORT_MAX_SIZE];
+// size_t report_len;
+
+HIDConsumerDevice consumer_device = HIDConsumerDevice();
+HIDKeyboard keyboard_device = HIDKeyboard();
 
 // HID report descriptor using TinyUSB's template
 uint8_t const desc_hid_report[] = {TUD_HID_REPORT_DESC_KEYBOARD(HID_REPORT_ID(RID_KEYBOARD)),
                                    TUD_HID_REPORT_DESC_MOUSE(HID_REPORT_ID(RID_MOUSE)),
                                    TUD_HID_REPORT_DESC_CONSUMER(HID_REPORT_ID(RID_CONSUMER_CONTROL))};
 
-Adafruit_USBD_HID usb_hid(desc_hid_report, sizeof(desc_hid_report), HID_ITF_PROTOCOL_KEYBOARD, 1, false);
+Adafruit_USBD_HID usb_hid(desc_hid_report, sizeof(desc_hid_report), HID_ITF_PROTOCOL_NONE, 1, false);
 
 void usb_service_setup() {
     usb_hid.begin();
     pinMode(5, OUTPUT_12MA);
-
     // setBootProtocol(1);  // Boot protocol keyboard
 }
 
@@ -40,16 +45,13 @@ void wakeup_service() {
         bool shouldWakeup;
 
         // Wake up if any button is pressed
-        for (const auto &i : pressed_keys) {
-            if (i != 0) {
-                shouldWakeup = true;
-                break;
-            }
+        if (keyboard_device.isPressed()) {
+            shouldWakeup = true;
         }
         if (pressed_mouse_buttons > 0) {
             shouldWakeup = true;
         }
-        if (pressed_consumer_key != 0) {
+        if (consumer_device.isPressed()) {
             shouldWakeup = true;
         }
         if (shouldWakeup) {
@@ -63,66 +65,28 @@ void wakeup_service() {
  *
  */
 void usb_service() {
-    if (usb_hid.ready()) {
-        digitalWrite(5, 1);
-        usb_hid.keyboardReport(RID_KEYBOARD, 0, pressed_keys);
-    } else {
-        digitalWrite(5, 0);
-    }
+    // while (!usb_hid.ready())
+    //     ;
 
-    // usb_hid.sendReport();
-    // Remote wakeup
-    // if (TinyUSBDevice.suspended() &&) {
-    //     // Wake up host if we are in suspend mode
-    //     // and REMOTE_WAKEUP feature is enabled by host
-    //     TinyUSBDevice.remoteWakeup();
-    // }
-
-    wakeup_service();
-}
-
-/**
- * @brief Press the given keyboard keycode
- *
- * @param key
- */
-void press_and_release_consumer(uint16_t key) {
-    // usb_hid.sendReport16(RID_CONSUMER_CONTROL, );
-    // usb
-}
-
-void keyboard_press_key(uint8_t key) {
-    for (size_t i = 0; i < sizeof(pressed_keys); i++) {
-        // If key already exists in pressed keys, just return
-        if (pressed_keys[i] == key) {
-            return;
+    if (TinyUSBDevice.mounted()) {
+        usb_hid_wait_until_ready(usb_hid, USB_HID_WAIT_TIME_US);
+        if (usb_hid.ready()) {
+            digitalWrite(5, 1);
+            // usb_hid.keyboardReport(RID_KEYBOARD, 0, pressed_keys);
+            keyboard_device.hid_keyboard_service(usb_hid, RID_KEYBOARD);
+            consumer_device.hid_consumer_service(usb_hid, RID_CONSUMER_CONTROL);
+        } else {
+            digitalWrite(5, 0);
         }
 
-        // If empty slot found, put key in
-        if (pressed_keys[i] == 0) {
-            pressed_keys[i] = key;
-            return;
-        }
-    }
+        // usb_hid.sendReport();
+        // Remote wakeup
+        // if (TinyUSBDevice.suspended() &&) {
+        //     // Wake up host if we are in suspend mode
+        //     // and REMOTE_WAKEUP feature is enabled by host
+        //     TinyUSBDevice.remoteWakeup();
+        // }
 
-    // If we're here, no empty slots were found. Replace first one instead (FIFO)
-    pressed_keys[0];
-}
-
-void keyboard_release_key(uint8_t key) {
-    for (size_t i = 0; i < sizeof(pressed_keys); i++) {
-        if (pressed_keys[i] == key) {
-            Serial.printf("shift %d", i);
-            // Check for last key
-            if (i >= sizeof(pressed_keys) - 1) {
-                pressed_keys[i] = 0;
-            }
-
-            // Shift keys over
-            else {
-                Serial.printf("shift %d", i);
-                memmove(pressed_keys + i, pressed_keys + i + 1, sizeof(pressed_keys) - i - 1);
-            }
-        }
+        wakeup_service();
     }
 }

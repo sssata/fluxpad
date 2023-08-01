@@ -39,8 +39,8 @@
 #define VERSION 1
 
 // PIN DEFINITIONS
-constexpr uint32_t ENC_A_PIN = 1u;
-constexpr uint32_t ENC_B_PIN = 0u;
+constexpr uint32_t ENC_A_PIN = 23u;
+constexpr uint32_t ENC_B_PIN = 24u;
 constexpr uint32_t KEY0_PIN = 20u;
 constexpr uint32_t KEY1_PIN = 21u;
 constexpr uint32_t KEY2_PIN = A2;
@@ -102,7 +102,7 @@ typedef struct {
 StorageVars_t storage_vars;
 
 // EncoderTool::PolledEncoder encoder;
-RotaryEncoder encoder(ENC_A_PIN, ENC_A_PIN);
+RotaryEncoder encoder(ENC_A_PIN, ENC_B_PIN);
 
 DigitalSwitch digitalKeys[] = {
     DigitalSwitch(KEY0_PIN, 0),
@@ -110,7 +110,7 @@ DigitalSwitch digitalKeys[] = {
 };
 
 AnalogSwitch analogKeys[] = {
-    AnalogSwitch(KEY4_PIN, 2),
+    // AnalogSwitch(KEY4_PIN, 2),
     // AnalogSwitch(KEY3_PIN, 3),
 };
 
@@ -149,6 +149,9 @@ void setup() {
 
     // encoder.begin(ENC_A_PIN, ENC_B_PIN, EncoderTool::CountMode::quarter, INPUT_PULLUP);
     // encoder = RotaryEncoder(ENC_A_PIN, ENC_A_PIN);
+
+    pinMode(ENC_A_PIN, INPUT_PULLUP);
+    pinMode(ENC_B_PIN, INPUT_PULLUP);
 
     loadFlashStorage(&storage_vars);
 
@@ -205,6 +208,8 @@ void loop() {
         }
         digitalWrite(3, blink_state);
         last_blink_time_us = curr_time_us;
+        // Serial.printf("A: %d, B: %d, Enc pos: %d\n", digitalRead(ENC_A_PIN), digitalRead(ENC_B_PIN),
+        //               encoder.getPosition());
     }
 
     // Keyboard.removeAll();
@@ -258,7 +263,7 @@ void loop() {
 
     // Scan Encoder
     encoder.tick();
-    if (auto encoder_step = encoder.getPosition()) {
+    if (auto encoder_step = encoder.getPosition(); encoder_step != 0) {
         switch (encoder_step) {
         case 1:
             typeHIDKey(&(storage_vars.keymap[ENC_UP_KEY_ID]));
@@ -293,7 +298,7 @@ void typeHIDKey(const KeyMapEntry_t *entry) {
         // Keyboard.write(KeyboardKeycode(entry->keycode.keyboard));
         break;
     case KeyType_t::CONSUMER:
-        // Consumer.write(ConsumerKeycode(entry->keycode.consumer));
+        consumer_device.consumer_press_and_release_key(entry->keycode.consumer);
         break;
     case KeyType_t::MOUSE:
         // Unsupported for now
@@ -307,7 +312,7 @@ void pressHIDKey(const KeyMapEntry_t *entry) {
     switch (entry->keyType) {
     case KeyType_t::KEYBOARD:
         // Keyboard.add(KeyboardKeycode(entry->keycode.keyboard));
-        keyboard_press_key(entry->keycode.keyboard);
+        keyboard_device.add_key(entry->keycode.keyboard);
         break;
     case KeyType_t::CONSUMER:
         // Consumer.press(ConsumerKeycode(entry->keycode.consumer));
@@ -324,7 +329,7 @@ void releaseHIDKey(const KeyMapEntry_t *entry) {
     switch (entry->keyType) {
     case KeyType_t::KEYBOARD:
         // Keyboard.remove(KeyboardKeycode(entry->keycode.keyboard));
-        keyboard_release_key(entry->keycode.keyboard);
+        keyboard_device.remove_key(entry->keycode.keyboard);
         break;
     case KeyType_t::CONSUMER:
         // Consumer.release(ConsumerKeycode(entry->keycode.consumer));
