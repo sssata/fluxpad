@@ -1,0 +1,23 @@
+version 2
+1
+2
+.dc Vin1 2.5 5 20m{return}.kicad adjustpaths{return}.save all{return}.probe alli
+6
+2
+I(R5)
+ 
+2
+I(Vin1)
+ 
+2
+I(Vref1)
+ 
+1
+V(/V-)
+ 
+1
+V(/V_in)
+ 
+1
+V(/V_out)
+ 

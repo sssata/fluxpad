@@ -1,0 +1,29 @@
+*$
+************** Power Discrete Diode Model *****************
+** Product: MM3Z27VST1G 
+** Zener Voltage Regulators
+** Package: SOD-323
+**---------------------------------------------------------
+.SUBCKT MM3Z27VST1G 2  1
+D1 2 1 MDD1
+.MODEL MDD1 D
++ IS=6.048e-15     N=1        XTI=3     RS=0.885
++ CJO=6.86e-11     VJ=0.40    M=0.64
+RL 1 2 MDR 3.78e8
+.MODEL MDR RES TC1=3.1e-3 TC2=8.1e-5
+RZ 2 3 168
+D2 4 3 MDD2
+.MODEL MDD2 D
++ IS=1.5e-15      N=1.0
+EV1 1 4 6 8 1
+IBV 0 6 5.0e-3
+RBV 6 0 MDRBV 5.24e3
+.MODEL MDRBV RES TC1=0.0002
+D3 8 0 MDD2
+IT 0 8 0.001
+.ENDS
+***********************************************************
+** Creation: Jul.-12-2022   Rev: 1.0
+** onsemi
+*$
+
