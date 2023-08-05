@@ -88,9 +88,9 @@ typedef struct {
 } KeyMapEntry_t;
 
 typedef struct {
-    KeyMapEntry_t keymap[6];
+    KeyMapEntry_t keymap[7];
 
-    AnalogSwitchSettings_t analogSettings[2];
+    AnalogSwitchSettings_t analogSettings[3];
     DigitalSwitchSettings_t digitalSettings[2];
 
     KeyLightingSettings_t lightingSettings[4];
@@ -110,8 +110,9 @@ DigitalSwitch digitalKeys[] = {
 };
 
 AnalogSwitch analogKeys[] = {
-    // AnalogSwitch(KEY4_PIN, 2),
-    // AnalogSwitch(KEY3_PIN, 3),
+    AnalogSwitch(KEY2_PIN, 2),
+    AnalogSwitch(KEY3_PIN, 3),
+    AnalogSwitch(KEY4_PIN, 4),
 };
 
 KeyLighting keyLighting[] = {
@@ -344,9 +345,9 @@ void releaseHIDKey(const KeyMapEntry_t *entry) {
 
 bool is_digital_key(uint32_t key_id) { return key_id <= 1; }
 
-bool is_analog_key(uint32_t key_id) { return 2 <= key_id && key_id <= 3; }
+bool is_analog_key(uint32_t key_id) { return 2 <= key_id && key_id <= 4; }
 
-bool is_encoder_key(uint32_t key_id) { return 4 <= key_id && key_id <= 5; }
+bool is_encoder_key(uint32_t key_id) { return 5 <= key_id && key_id <= 6; }
 
 bool key_has_lighting(uint32_t key_id) { return key_id <= 3; }
 
@@ -388,10 +389,14 @@ void fillDefaultStorageVars(StorageVars_t *_storage_vars) {
         .keyType = KeyType_t::KEYBOARD,
     };
     _storage_vars->keymap[4] = {
+        .keycode = {HID_KEY_C},
+        .keyType = KeyType_t::KEYBOARD,
+    };
+    _storage_vars->keymap[5] = {
         .keycode = {HID_USAGE_CONSUMER_VOLUME_INCREMENT},
         .keyType = KeyType_t::CONSUMER,
     };
-    _storage_vars->keymap[5] = {
+    _storage_vars->keymap[6] = {
         .keycode = {HID_USAGE_CONSUMER_VOLUME_DECREMENT},
         .keyType = KeyType_t::CONSUMER,
     };

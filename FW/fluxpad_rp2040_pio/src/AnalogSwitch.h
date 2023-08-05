@@ -40,8 +40,9 @@ const q22_10_t adc_to_dist_lut[] = {
 const q22_10_t reference_up_mm = FLOAT_TO_Q22_10(6.0f);
 const q22_10_t reference_down_mm = FLOAT_TO_Q22_10(2.0f);
 
-const q22_10_t reference_up_adc = INT_TO_Q22_10(1024);
-const q22_10_t reference_down_adc = INT_TO_Q22_10(3295);
+const q22_10_t reference_up_adc = INT_TO_Q22_10(3000);
+const q22_10_t reference_down_adc = INT_TO_Q22_10(1000);
+const size_t ADC_SAMPLES_N = 30;
 
 /**
  * @brief Stores all operational settings for an analog switch
@@ -117,7 +118,7 @@ class AnalogSwitch {
         // } else {
         //     takeAvgReading(settings.samples);
         // }
-        takeAvgReading(settings.samples);
+        takeAvgReading(ADC_SAMPLES_N);
         // Serial.printf("current_reading: %lu, max_reading: %lu, min_reading:
         // %lu ", current_reading, max_reading, min_reading);
         // Serial.printf("press_hys: %lu, release_hys: %lu ",
