@@ -1,38 +1,21 @@
-#define HID_CUSTOM_LAYOUT
-#define LAYOUT_US_ENGLISH
-#include <Adafruit_TinyUSB.h>
-#include <LittleFS.h>
-// #include <Arduino.h>
-// #define ENCODER_DO_NOT_USE_INTERRUPTS
-#include <RotaryEncoder.h>
 
+#include <ADCInput.h>
+#include <Adafruit_TinyUSB.h>
 #include <ArduinoJson.h>
 #include <EEPROM.h>
-// #include <ADCInput.h>
+#include <LittleFS.h>
+#include <RotaryEncoder.h>
+#include <hardware/adc.h>
 
 #include "AnalogSwitch.h"
 #include "DigitalSwitch.h"
 #include "KeyLighting.h"
+#include "RBGLed.h"
 #include "USBService.hpp"
 #include "tusb_config.h"
-// #include "usb_descriptors.h"
 
-// #include "rp2_common/har"
-#include <ADCInput.h>
-#include <hardware/adc.h>
-
-// #include "USBHID.h"
-// #include "USBDevice.h"
-// #include "USBDescriptor.h"
-#define ENCODER_DO_NOT_USE_INTERRUPTS 1
 // #include "flash.h"
 // #include <RP2040.h>
-
-// #include <EEPROM.h>
-// #include <EncoderTool.h>
-// #include <FlashStorage_SAMD.h>
-// #include <HID-Project.h>
-// #include <HID-Settings.h>
 
 #define HZ_TO_PERIOD_US(x) (1000000 / (x))
 
@@ -51,6 +34,7 @@ constexpr uint32_t KEY4_PIN = A0;
 #define KEY1_LIGHT_PIN 7u
 #define KEY2_LIGHT_PIN 5u
 #define KEY3_LIGHT_PIN 10u
+constexpr uint32_t RGB_LED_PIN = 11u;
 
 #define LED_PIN 13u
 
@@ -60,8 +44,8 @@ constexpr uint32_t normal_mode_freq_hz = 2000;
 constexpr int WRITTEN_SIGNATURE = 0xABCDEF01;
 constexpr uint16_t storedAddress = 0;
 
-constexpr uint32_t ENC_UP_KEY_ID = 4u;
-constexpr uint32_t ENC_DOWN_KEY_ID = 5u;
+constexpr uint32_t ENC_UP_KEY_ID = 5u;
+constexpr uint32_t ENC_DOWN_KEY_ID = 6u;
 
 // GLOBAL STATE
 bool debug_mode = false;
@@ -102,7 +86,9 @@ typedef struct {
 StorageVars_t storage_vars;
 
 // EncoderTool::PolledEncoder encoder;
-RotaryEncoder encoder(ENC_A_PIN, ENC_B_PIN);
+RotaryEncoder encoder(ENC_A_PIN, ENC_B_PIN, RotaryEncoder::LatchMode::TWO03);
+
+RGBLeds rgb_leds;
 
 DigitalSwitch digitalKeys[] = {
     DigitalSwitch(KEY0_PIN, 0),
@@ -136,6 +122,8 @@ void setup() {
     // DISABLE UART RX TX LEDS
     // pinMode(PIN_LED2, INPUT_PULLUP);
     // pinMode(PIN_LED3, INPUT_PULLUP);
+
+    EEPROM.begin(1024);
 
     analogReadResolution(12);
 
@@ -174,13 +162,14 @@ void setup() {
     }
 
     pinMode(3, OUTPUT_12MA);
+    rgb_leds.setup();
 
     last_time_us = micros();
 }
 
 uint32_t last_blink_time_us = 0;
 int blink_state = 0;
-uint32_t blink_period_us = 500 * 1000;
+uint32_t blink_period_us = 20 * 1000;
 
 void loop() {
 
@@ -207,8 +196,16 @@ void loop() {
         } else {
             blink_state = 1;
         }
-        digitalWrite(3, blink_state);
+        // digitalWrite(3, blink_state);
         last_blink_time_us = curr_time_us;
+
+        if (!TinyUSBDevice.mounted()) {
+            rgb_leds.show_disconnected_lights();
+        } else {
+            rgb_leds.show_lights();
+            // rgb_leds.turn_off();
+        }
+
         // Serial.printf("A: %d, B: %d, Enc pos: %d\n", digitalRead(ENC_A_PIN), digitalRead(ENC_B_PIN),
         //               encoder.getPosition());
     }
@@ -226,7 +223,8 @@ void loop() {
         // key.setCurrentReading(adc_input.);
         key.mainLoopService();
         if (debug_mode) {
-            Serial.printf("%f %f ", Q22_10_TO_FLOAT(key.current_reading), Q22_10_TO_FLOAT(key.current_height_mm));
+            Serial.printf("%f %f %f  ", Q22_10_TO_FLOAT(key.current_reading), Q22_10_TO_FLOAT(key.current_height_mm),
+                          key.welford.get_standard_deviation());
         }
 
         if (storage_vars.keymap[key.id].keyType == KeyType_t::CONSUMER) { // Hack for consumer keys, fml
@@ -419,8 +417,8 @@ void fillDefaultStorageVars(StorageVars_t *_storage_vars) {
             .press_debounce_ms = 1,
             .release_debounce_ms = 6,
             .samples = 22,
-            .calibration_up_adc = reference_up_adc,
-            .calibration_down_adc = reference_down_adc,
+            .calibration_up_adc = INT_TO_Q22_10(2900),
+            .calibration_down_adc = INT_TO_Q22_10(1100),
         };
     }
 

@@ -65,18 +65,13 @@ void wakeup_service() {
  *
  */
 void usb_service() {
-    // while (!usb_hid.ready())
-    //     ;
 
     if (TinyUSBDevice.mounted()) {
         usb_hid_wait_until_ready(usb_hid, USB_HID_WAIT_TIME_US);
         if (usb_hid.ready()) {
-            digitalWrite(5, 1);
             // usb_hid.keyboardReport(RID_KEYBOARD, 0, pressed_keys);
             keyboard_device.hid_keyboard_service(usb_hid, RID_KEYBOARD);
             consumer_device.hid_consumer_service(usb_hid, RID_CONSUMER_CONTROL);
-        } else {
-            digitalWrite(5, 0);
         }
 
         // usb_hid.sendReport();

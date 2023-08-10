@@ -3,7 +3,10 @@
 
 // #include "FIR_filter.hpp"
 #include <ADCInput.h>
+#include <hardware/adc.h>
 #include <stdint.h>
+
+#include "WelfordsAlgorithm.h"
 
 // #include <cstdlib>
 
@@ -40,9 +43,9 @@ const q22_10_t adc_to_dist_lut[] = {
 const q22_10_t reference_up_mm = FLOAT_TO_Q22_10(6.0f);
 const q22_10_t reference_down_mm = FLOAT_TO_Q22_10(2.0f);
 
-const q22_10_t reference_up_adc = INT_TO_Q22_10(3000);
-const q22_10_t reference_down_adc = INT_TO_Q22_10(1000);
-const size_t ADC_SAMPLES_N = 30;
+const q22_10_t reference_up_adc = INT_TO_Q22_10(1024);
+const q22_10_t reference_down_adc = INT_TO_Q22_10(3295);
+const size_t ADC_SAMPLES_N = 110;
 
 /**
  * @brief Stores all operational settings for an analog switch
@@ -79,6 +82,7 @@ class AnalogSwitch {
     bool is_setup = false;
     bool use_freerun_mode = true;
     ADCInput adc_input;
+    WelfordAlgorithm welford;
 
     AnalogSwitchSettings_t settings;
 
@@ -88,13 +92,9 @@ class AnalogSwitch {
      * @brief Setup hardware for analog key
      */
     void setup() {
-        // pinMode(pin, INPUT);
-        // setADCConversionTime(128, 0);
-        // ADC->REFCTRL.bit.REFCOMP = 1;
-        // while (ADC->STATUS.bit.SYNCBUSY)
-        // ;
-
-        // loadADCFactoryCalibration();
+        adc_gpio_init(pin);
+        adc_set_clkdiv(0);
+        adc_init();
 
         resetMinMaxDistance();
         is_pressed = false;
@@ -125,6 +125,7 @@ class AnalogSwitch {
         // settings.press_hysteresis, settings.release_hysteresis);
         current_reading_calibrated = apply_calibration(current_reading);
         current_height_mm = adcCountsToDistanceMM(current_reading_calibrated);
+        welford.update(Q22_10_TO_FLOAT(current_height_mm));
 
         // Check if we are at guaranteed release or guaranteed press height
         bool height_should_actuate = current_height_mm < settings.actuation_point_mm;
@@ -226,12 +227,19 @@ class AnalogSwitch {
     void takeAvgReading(size_t no_of_measurements) {
         q22_10_t sum = 0;
         // adc_input.begin();
+        adc_select_input(pin - 26);
+        adc_fifo_setup(true, false, 0, false, false);
+        adc_fifo_drain();
+        adc_run(true);
         for (size_t i = 0; i < no_of_measurements; i++) {
             // while (!adc_input.available())
-            // ;
+            //     ;
             // sum += INT_TO_Q22_10(adc_input.read());
-            sum += INT_TO_Q22_10(analogRead(pin));
+            sum += INT_TO_Q22_10(adc_fifo_get_blocking());
+            // sum += INT_TO_Q22_10(analogRead(pin));
         }
+        adc_run(false);
+
         // adc_input.end();
         current_reading = sum / no_of_measurements;
     }
