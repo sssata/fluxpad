@@ -14,13 +14,21 @@ constexpr uint8_t DATA_PIN = 11u;
 
 CRGB leds[NUM_LEDS];
 
+enum class RGBState {
+    OFF,
+    DISCONNECTED,
+    CONNECTED,
+};
+
+typedef struct {
+    RGBState connectedState;
+} RGBSettings;
+
 class RGBLeds {
 
   private:
     // uint8_t data_pin;
-    bool is_off = false;
-
-    uint8_t gHue = 0; // rotating "base color" used by many of the patterns
+    RGBState state;
 
     void rainbow() {
         // FastLED's built-in rainbow generator
@@ -41,22 +49,59 @@ class RGBLeds {
     }
 
   public:
-    RGBLeds(){};
+    RGBLeds() : state(RGBState::OFF){};
 
     void setup() {
         FastLED.addLeds<WS2812B, DATA_PIN, GRB>(leds, NUM_LEDS); // GRB ordering is assumed
     }
 
-    void show_lights() {
+    void loop_service() {
+        switch (state) {
+        case RGBState::OFF:
+            // Nothing
+            break;
+        case RGBState::CONNECTED:
+            connected_state();
+            break;
+        case RGBState::DISCONNECTED:
+            // Nothing
+            break;
+        }
+    }
+
+    void set_state(RGBState new_state) {
+        switch (new_state) {
+        case RGBState::OFF:
+            if (state != RGBState::OFF) {
+                state = RGBState::OFF;
+                turn_off();
+            }
+            break;
+        case RGBState::CONNECTED:
+            if (state != RGBState::CONNECTED) {
+                state = RGBState::CONNECTED;
+            }
+            break;
+        case RGBState::DISCONNECTED:
+            if (state != RGBState::DISCONNECTED) {
+                state = RGBState::DISCONNECTED;
+                show_disconnected_state();
+            }
+            break;
+        }
+    }
+
+    void connected_state() {
         // leds[0] = CRGB::Red;
         // leds[1] = CRGB::Green;
         // leds[2] = CRGB::Blue;
-        rainbowWithGlitter();
+        // rainbowWithGlitter();
+        rainbow();
 
         FastLED.show(100);
     }
 
-    void show_disconnected_lights() {
+    void show_disconnected_state() {
         for (auto &led : leds) {
             led = CRGB::Crimson;
         }

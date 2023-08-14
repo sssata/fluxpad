@@ -79,8 +79,10 @@ typedef struct {
 
     KeyLightingSettings_t lightingSettings[4];
 
-    uint64_t first_write_timestamp = 0;
-    uint64_t last_write_timestamp = 0;
+    RGBSettings rgbSettings;
+
+    uint64_t firstWriteTimestamp = 0;
+    uint64_t lastWriteTimestamp = 0;
 } StorageVars_t;
 
 StorageVars_t storage_vars;
@@ -169,7 +171,7 @@ void setup() {
 
 uint32_t last_blink_time_us = 0;
 int blink_state = 0;
-uint32_t blink_period_us = 20 * 1000;
+uint32_t blink_period_us = HZ_TO_PERIOD_US(50);
 
 void loop() {
 
@@ -186,25 +188,20 @@ void loop() {
             float loop_freq = (static_cast<float>(loop_count) / (static_cast<float>(print_period_us) / 1000000.0f));
             Serial.printf("Loop freq: %f\n", loop_freq);
             loop_count = 0;
-            last_print_us += print_period_us;
+            last_print_us = curr_time_us;
         }
     }
 
     if (curr_time_us - last_blink_time_us > blink_period_us) {
-        if (blink_state == 1) {
-            blink_state = 0;
-        } else {
-            blink_state = 1;
-        }
-        // digitalWrite(3, blink_state);
         last_blink_time_us = curr_time_us;
 
         if (!TinyUSBDevice.mounted()) {
-            rgb_leds.show_disconnected_lights();
+            rgb_leds.set_state(RGBState::DISCONNECTED);
         } else {
-            rgb_leds.show_lights();
-            // rgb_leds.turn_off();
+            rgb_leds.set_state(storage_vars.rgbSettings.connectedState);
         }
+
+        rgb_leds.loop_service();
 
         // Serial.printf("A: %d, B: %d, Enc pos: %d\n", digitalRead(ENC_A_PIN), digitalRead(ENC_B_PIN),
         //               encoder.getPosition());
