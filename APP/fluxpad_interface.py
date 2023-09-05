@@ -46,6 +46,17 @@ class MessageKey:
     CALIBRATION_DOWN = "c_d"
     DATASTREAM_MODE = "dstrm"
     DATASTREAM_FREQUENCY = "dstrm_freq"
+    LIGHTING_MODE = "l_m"
+    LIGHTING_FADE_BRIGHTNESS = "l_b"
+    LIGHTING_FADE_HALF_LIFE = "l_h"
+    LIGHTING_FLASH_DURATION = "l_f"
+    RGB_MODE = "rgb_m"
+    RGB_BRIHTNESS = "rgb_b"
+    RGB_SPEED = "rgb_s"
+    RGB_C1 = "rgb_c1"
+    RGB_C2 = "rgb_c2"
+    RGB_C3 = "rgb_c3"
+    CLEAR_FLASH = "clear"
 
 
 class BaseMessage:
@@ -207,7 +218,6 @@ class AnalogSettingsMessage(BaseMessage):
     @key_id.setter
     def key_id(self, key_id: int):
         self._assert_uint8(key_id)
-        assert key_id in list(KeyType)
         self.data[MessageKey.KEY_ID] = key_id
 
     # KEYMAP
@@ -323,7 +333,6 @@ class AnalogCalibrationMessage(BaseMessage):
     @key_id.setter
     def key_id(self, key_id: int):
         self._assert_uint8(key_id)
-        assert key_id in list(KeyType)
         self.data[MessageKey.KEY_ID] = key_id
     
     # CALIBRATION
@@ -362,6 +371,51 @@ class AnalogCalibrationMessage(BaseMessage):
             pass
 
 
+class KeyLightingMessage(BaseMessage):
+    """KeyLightingMessage containing all info about a key's
+    per-key lighting settings"""
+    
+    # KEY ID
+    @property
+    def key_id(self):
+        return self.data[MessageKey.KEY_ID]
+
+    @key_id.setter
+    def key_id(self, key_id: int):
+        self._assert_uint8(key_id)
+        self.data[MessageKey.KEY_ID] = key_id
+
+    # LIGHTING MODE
+    @property
+    def mode(self):
+        return int(self.data[MessageKey.LIGHTING_MODE])
+
+    @mode.setter
+    def mode(self, mode: int):
+        self._assert_uint8(mode)
+        self.data[MessageKey.LIGHTING_MODE] = mode
+
+    # LIGHTING BRIGHTNESS
+    @property
+    def brightness(self):
+        return int(self.data[MessageKey.LIGHTING_FADE_BRIGHTNESS])
+
+    @brightness.setter
+    def brightness(self, brightness: int):
+        self._assert_uint8(brightness)
+        self.data[MessageKey.LIGHTING_FADE_BRIGHTNESS] = brightness
+
+    # LIGHTING BRIGHTNESS
+    @property
+    def fade_half_life(self):
+        return int(self.data[MessageKey.LIGHTING_FADE_BRIGHTNESS])
+
+    @brightness.setter
+    def brightness(self, brightness: int):
+        self._assert_uint8(brightness)
+        self.data[MessageKey.LIGHTING_FADE_BRIGHTNESS] = brightness
+    
+
 class AnalogReadMessage(BaseMessage):
     """Analog key read message containing """
 
@@ -373,7 +427,6 @@ class AnalogReadMessage(BaseMessage):
     @key_id.setter
     def key_id(self, key_id: int):
         self._assert_uint8(key_id)
-        assert key_id in list(KeyType)
         self.data[MessageKey.KEY_ID] = key_id
 
     # RAW ADC
@@ -583,6 +636,7 @@ class FluxpadSettings:
         self.key_settings_list: List[Union[EncoderSettingsMessage, AnalogSettingsMessage, DigitalSettingsMessage]] = [
             DigitalSettingsMessage(),
             DigitalSettingsMessage(),
+            AnalogSettingsMessage(),
             AnalogSettingsMessage(),
             AnalogSettingsMessage(),
             EncoderSettingsMessage(),

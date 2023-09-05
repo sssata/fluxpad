@@ -48,42 +48,6 @@ else:
     BOSSAC_PATH = (pathlib.Path(__file__).parent / "tools" / "bossac.exe").resolve()
 
 
-class EncoderMap(ttk.Labelframe):
-    """Class for an encoder keymap gui
-    """
-
-    def __init__(self, master, *args, **kwargs):
-        super().__init__(master, *args, **kwargs)
-        self.configure(text="Encoder")
-
-        self.cw_scancode: Optional[ScanCode] = None
-        self.ccw_scancode: Optional[ScanCode] = None
-
-        self.label_cw = ttk.Label(self, text="↻CW")
-        self.label_cw.grid(row=1, column=1)
-        self.label_ccw = ttk.Label(self, text="↺CCW")
-        self.label_ccw.grid(row=2, column=1)
-
-        self.label_cw_key = ttk.Label(self, text="None")
-        self.label_cw_key.grid(row=1, column=2)
-        self.label_ccw_key = ttk.Label(self, text="None")
-        self.label_ccw_key.grid(row=2, column=2)
-
-        self.btn_cw_edit = ttk.Button(self, text="Edit")
-        self.btn_cw_edit.grid(row=1, column=3)
-        self.btn_ccw_edit = ttk.Button(self, text="Edit")
-        self.btn_ccw_edit.grid(row=2, column=3)
-
-    def set_cw_keycode(self, scancode: ScanCode):
-        assert isinstance(scancode, ScanCode), f"bruh {type(scancode)}"
-        self.cw_scancode = scancode
-        self.label_cw_key.configure(text=self.cw_scancode.name)
-
-    def set_ccw_keycode(self, scancode: ScanCode):
-        assert isinstance(scancode, ScanCode)
-        self.ccw_scancode = scancode
-        self.label_ccw_key.configure(text=self.ccw_scancode.name)
-
 
 class KeyMap(ttk.Labelframe):
     """Class for an encoder keymap gui
@@ -104,7 +68,7 @@ class KeyMap(ttk.Labelframe):
         self.mystyle.configure("Bold.Accent.TButton", font=btn_font)
 
         self.btn_key = ttk.Button(self, text="None", takefocus=False, style="Bold.TButton")
-        self.btn_key.pack(expand=True, fill="both", ipady=20, pady=(4,0))
+        self.btn_key.pack(expand=True, fill="both", ipady=0, pady=(4,0))
 
 
     def set_scancode(self, scancode: ScanCode):
@@ -128,6 +92,30 @@ class KeyMap(ttk.Labelframe):
         setting.key_type = self.scancode.hid_usage
         if key_id is not None:
             setting.key_id = key_id
+
+class EncoderMap(ttk.Labelframe):
+    """Class for an encoder keymap gui
+    """
+
+
+    def __init__(self, master, *args, **kwargs):
+        super().__init__(master, *args, **kwargs)
+        self.configure(text="Knob")
+        # self.columnconfigure(1,weight=1)
+        # self.rowconfigure(1,weight=1)
+        # self.rowconfigure(2,weight=1)
+
+        self.cw_keymap = KeyMap(self, text="↻")
+        # self.cw_keymap.place(x=0, y=0, width=100, height=100)
+        self.cw_keymap.pack()
+        
+        # self.cw_keymap.grid(row=1,column=1, sticky="NSEW", padx=PADDING, pady=PADDING)
+        self.ccw_keymap = KeyMap(self, text="↺")
+        # self.ccw_keymap.btn_key.configure(padding=0)
+        self.ccw_keymap.pack()
+        # self.ccw_keymap.place(x=0, y=100, width=100, height=100)
+        # self.ccw_keymap.grid(row=2,column=1, sticky="NSEW", padx=PADDING, pady=PADDING)
+
 
 class MapEditFrame(ttk.Labelframe):
     """Represents a keymap edit section"""
@@ -198,42 +186,55 @@ class KeymapFrame(ttk.Frame):
         self.rowconfigure(3, pad=PADDING, weight=1)
         self.columnconfigure(1, pad=PADDING, weight=1)
         self.columnconfigure(2, pad=PADDING, weight=1)
+        self.columnconfigure(3, pad=PADDING, weight=1)
 
-        # Create encoer map
-        self.lf_enc_ccw = KeyMap(self, text="Encoder ↺")
-        self.lf_enc_ccw.grid(row=1, column=1, sticky="NSEW")
-        self.lf_enc_ccw.set_scancode(ScanCodeList.MEDIA_VOL_DOWN.value)
-        self.lf_enc_ccw.btn_key.bind("<Button-1>", lambda event: self.on_press_keymap(self.lf_enc_ccw, event))
+        # Create encoder map
+        # self.lf_enc_ccw = KeyMap(self, text="Knob ↺")
+        # self.lf_enc_ccw.grid(row=1, column=1, sticky="NSEW")
+        # self.lf_enc_ccw.set_scancode(ScanCodeList.MEDIA_VOL_DOWN.value)
+        # self.lf_enc_ccw.btn_key.bind("<Button-1>", lambda event: self.on_press_keymap(self.lf_enc_ccw, event))
 
-        self.lf_enc_cw = KeyMap(self, text="Encoder ↻")
-        self.lf_enc_cw.grid(row=1, column=2, sticky="NSEW")
-        self.lf_enc_cw.set_scancode(ScanCodeList.MEDIA_VOL_UP.value)
-        self.lf_enc_cw.btn_key.bind("<Button-1>", lambda event: self.on_press_keymap(self.lf_enc_cw, event))
+        # self.lf_enc_cw = KeyMap(self, text="Knob ↻")
+        # self.lf_enc_cw.grid(row=1, column=2, sticky="NSEW")
+        # self.lf_enc_cw.set_scancode(ScanCodeList.MEDIA_VOL_UP.value)
+        # self.lf_enc_cw.btn_key.bind("<Button-1>", lambda event: self.on_press_keymap(self.lf_enc_cw, event))
+
+        self.encoder_map = EncoderMap(self)
+        self.encoder_map.cw_keymap.set_scancode(ScanCodeList.MEDIA_VOL_UP.value)
+        self.encoder_map.ccw_keymap.set_scancode(ScanCodeList.MEDIA_VOL_DOWN.value)
+        self.encoder_map.cw_keymap.btn_key.bind("<Button-1>", lambda event: self.on_press_keymap(self.encoder_map.cw_keymap, event))
+        self.encoder_map.ccw_keymap.btn_key.bind("<Button-1>", lambda event: self.on_press_keymap(self.encoder_map.ccw_keymap, event))
+        self.encoder_map.grid(row=1, column=1, sticky="NSEW")
 
         # Create key map
         self.lf_key1 = KeyMap(self, text="Digital Key 1")
-        self.lf_key1.grid(row=2, column=1, sticky="NSEW")
+        self.lf_key1.grid(row=1, column=2, sticky="NSEW")
         self.lf_key1.set_scancode(ScanCodeList.KEY_0x35.value)
         self.lf_key1.btn_key.bind("<Button-1>", lambda event: self.on_press_keymap(self.lf_key1, event))
 
         self.lf_key2 = KeyMap(self, text="Digital Key 2")
-        self.lf_key2.grid(row=2, column=2, sticky="NSEW")
+        self.lf_key2.grid(row=1, column=3, sticky="NSEW")
         self.lf_key2.set_scancode(ScanCodeList.KEY_C.value)
         self.lf_key2.btn_key.bind("<Button-1>", lambda event: self.on_press_keymap(self.lf_key2, event))
 
         self.lf_key3 = KeyMap(self, text="Analog Key 1")
-        self.lf_key3.grid(row=3, column=1, sticky="NSEW")
+        self.lf_key3.grid(row=2, column=1, sticky="NSEW")
         self.lf_key3.set_scancode(ScanCodeList.KEY_Z.value)
         self.lf_key3.btn_key.bind("<Button-1>", lambda event: self.on_press_keymap(self.lf_key3, event))
 
         self.lf_key4 = KeyMap(self, text="Analog Key 2")
-        self.lf_key4.grid(row=3, column=2, sticky="NSEW")
+        self.lf_key4.grid(row=2, column=2, sticky="NSEW")
         self.lf_key4.set_scancode(ScanCodeList.KEY_X.value)
         self.lf_key4.btn_key.bind("<Button-1>", lambda event: self.on_press_keymap(self.lf_key4, event))
 
+        self.lf_key5 = KeyMap(self, text="Analog Key 3")
+        self.lf_key5.grid(row=2, column=3, sticky="NSEW")
+        self.lf_key5.set_scancode(ScanCodeList.KEY_C.value)
+        self.lf_key5.btn_key.bind("<Button-1>", lambda event: self.on_press_keymap(self.lf_key5, event))
+
         # Create Map Edit Frame
         self.lf_mapedit = MapEditFrame(self)
-        self.lf_mapedit.grid(row=4, column=1, columnspan=2, sticky="NSEW")
+        self.lf_mapedit.grid(row=3, column=1, columnspan=3, sticky="NSEW")
         self.lf_mapedit.on_update_scancode_callback = self.on_scancode_update
         self.lf_mapedit.label_key.configure(state="disabled")  # start off disabled because no key is selected yet
 
@@ -274,8 +275,9 @@ class KeymapFrame(ttk.Frame):
         self.lf_key2.set_scancode(key_type_and_code_to_scancode(fluxpad_settings.key_settings_list[1].key_type, fluxpad_settings.key_settings_list[1].key_code))
         self.lf_key3.set_scancode(key_type_and_code_to_scancode(fluxpad_settings.key_settings_list[2].key_type, fluxpad_settings.key_settings_list[2].key_code))
         self.lf_key4.set_scancode(key_type_and_code_to_scancode(fluxpad_settings.key_settings_list[3].key_type, fluxpad_settings.key_settings_list[3].key_code))
-        self.lf_enc_cw.set_scancode(key_type_and_code_to_scancode(fluxpad_settings.key_settings_list[4].key_type, fluxpad_settings.key_settings_list[4].key_code))
-        self.lf_enc_ccw.set_scancode(key_type_and_code_to_scancode(fluxpad_settings.key_settings_list[5].key_type, fluxpad_settings.key_settings_list[5].key_code))
+        self.lf_key5.set_scancode(key_type_and_code_to_scancode(fluxpad_settings.key_settings_list[4].key_type, fluxpad_settings.key_settings_list[4].key_code))
+        self.encoder_map.cw_keymap.set_scancode(key_type_and_code_to_scancode(fluxpad_settings.key_settings_list[5].key_type, fluxpad_settings.key_settings_list[5].key_code))
+        self.encoder_map.ccw_keymap.set_scancode(key_type_and_code_to_scancode(fluxpad_settings.key_settings_list[6].key_type, fluxpad_settings.key_settings_list[6].key_code))
 
 
     def save_to_settings(self, fluxpad_settings: fluxpad_interface.FluxpadSettings):
@@ -283,8 +285,9 @@ class KeymapFrame(ttk.Frame):
         self.lf_key2.save_to_setting(fluxpad_settings.key_settings_list[1], 1)
         self.lf_key3.save_to_setting(fluxpad_settings.key_settings_list[2], 2)
         self.lf_key4.save_to_setting(fluxpad_settings.key_settings_list[3], 3)
-        self.lf_enc_cw.save_to_setting(fluxpad_settings.key_settings_list[4], 4)
-        self.lf_enc_ccw.save_to_setting(fluxpad_settings.key_settings_list[5], 5)
+        self.lf_key5.save_to_setting(fluxpad_settings.key_settings_list[4], 4)
+        self.encoder_map.cw_keymap.save_to_setting(fluxpad_settings.key_settings_list[5], 5)
+        self.encoder_map.ccw_keymap.save_to_setting(fluxpad_settings.key_settings_list[6], 6)
 
 
 class AnalogSettingsPanel(ttk.Labelframe):
@@ -418,26 +421,39 @@ class SelectKeySettingsFrame(ttk.Labelframe):
         self.is_per_key_digital = tk.BooleanVar(self)
         self.is_per_key_analog = tk.BooleanVar(self)
 
+        self.upper_row_frame = tk.Frame(self)
+        self.upper_row_frame.grid(row=2, column=1, columnspan=2, sticky="EW", padx=PADDING, pady=PADDING)
+        self.upper_row_frame.columnconfigure(1, weight=1)
+        self.upper_row_frame.columnconfigure(2, weight=1)
+        self.lower_row_frame = tk.Frame(self)
+        self.lower_row_frame.grid(row=4, column=1, columnspan=2, sticky="EW", padx=PADDING, pady=PADDING)
+        self.lower_row_frame.columnconfigure(1, weight=1)
+        self.lower_row_frame.columnconfigure(2, weight=1)
+        self.lower_row_frame.columnconfigure(3, weight=1)
+
+
         self.btn_list = [
-            ttk.Button(self, text="Digital Key 1"),
-            ttk.Button(self, text="Digital Key 2"),
-            ttk.Button(self, text="Analog Key 1"),
-            ttk.Button(self, text="Analog Key 2"),
+            ttk.Button(self.upper_row_frame, text="Digital Key 1"),
+            ttk.Button(self.upper_row_frame, text="Digital Key 2"),
+            ttk.Button(self.lower_row_frame, text="Analog Key 1"),
+            ttk.Button(self.lower_row_frame, text="Analog Key 2"),
+            ttk.Button(self.lower_row_frame, text="Analog Key 3"),
         ]
 
         self.chk_per_key_digital = ttk.Checkbutton(self, text="Per Key Digital Settings", variable=self.is_per_key_digital, command=self.on_per_key_digital_click)
         self.chk_per_key_digital.state(['!alternate'])  # Start unchecked
         self.chk_per_key_digital.grid(row=1, column=1, columnspan=2, sticky="W", padx=PADDING)
 
-        self.btn_list[0].grid(row=2, column=1, sticky="EW", padx=PADDING, pady=PADDING)
-        self.btn_list[1].grid(row=2, column=2, sticky="EW", padx=PADDING, pady=PADDING)
+        self.btn_list[0].grid(row=1, column=1, sticky="EW", padx=PADDING, pady=PADDING)
+        self.btn_list[1].grid(row=1, column=2, sticky="EW", padx=PADDING, pady=PADDING)
 
         self.chk_per_key_analog = ttk.Checkbutton(self, text="Per Key Analog Settings", variable=self.is_per_key_analog, command=self.on_per_key_analog_click)
         self.chk_per_key_analog.state(['!alternate'])  # Start unchecked
         self.chk_per_key_analog.grid(row=3, column=1, columnspan=2, sticky="W", padx=PADDING)
 
-        self.btn_list[2].grid(row=4, column=1, sticky="EW", padx=PADDING, pady=PADDING)
-        self.btn_list[3].grid(row=4, column=2, sticky="EW", padx=PADDING, pady=PADDING)
+        self.btn_list[2].grid(row=1, column=1, sticky="EW", padx=PADDING, pady=PADDING)
+        self.btn_list[3].grid(row=1, column=2, sticky="EW", padx=PADDING, pady=PADDING)
+        self.btn_list[4].grid(row=1, column=3, sticky="EW", padx=PADDING, pady=PADDING)
 
         self.stl = ttk.Style(self)
         self.stl.configure("Sel.TButton", foreground="red")
@@ -450,11 +466,13 @@ class SelectKeySettingsFrame(ttk.Labelframe):
             logging.debug("Set Per Key Analog")
             self.btn_list[2].grid_configure(columnspan=1)
             self.btn_list[2].configure(text="Analog Key 1")
-            self.btn_list[3].grid(row=4, column=2, sticky="EW", padx=PADDING, pady=PADDING)
+            self.btn_list[3].grid(row=1, column=2, sticky="EW", padx=PADDING, pady=PADDING)
+            self.btn_list[4].grid(row=1, column=3, sticky="EW", padx=PADDING, pady=PADDING)
         else:
             logging.debug("Set Linked Analog")
-            self.btn_list[2].grid_configure(columnspan=2)
             self.btn_list[3].grid_forget()
+            self.btn_list[4].grid_forget()
+            self.btn_list[2].grid_configure(columnspan=3)
             self.btn_list[2].configure(text="Analog Keys")
         
     def on_per_key_digital_click(self):
@@ -463,7 +481,7 @@ class SelectKeySettingsFrame(ttk.Labelframe):
             logging.debug("Set Per Key Digital")
             self.btn_list[0].grid_configure(columnspan=1)
             self.btn_list[0].configure(text="Digital Key 1")
-            self.btn_list[1].grid(row=2, column=2, sticky="EW", padx=PADDING, pady=PADDING)
+            self.btn_list[1].grid(row=1, column=2, sticky="EW", padx=PADDING, pady=PADDING)
         else:
             logging.debug("Set Linked Digital")
             self.btn_list[1].grid_forget()
@@ -492,6 +510,7 @@ class SettingsFrame(ttk.Frame):
         self.key_select_frame.btn_list[1].bind("<Button-1>", lambda event: self.on_select_key(event, 1))
         self.key_select_frame.btn_list[2].bind("<Button-1>", lambda event: self.on_select_key(event, 2))
         self.key_select_frame.btn_list[3].bind("<Button-1>", lambda event: self.on_select_key(event, 3))
+        self.key_select_frame.btn_list[4].bind("<Button-1>", lambda event: self.on_select_key(event, 4))
 
         self.key_select_frame.chk_per_key_digital.bind("<Button-1>", self.on_select_per_key_digital)
         self.key_select_frame.chk_per_key_analog.bind("<Button-1>", self.on_select_per_key_analog)
@@ -501,6 +520,7 @@ class SettingsFrame(ttk.Frame):
         self.settings_panel_list: List[Union[AnalogSettingsPanel, DigitalSettingsPanel]] = [
             DigitalSettingsPanel(self),
             DigitalSettingsPanel(self),
+            AnalogSettingsPanel(self),
             AnalogSettingsPanel(self),
             AnalogSettingsPanel(self),
         ]
@@ -563,16 +583,19 @@ class SettingsFrame(ttk.Frame):
 
         self.key_select_frame.btn_list[key_id].configure(style="Accent.TButton")
 
-    def is_digital_equal(self, setting1: fluxpad_interface.DigitalSettingsMessage, setting2: fluxpad_interface.DigitalSettingsMessage):
+    def is_digital_equal(self, setting1: Union[fluxpad_interface.AnalogSettingsMessage, fluxpad_interface.DigitalSettingsMessage], setting2: Union[fluxpad_interface.AnalogSettingsMessage, fluxpad_interface.DigitalSettingsMessage]):
         """Check if two given digital settings messages have equal values"""
+        assert(isinstance(setting1, fluxpad_interface.DigitalSettingsMessage))
+        assert(isinstance(setting2, fluxpad_interface.DigitalSettingsMessage))
         if (setting1.actuate_debounce == setting2.actuate_debounce and
             setting1.release_debounce == setting2.release_debounce):
             return True
         return False
     
-    def is_analog_equal(self, setting1: fluxpad_interface.AnalogSettingsMessage, setting2: fluxpad_interface.AnalogSettingsMessage):
+    def is_analog_equal(self, setting1: Union[fluxpad_interface.AnalogSettingsMessage, fluxpad_interface.DigitalSettingsMessage], setting2: Union[fluxpad_interface.AnalogSettingsMessage, fluxpad_interface.DigitalSettingsMessage]):
         """Check if two given analog settings messages have equal values"""
-
+        assert(isinstance(setting1, fluxpad_interface.AnalogSettingsMessage))
+        assert(isinstance(setting2, fluxpad_interface.AnalogSettingsMessage))
         if (setting1.actuate_debounce == setting2.actuate_debounce and
             setting1.release_debounce == setting2.release_debounce and
             setting1.actuate_hysteresis == setting2.actuate_hysteresis and
@@ -593,15 +616,17 @@ class SettingsFrame(ttk.Frame):
         self.settings_panel_list[1].load_from_settings_message(self.assert_type(fluxpad_settings.key_settings_list[1], fluxpad_interface.DigitalSettingsMessage))
         self.settings_panel_list[2].load_from_settings_message(self.assert_type(fluxpad_settings.key_settings_list[2], fluxpad_interface.AnalogSettingsMessage))
         self.settings_panel_list[3].load_from_settings_message(self.assert_type(fluxpad_settings.key_settings_list[3], fluxpad_interface.AnalogSettingsMessage))
+        self.settings_panel_list[4].load_from_settings_message(self.assert_type(fluxpad_settings.key_settings_list[4], fluxpad_interface.AnalogSettingsMessage))
 
+        # Check if all digital keys have the same settings and set per key digital checkbox accordingly
         if (self.is_digital_equal(fluxpad_settings.key_settings_list[0], fluxpad_settings.key_settings_list[1])):
             self.key_select_frame.is_per_key_digital.set(False)
         else:
             self.key_select_frame.is_per_key_digital.set(True)
         self.key_select_frame.on_per_key_digital_click()
 
-        
-        if (self.is_analog_equal(fluxpad_settings.key_settings_list[2], fluxpad_settings.key_settings_list[3])):
+        # Check if all analog keys have the same settings and set per key analog checkbox accordingly
+        if (self.is_analog_equal(fluxpad_settings.key_settings_list[2], fluxpad_settings.key_settings_list[3]) and self.is_analog_equal(fluxpad_settings.key_settings_list[3], fluxpad_settings.key_settings_list[4])):
             self.key_select_frame.is_per_key_analog.set(False)
         else:
             self.key_select_frame.is_per_key_analog.set(True)
@@ -609,18 +634,22 @@ class SettingsFrame(ttk.Frame):
 
 
     def save_to_fluxpad_settings(self, fluxpad_settings: fluxpad_interface.FluxpadSettings):
+
         self.settings_panel_list[0].to_settings_message(fluxpad_settings.key_settings_list[0])
+        # If per key is not checked, use settings from key 0 for key 1
         if not self.key_select_frame.is_per_key_digital.get():
             self.settings_panel_list[0].to_settings_message(fluxpad_settings.key_settings_list[1])
         else:
             self.settings_panel_list[1].to_settings_message(fluxpad_settings.key_settings_list[1])
 
         self.settings_panel_list[2].to_settings_message(fluxpad_settings.key_settings_list[2])
-        
+        # If per key is not checked, use settings from key 2 for key 3 and 4
         if not self.key_select_frame.is_per_key_analog.get():
             self.settings_panel_list[2].to_settings_message(fluxpad_settings.key_settings_list[3])
+            self.settings_panel_list[2].to_settings_message(fluxpad_settings.key_settings_list[4])
         else:
             self.settings_panel_list[3].to_settings_message(fluxpad_settings.key_settings_list[3])
+            self.settings_panel_list[4].to_settings_message(fluxpad_settings.key_settings_list[4])
 
 
 class LightingFrame(ttk.Frame):
@@ -677,11 +706,13 @@ class CalibrationLabelframe(ttk.Labelframe):
         self.notebook = ttk.Notebook(self, takefocus=False)
         self.analog_cal_frame_list = [
             AnalogCalibrationFrame(self.notebook),
-            AnalogCalibrationFrame(self.notebook)
+            AnalogCalibrationFrame(self.notebook),
+            AnalogCalibrationFrame(self.notebook),
         ]
         
-        self.notebook.add(self.analog_cal_frame_list[0], text="Analog Button 1")
-        self.notebook.add(self.analog_cal_frame_list[1], text="Analog Button 2")
+        self.notebook.add(self.analog_cal_frame_list[0], text="Analog Key 1")
+        self.notebook.add(self.analog_cal_frame_list[1], text="Analog Key 2")
+        self.notebook.add(self.analog_cal_frame_list[2], text="Analog Key 3")
         self.notebook.grid(row=1, column=1, sticky="EW")
 
         self.notebook.bind("<<NotebookTabChanged>>", self.on_notebook_tab_changed)
@@ -723,13 +754,13 @@ class CalibrationTopLevel(tk.Toplevel):
     NUMBER_OF_SAMPLES = 20
     SAMPLE_PERIOD_S = 0.05
 
-    UP_MAX_STD_DEV = 40
-    UP_MAX_ADC = 1300
-    UP_MIN_ADC = 0
+    UP_MAX_STD_DEV = 10
+    UP_MAX_ADC = 2000
+    UP_MIN_ADC = 1600
 
-    DOWN_MAX_STD_DEV = 200
-    DOWN_MAX_ADC = 4096
-    DOWN_MIN_ADC = 2100
+    DOWN_MAX_STD_DEV = 50
+    DOWN_MAX_ADC = 1300
+    DOWN_MIN_ADC = 0
 
     INSTRUCTION_WIDTH = 500
     INSTRUCTION_HEIGHT = 240
@@ -932,6 +963,9 @@ class Application(ttk.Frame):
         self.frame_utilities.calibration_labelframe.analog_cal_frame_list[1].btn_set_up.configure(command=lambda: self.on_calibrate_button(is_up=True, key_id=3))
         self.frame_utilities.calibration_labelframe.analog_cal_frame_list[1].btn_set_down.configure(command=lambda: self.on_calibrate_button(is_up=False, key_id=3))
 
+        self.frame_utilities.calibration_labelframe.analog_cal_frame_list[2].btn_set_up.configure(command=lambda: self.on_calibrate_button(is_up=True, key_id=4))
+        self.frame_utilities.calibration_labelframe.analog_cal_frame_list[2].btn_set_down.configure(command=lambda: self.on_calibrate_button(is_up=False, key_id=4))
+
         # Show menu bar
         self.master.configure(menu=self.menubar)
 
@@ -1023,7 +1057,7 @@ class Application(ttk.Frame):
 
     def on_calibrate_button(self, is_up, key_id):
         logging.info("Calibration button clicked")
-        assert 2 <= key_id <=3, "Invalid key id"
+        assert 2 <= key_id <=4, "Invalid key id"
         self.on_calibration_tab = False
         while self.fluxpad.port.is_open or self.worker_busy:
             self.on_calibration_tab = False
@@ -1146,8 +1180,8 @@ if __name__ == "__main__":
     x = int((ws/2) - (WIDTH/2))
     y = int((hs/2) - (HEIGHT/2))
         
-    root.geometry(f"{WIDTH}x{HEIGHT}+{x}+{y}")
-    root.resizable(width=False, height=False)
+    # root.geometry(f"{WIDTH}x{HEIGHT}+{x}+{y}")
+    # root.resizable(width=False, height=False)
     root.title("FLUXAPP")
     root.iconbitmap((IMAGE_DIR / "FluxappIcon.ico").resolve())
     app = Application(master=root)
