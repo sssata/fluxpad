@@ -90,10 +90,18 @@ This is a list of valid keys that can appear in a `request message`
 | `c_u` | Calibration ADC Up | Calibration ADC value of key in up position | number
 | `c_d` | Calibration ADC Down | Calibration ADC value of key in down position | number
 | `l_m` | Lighting Mode [0,4] | Lighting mode, Off, Fade, Flash, Static | number
-| `l_d` | Fade Duty Cycle [0,256] | Calibration ADC value of key in down position | integer
+| `l_d` | Lighting Brightness [0,255] | Brightness of per-key lighting | integer
 | `l_h` | Fade Half Life [us]  | Fade Mode lighting half life in us | number
 | `l_f` | Flash Duration [us] | Flash Mode lighting duration in us | number
-| `l_s` | Static Duty Cycle [0,256] | Static Mode lighting brightness in duty cycle | integer
+| `l_s` | Static Duty Cycle [0,255] | Static Mode lighting brightness in duty cycle | integer
+| `rgb_m` | RGB Mode [0,3] | RGB Lighting Mode, 0=Off, 1=Static, 2=Rainbow | integer
+| `rgb_b` | RGB Brightness [0,255] | RGB Lighting Speed, for Static. Cycles per as a 32 bit number. | integer
+| `rgb_s` | RGB Speed [0,3] | RGB Lighting Speed, for Rainbow. Cycles per minute. | integer
+| `rgb_c1` | RGB Colour [0,2^32] | RGB Light 1 (right) Colour, for Static. RGB Colour as a 32 bit number. | integer
+| `rgb_c2` | RGB Colour [0,2^32] | RGB Light 2 (center) Colour, for Static. Cycles per as a 32 bit number. | integer
+| `rgb_c3` | RGB Colour [0,2^32] | RGB Light 3 (left) Colour, for Static. Cycles per as a 32 bit number. | integer
+| `clear` | Clear Flash Memory | Factory reset the flash memory. Enter integer `1234` to clear. | integer
+
 
 
 | `dstrm` | Datastream mode | Datastream mode enable or disable | bool

@@ -20,8 +20,15 @@ enum class RGBState {
     CONNECTED,
 };
 
+enum class RGBMode { OFF, STATIC, RAINBOW };
+
 typedef struct {
     RGBState connectedState;
+    uint32_t color_1;
+    uint32_t color_2;
+    uint32_t color_3;
+    uint8_t brightness;
+    float speed_bpm;
 } RGBSettings;
 
 class RGBLeds {

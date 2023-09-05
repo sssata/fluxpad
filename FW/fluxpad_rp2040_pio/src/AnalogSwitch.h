@@ -217,8 +217,7 @@ class AnalogSwitch {
     }
 
     /**
-     * @brief Read n samples from pin in ADC freerun mode
-     * This is faster than getting individual samples with analogRead
+     * @brief Read n samples from pin with ADC
      *
      * @param samples
      * @param pin
@@ -228,154 +227,28 @@ class AnalogSwitch {
         q22_10_t sum = 0;
         // adc_input.begin();
         adc_select_input(pin - 26);
-        adc_fifo_setup(true, false, 0, false, false);
-        adc_fifo_drain();
-        adc_run(true);
+        // adc_fifo_setup(true, false, 0, false, false);
+        // adc_fifo_drain();
+        // adc_run(true);
         for (size_t i = 0; i < no_of_measurements; i++) {
             // while (!adc_input.available())
             //     ;
             // sum += INT_TO_Q22_10(adc_input.read());
-            sum += INT_TO_Q22_10(adc_fifo_get_blocking());
-            // sum += INT_TO_Q22_10(analogRead(pin));
+            // sum += INT_TO_Q22_10(adc_fifo_get_blocking());
+            // sum += INT_TO_Q22_10(adc_input.read());
+            sum += INT_TO_Q22_10(adc_read());
         }
-        adc_run(false);
-
+        // adc_run(false);
+        // adc_fifo_drain();
         // adc_input.end();
         current_reading = sum / no_of_measurements;
     }
 
     void setCurrentReading(uint32_t reading_counts) { INT_TO_Q22_10(reading_counts); }
 
-    /**
-     * @brief Read n samples from pin in ADC freerun mode
-     * This is faster than getting individual samples with analogRead
-     *
-     * @param samples
-     * @param pin
-     * @return uint32_t averaged adc value
-     */
-    // void takeAvgReadingFreerun(size_t samples) {
-    //     syncADC();
-
-    //     ADC->INPUTCTRL.bit.MUXPOS = g_APinDescription[pin].ulADCChannelNumber; // Select pos adc input
-    //     ADC->CTRLB.bit.FREERUN = 1;                                            // Turn on freerun mode
-
-    //     syncADC();
-    //     ADC->CTRLA.bit.ENABLE = 1; // Turn on ADC
-    //     syncADC();
-
-    //     ADC->SWTRIG.bit.START = 1; // Start conversion
-    //     syncADC();
-
-    //     // Throw away first result after turning on the ADC
-    //     while (ADC->INTFLAG.bit.RESRDY == 0)
-    //         ; // Wait for conversion to complete
-    //     uint32_t throwaway = ADC->RESULT.reg;
-    //     ADC->INTFLAG.reg = ADC_INTFLAG_RESRDY; // Clear ready flag
-
-    //     q22_10_t sum = 0;
-    //     for (size_t i = 0; i < samples; i++) {
-    //         while (ADC->INTFLAG.bit.RESRDY == 0)
-    //             ; // Wait for conversion to complete
-    //         uint32_t result = ADC->RESULT.reg;
-    //         ADC->INTFLAG.reg = ADC_INTFLAG_RESRDY; // Clear ready flag
-    //         sum += INT_TO_Q22_10(result);
-    //     }
-    //     // current_reading = sum / samples;
-    //     current_reading = sum / samples;
-
-    //     ADC->CTRLA.bit.ENABLE = 0; // Turn off ADC
-    //     syncADC();
-    // }
-
-    // Wait for synchronization of registers between MCU and ADC clock domains
-    // static inline __attribute__((always_inline)) void syncADC() {
-    //     while (ADC->STATUS.bit.SYNCBUSY == 1)
-    //         ;
-    // }
-
-    /**
-     * @brief Setup ADC clock prescaler and cycles to set hold capacitor charge time per sample. Affects mininum
-     * acceptable input impedance.
-     *
-     * @param prescaler Clock divider setting, valid values are
-     * 4,8,16,32,64,128,256,512
-     * @param cyclesPerSample Number of clock cycles per sample
-     */
-    // void setADCConversionTime(unsigned int prescaler, unsigned int cyclesPerSample) const {
-    //     unsigned int my_ADC_CTRLB_PRESCALER_DIV;
-    //     unsigned int my_SAMPCTRLREGVal;
-
-    //     switch (prescaler) {
-    //     case 4:
-    //         my_ADC_CTRLB_PRESCALER_DIV = ADC_CTRLB_PRESCALER_DIV4_Val;
-    //         break;
-    //     case 8:
-    //         my_ADC_CTRLB_PRESCALER_DIV = ADC_CTRLB_PRESCALER_DIV8_Val;
-    //         break;
-    //     case 16:
-    //         my_ADC_CTRLB_PRESCALER_DIV = ADC_CTRLB_PRESCALER_DIV16_Val;
-    //         break;
-    //     case 32:
-    //         my_ADC_CTRLB_PRESCALER_DIV = ADC_CTRLB_PRESCALER_DIV32_Val;
-    //         break;
-    //     case 64:
-    //         my_ADC_CTRLB_PRESCALER_DIV = ADC_CTRLB_PRESCALER_DIV64_Val;
-    //         break;
-    //     case 128:
-    //         my_ADC_CTRLB_PRESCALER_DIV = ADC_CTRLB_PRESCALER_DIV128_Val;
-    //         break;
-    //     case 256:
-    //         my_ADC_CTRLB_PRESCALER_DIV = ADC_CTRLB_PRESCALER_DIV256_Val;
-    //         break;
-    //     case 512:
-    //         my_ADC_CTRLB_PRESCALER_DIV = ADC_CTRLB_PRESCALER_DIV512_Val;
-    //         break;
-    //     default:
-    //         my_ADC_CTRLB_PRESCALER_DIV = ADC_CTRLB_PRESCALER_DIV512_Val;
-    //     }
-    //     ADC->CTRLB.bit.PRESCALER = my_ADC_CTRLB_PRESCALER_DIV;
-
-    //     while (ADC->STATUS.bit.SYNCBUSY)
-    //         ;
-
-    //     if (cyclesPerSample < 0) {
-    //         cyclesPerSample = 0;
-    //     }
-    //     if (cyclesPerSample > 63) {
-    //         cyclesPerSample = 63;
-    //     }
-    //     ADC->SAMPCTRL.reg = cyclesPerSample;
-    // }
-
     q22_10_t adcCountsToDistanceMM(q22_10_t counts) { return lut(counts); }
 
-    // q22_10_t reset_calibration() {
-    //     settings.calibration_up_adc = reference_up_adc;
-    //     settings.calibration_down_adc = reference_down_adc;
-    // }
-
   private:
-    /**
-     * @brief Loads factory bias and linearity calibration of the ADC from OTP memory
-     *
-     */
-    // void loadADCFactoryCalibration() const {
-
-    //     // Load calibration data from efuses
-    //     uint32_t bias = (*((uint32_t *)ADC_FUSES_BIASCAL_ADDR) & ADC_FUSES_BIASCAL_Msk) >> ADC_FUSES_BIASCAL_Pos;
-    //     uint32_t linearity =
-    //         (*((uint32_t *)ADC_FUSES_LINEARITY_0_ADDR) & ADC_FUSES_LINEARITY_0_Msk) >> ADC_FUSES_LINEARITY_0_Pos;
-    //     linearity |=
-    //         ((*((uint32_t *)ADC_FUSES_LINEARITY_1_ADDR) & ADC_FUSES_LINEARITY_1_Msk) >> ADC_FUSES_LINEARITY_1_Pos) <<
-    //         5;
-
-    //     // Write the calibration data
-    //     syncADC();
-    //     ADC->CALIB.reg = ADC_CALIB_BIAS_CAL(bias) | ADC_CALIB_LINEARITY_CAL(linearity);
-    //     syncADC();
-    // }
-
     void resetMinMaxDistance() {
         min_height_mm = UINT32_MAX;
         max_height_mm = 0;

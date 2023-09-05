@@ -1,9 +1,10 @@
+#include <Adafruit_TinyUSB.h>
 #include <Arduino.h>
+#include <hardware/flash.h>
 
 #include "HIDConsumerService.hpp"
 #include "HIDKeyboardService.hpp"
 #include "USBCommon.hpp"
-#include <Adafruit_TinyUSB.h>
 
 // Report ID
 enum {
@@ -29,9 +30,25 @@ uint8_t const desc_hid_report[] = {TUD_HID_REPORT_DESC_KEYBOARD(HID_REPORT_ID(RI
 
 Adafruit_USBD_HID usb_hid(desc_hid_report, sizeof(desc_hid_report), HID_ITF_PROTOCOL_NONE, 1, false);
 
-void usb_service_setup() {
+char serial_number[32];
+char product_descriptor[] = "Fluxpad V2 Analog Keypad";
+char manufacturer_descriptor[] = "FLUXPAD";
+
+uint64_t get_serial_number() {
+    uint64_t serial_number;
+    flash_get_unique_id((uint8_t *)&serial_number);
+    return serial_number;
+}
+
+void usb_service_setup(uint16_t vid, uint16_t pid) {
+    TinyUSBDevice.setID(vid, pid);
+    sprintf(serial_number, "%llu", get_serial_number());
+    TinyUSBDevice.setSerialDescriptor(serial_number);
+
+    TinyUSBDevice.setProductDescriptor(product_descriptor);
+    TinyUSBDevice.setManufacturerDescriptor(manufacturer_descriptor);
+
     usb_hid.begin();
-    pinMode(5, OUTPUT_12MA);
     // setBootProtocol(1);  // Boot protocol keyboard
 }
 

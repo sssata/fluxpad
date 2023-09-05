@@ -9,12 +9,7 @@
 #define UPDATE_PERIOD_US 20 * 1000
 #define FADE_MIN_DUTY_CYCLE 2
 
-enum LightingMode {
-    LIGHTING_MODE_OFF,
-    LIGHTING_MODE_STATIC,
-    LIGHTING_MODE_FADE,
-    LIGHTING_MODE_FLASH
-};
+enum LightingMode { LIGHTING_MODE_OFF, LIGHTING_MODE_STATIC, LIGHTING_MODE_FADE, LIGHTING_MODE_FLASH };
 
 typedef struct {
     LightingMode mode;
@@ -26,13 +21,12 @@ typedef struct {
 
 class KeyLighting {
   public:
-    const uint32_t pin = 0;
-    const bool *pressed_p = NULL;
+    uint32_t pin = 0;
+    bool &pressed_p;
 
     KeyLightingSettings_t settings = {};
 
-    KeyLighting(const uint32_t pin, const bool *pressed_p)
-        : pin(pin), pressed_p(pressed_p){};
+    KeyLighting(const uint32_t pin, bool &pressed_p) : pin(pin), pressed_p(pressed_p){};
 
     void setup() {
         last_pressed_time_us = INT32_MAX;
@@ -40,17 +34,16 @@ class KeyLighting {
         pressed_prev = false;
         last_duty_cycle = DUTY_CYCLE_ON;
         set_duty_cycle(DUTY_CYCLE_OFF);
-        // PORT->Group[g_APinDescription[pin].ulPort].PINCFG[g_APinDescription[pin].ulPin].bit.DRVSTR = 1;  // Set high drive strength
+        pinMode(pin, PinMode::OUTPUT_12MA);
     }
 
-    void applySettings(const KeyLightingSettings_t *_settings) {
-        settings = *_settings;
-        fade_factor = pow(0.5, (static_cast<float>(UPDATE_PERIOD_US) /
-                           static_cast<float>(settings.fade_half_life_us)));
+    void applySettings(const KeyLightingSettings_t &_settings) {
+        settings = _settings;
+        fade_factor = pow(0.5, (static_cast<float>(UPDATE_PERIOD_US) / static_cast<float>(settings.fade_half_life_us)));
     }
 
-    void lightingTask(uint32_t time_us) {
-        bool pressed = *pressed_p;
+    void lightingTask(uint64_t time_us) {
+        bool pressed = pressed_p;
         // Serial.printf("p: %d\n", pressed);
         switch (settings.mode) {
         case LIGHTING_MODE_OFF:
@@ -60,23 +53,17 @@ class KeyLighting {
             set_duty_cycle(settings.static_duty_cycle);
             break;
         case LIGHTING_MODE_FADE:
-            switch (pressed) {
-            case true:
+            if (pressed_p) {
                 // Turn on the led
                 set_duty_cycle(settings.fade_duty_cycle);
-                break;
-            case false:
+            } else {
                 // Fade the led
                 if (time_us - last_fade_time_us > UPDATE_PERIOD_US) {
                     last_fade_time_us = time_us;
                     uint8_t duty_cycle = last_duty_cycle * fade_factor;
-                    duty_cycle =
-                        duty_cycle < FADE_MIN_DUTY_CYCLE ? 0 : duty_cycle;
+                    duty_cycle = duty_cycle < FADE_MIN_DUTY_CYCLE ? 0 : duty_cycle;
                     set_duty_cycle(duty_cycle);
                 }
-                break;
-            default:
-                break;
             }
             break;
         case LIGHTING_MODE_FLASH:
@@ -107,6 +94,7 @@ class KeyLighting {
     bool set_duty_cycle(uint8_t duty_cycle) {
         if (last_duty_cycle != duty_cycle) {
             analogWrite(pin, duty_cycle);
+            Serial.printf("duty: %d\n", duty_cycle);
             last_duty_cycle = duty_cycle;
             return true;
         }

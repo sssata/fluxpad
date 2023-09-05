@@ -30,10 +30,11 @@ constexpr uint32_t KEY2_PIN = A2;
 constexpr uint32_t KEY3_PIN = A1;
 constexpr uint32_t KEY4_PIN = A0;
 
-#define KEY0_LIGHT_PIN 3u
-#define KEY1_LIGHT_PIN 7u
-#define KEY2_LIGHT_PIN 5u
-#define KEY3_LIGHT_PIN 10u
+#define KEY0_LIGHT_PIN 5u
+#define KEY1_LIGHT_PIN 6u
+#define KEY2_LIGHT_PIN 3u
+#define KEY3_LIGHT_PIN 4u
+#define KEY4_LIGHT_PIN 7u
 constexpr uint32_t RGB_LED_PIN = 11u;
 
 #define LED_PIN 13u
@@ -47,16 +48,19 @@ constexpr uint16_t storedAddress = 0;
 constexpr uint32_t ENC_UP_KEY_ID = 5u;
 constexpr uint32_t ENC_DOWN_KEY_ID = 6u;
 
+constexpr uint16_t VID = 0x1209;
+constexpr uint16_t PID = 0x7272;
+
 // GLOBAL STATE
 bool debug_mode = false;
 
 uint32_t mainloop_period_us = HZ_TO_PERIOD_US(normal_mode_freq_hz);
 
-uint32_t loop_count = 0;
-uint32_t last_print_us = 0;
+uint64_t loop_count = 0;
+uint64_t last_print_us = 0;
 uint32_t print_period_us = 2 * 1000 * 1000;
 
-unsigned long last_time_us;
+uint64_t last_time_us;
 
 // ENUMS
 enum class KeyType_t { NONE = 0, KEYBOARD = 1, CONSUMER = 2, MOUSE = 3 };
@@ -77,7 +81,7 @@ typedef struct {
     AnalogSwitchSettings_t analogSettings[3];
     DigitalSwitchSettings_t digitalSettings[2];
 
-    KeyLightingSettings_t lightingSettings[4];
+    KeyLightingSettings_t lightingSettings[5];
 
     RGBSettings rgbSettings;
 
@@ -88,7 +92,7 @@ typedef struct {
 StorageVars_t storage_vars;
 
 // EncoderTool::PolledEncoder encoder;
-RotaryEncoder encoder(ENC_A_PIN, ENC_B_PIN, RotaryEncoder::LatchMode::TWO03);
+RotaryEncoder encoder(ENC_A_PIN, ENC_B_PIN, RotaryEncoder::LatchMode::FOUR3);
 
 RGBLeds rgb_leds;
 
@@ -104,10 +108,9 @@ AnalogSwitch analogKeys[] = {
 };
 
 KeyLighting keyLighting[] = {
-    KeyLighting(KEY0_LIGHT_PIN, &(digitalKeys[0].is_pressed)),
-    KeyLighting(KEY1_LIGHT_PIN, &(digitalKeys[1].is_pressed)),
-    KeyLighting(KEY2_LIGHT_PIN, &(analogKeys[0].is_pressed)),
-    KeyLighting(KEY3_LIGHT_PIN, &(analogKeys[1].is_pressed)),
+    KeyLighting(KEY0_LIGHT_PIN, digitalKeys[0].is_pressed), KeyLighting(KEY1_LIGHT_PIN, digitalKeys[1].is_pressed),
+    KeyLighting(KEY2_LIGHT_PIN, analogKeys[0].is_pressed),  KeyLighting(KEY3_LIGHT_PIN, analogKeys[1].is_pressed),
+    KeyLighting(KEY4_LIGHT_PIN, analogKeys[2].is_pressed),
 };
 
 // ADCInput adc_input(A0, A1, A2);
@@ -133,9 +136,9 @@ void setup() {
     Serial.begin(115200);
     // Keyboard.begin();
     // Consumer.begin();
-    usb_service_setup();
+    usb_service_setup(VID, PID);
     // adc_input.setFrequency(5000);
-    // adc_input.setBuffers(100, 16);
+    // adc_input.setBuffers(100, 1zzzzzzz6);
     // adc_input.begin();
 
     // encoder.begin(ENC_A_PIN, ENC_B_PIN, EncoderTool::CountMode::quarter, INPUT_PULLUP);
@@ -159,14 +162,14 @@ void setup() {
     int i = 0;
     for (KeyLighting &lighting : keyLighting) {
         lighting.setup();
-        lighting.applySettings(&(storage_vars.lightingSettings[i]));
+        lighting.applySettings(storage_vars.lightingSettings[i]);
         i++;
     }
 
     pinMode(3, OUTPUT_12MA);
     rgb_leds.setup();
 
-    last_time_us = micros();
+    last_time_us = time_us_64();
 }
 
 uint32_t last_blink_time_us = 0;
@@ -175,7 +178,8 @@ uint32_t blink_period_us = HZ_TO_PERIOD_US(50);
 
 void loop() {
 
-    uint32_t curr_time_us = micros();
+    // uint32_t curr_time_us = micros();
+    uint64_t curr_time_us = time_us_64();
     if (curr_time_us - last_time_us < mainloop_period_us) {
         return;
     }
@@ -192,30 +196,25 @@ void loop() {
         }
     }
 
-    if (curr_time_us - last_blink_time_us > blink_period_us) {
-        last_blink_time_us = curr_time_us;
+    // if (curr_time_us - last_blink_time_us > blink_period_us) {
+    //     last_blink_time_us = curr_time_us;
 
-        if (!TinyUSBDevice.mounted()) {
-            rgb_leds.set_state(RGBState::DISCONNECTED);
-        } else {
-            rgb_leds.set_state(storage_vars.rgbSettings.connectedState);
-        }
+    //     if (!TinyUSBDevice.mounted()) {
+    //         rgb_leds.set_state(RGBState::DISCONNECTED);
+    //     } else {
+    //         // rgb_leds.set_state(storage_vars.rgbSettings.connectedState);
+    //         rgb_leds.set_state(RGBState::CONNECTED);
+    //     }
 
-        rgb_leds.loop_service();
+    //     rgb_leds.loop_service();
 
-        // Serial.printf("A: %d, B: %d, Enc pos: %d\n", digitalRead(ENC_A_PIN), digitalRead(ENC_B_PIN),
-        //               encoder.getPosition());
-    }
+    //     // Serial.printf("A: %d, B: %d, Enc pos: %d\n", digitalRead(ENC_A_PIN), digitalRead(ENC_B_PIN),
+    //     //               encoder.getPosition());
+    // }
+    rgb_light_service(curr_time_us);
 
     // Keyboard.removeAll();
 
-    // Scan analog keys
-
-    // for (size_t i = 0; i < sizeof(analogKeys) / sizeof(analogKeys[0]); i++) {
-    //     if (adc_input.available()) {
-    //         adc_input.read();
-    //     }
-    // }
     for (AnalogSwitch &key : analogKeys) {
         // key.setCurrentReading(adc_input.);
         key.mainLoopService();
@@ -274,11 +273,15 @@ void loop() {
     }
 
     // Run Lighting
-    // int i = 0;
-    // for (KeyLighting &lighting : keyLighting) {
-    //     lighting.lightingTask(curr_time_us);
-    //     i++;
-    // }
+    for (KeyLighting &lighting : keyLighting) {
+        lighting.lightingTask(curr_time_us);
+    }
+
+    // keyLighting[0].lightingTask(curr_time_us);
+    // keyLighting[1].lightingTask(curr_time_us);
+    // keyLighting[2].lightingTask(curr_time_us);
+    // keyLighting[3].lightingTask(curr_time_us);
+    // keyLighting[4].lightingTask(curr_time_us);
 
     // Keyboard.send();
     usb_service();
@@ -338,13 +341,31 @@ void releaseHIDKey(const KeyMapEntry_t *entry) {
     }
 }
 
+void rgb_light_service(uint64_t curr_time_us) {
+    if (curr_time_us - last_blink_time_us > blink_period_us) {
+        last_blink_time_us = curr_time_us;
+
+        if (TinyUSBDevice.mounted()) {
+            rgb_leds.set_state(RGBState::CONNECTED);
+        } else {
+            // rgb_leds.set_state(storage_vars.rgbSettings.connectedState);
+            rgb_leds.set_state(RGBState::DISCONNECTED);
+        }
+
+        rgb_leds.loop_service();
+
+        // Serial.printf("A: %d, B: %d, Enc pos: %d\n", digitalRead(ENC_A_PIN), digitalRead(ENC_B_PIN),
+        //               encoder.getPosition());
+    }
+}
+
 bool is_digital_key(uint32_t key_id) { return key_id <= 1; }
 
 bool is_analog_key(uint32_t key_id) { return 2 <= key_id && key_id <= 4; }
 
 bool is_encoder_key(uint32_t key_id) { return 5 <= key_id && key_id <= 6; }
 
-bool key_has_lighting(uint32_t key_id) { return key_id <= 3; }
+bool key_has_lighting(uint32_t key_id) { return key_id <= 4; }
 
 uint32_t key_id_to_analog_key_index(uint32_t key_id) { return (key_id - 2); }
 
@@ -414,12 +435,12 @@ void fillDefaultStorageVars(StorageVars_t *_storage_vars) {
             .press_debounce_ms = 1,
             .release_debounce_ms = 6,
             .samples = 22,
-            .calibration_up_adc = INT_TO_Q22_10(2900),
+            .calibration_up_adc = INT_TO_Q22_10(1650),
             .calibration_down_adc = INT_TO_Q22_10(1100),
         };
     }
 
-    for (KeyLightingSettings_t &keyLightingSettings : _storage_vars->lightingSettings) {
+    for (auto &keyLightingSettings : _storage_vars->lightingSettings) {
         keyLightingSettings = {
             .mode = LIGHTING_MODE_FADE,
             .fade_duty_cycle = DUTY_CYCLE_ON,
@@ -428,6 +449,9 @@ void fillDefaultStorageVars(StorageVars_t *_storage_vars) {
             .static_duty_cycle = 50,
         };
     };
+
+    // Set RGB
+    _storage_vars->rgbSettings.connectedState = RGBState::CONNECTED;
 }
 
 /**
@@ -449,7 +473,7 @@ bool loadFlashStorage(StorageVars_t *_storage_vars) {
 
         StorageVars_t retrievedStorageVars;
         EEPROM.get(storedAddress + sizeof(signature), *_storage_vars);
-        // *_storage_vars = retrievedStorageVars;
+        // memcpy(_storage_vars, &retrievedStorageVars, sizeof(retrievedStorageVars));
         return true;
     }
 
@@ -643,6 +667,14 @@ void read_serial() {
         // Set datastream mode
         if (request_msg.containsKey("dstrm")) {
             datastream_period_ms = request_msg["dstrm"].as<unsigned int>();
+        }
+
+        // Clear Flash Memory datastream mode
+        if (request_msg.containsKey("clear")) {
+            if (request_msg["clear"].as<unsigned int>() == 1234u) {
+                fillDefaultStorageVars(&storage_vars);
+                response_msg["clear"] = "OK";
+            }
         }
 
         saveFlashStorage(&storage_vars);
