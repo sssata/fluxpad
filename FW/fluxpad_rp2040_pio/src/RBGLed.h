@@ -14,16 +14,10 @@ constexpr uint8_t DATA_PIN = 11u;
 
 CRGB leds[NUM_LEDS];
 
-enum class RGBState {
-    OFF,
-    DISCONNECTED,
-    CONNECTED,
-};
-
 enum class RGBMode { OFF, STATIC, RAINBOW };
 
 typedef struct {
-    RGBState connectedState;
+    RGBMode mode;
     uint32_t color_1;
     uint32_t color_2;
     uint32_t color_3;
@@ -35,82 +29,69 @@ class RGBLeds {
 
   private:
     // uint8_t data_pin;
-    RGBState state;
-
-    void rainbow() {
-        // FastLED's built-in rainbow generator
-        uint8_t thisHue = beat8(20); // A simple rainbow march.
-        fill_rainbow(leds, NUM_LEDS, thisHue, 255 / 10);
-    }
-
-    void addGlitter(fract8 chanceOfGlitter) {
-        if (random8() < chanceOfGlitter) {
-            leds[random16(NUM_LEDS)] += CRGB::White;
-        }
-    }
-
-    void rainbowWithGlitter() {
-        // built-in FastLED rainbow, plus some random sparkly glitter
-        rainbow();
-        // addGlitter(80);
-    }
+    RGBSettings &settings;
 
   public:
-    RGBLeds() : state(RGBState::OFF){};
+    RGBLeds(RGBSettings &settings) : settings(settings){};
 
     void setup() {
         FastLED.addLeds<WS2812B, DATA_PIN, GRB>(leds, NUM_LEDS); // GRB ordering is assumed
+        new_mode();
     }
 
     void loop_service() {
-        switch (state) {
-        case RGBState::OFF:
+        switch (settings.mode) {
+        case RGBMode::OFF:
             // Nothing
             break;
-        case RGBState::CONNECTED:
-            connected_state();
-            break;
-        case RGBState::DISCONNECTED:
+        case RGBMode::STATIC:
             // Nothing
+            break;
+        case RGBMode::RAINBOW:
+            rainbow_mode();
             break;
         }
     }
 
-    void set_state(RGBState new_state) {
-        switch (new_state) {
-        case RGBState::OFF:
-            if (state != RGBState::OFF) {
-                state = RGBState::OFF;
-                turn_off();
-            }
+    void assign_settings(RGBSettings &new_settings) {
+        settings = new_settings;
+        new_mode();
+    }
+
+    void new_mode() {
+        Serial.printf("newmode");
+        switch (settings.mode) {
+        case RGBMode::OFF:
+            turn_off();
             break;
-        case RGBState::CONNECTED:
-            if (state != RGBState::CONNECTED) {
-                state = RGBState::CONNECTED;
-            }
+        case RGBMode::STATIC:
+            static_mode();
             break;
-        case RGBState::DISCONNECTED:
-            if (state != RGBState::DISCONNECTED) {
-                state = RGBState::DISCONNECTED;
-                show_disconnected_state();
-            }
+        case RGBMode::RAINBOW:
+            settings.mode = RGBMode::RAINBOW;
             break;
         }
     }
 
-    void connected_state() {
-        // leds[0] = CRGB::Red;
-        // leds[1] = CRGB::Green;
-        // leds[2] = CRGB::Blue;
-        // rainbowWithGlitter();
-        rainbow();
+    void rainbow_mode() {
+        // FastLED's built-in rainbow generator
+        uint8_t thisHue = beat8(static_cast<accum88>(settings.speed_bpm)); // A simple rainbow march.
+        fill_rainbow(leds, NUM_LEDS, thisHue, 255 / 10);
 
-        FastLED.show(100);
+        FastLED.show(settings.brightness);
+    }
+
+    void static_mode() {
+        Serial.print("static");
+        leds[0].setColorCode(settings.color_1);
+        leds[1].setColorCode(settings.color_2);
+        leds[2].setColorCode(settings.color_3);
+        FastLED.show(settings.brightness);
     }
 
     void show_disconnected_state() {
         for (auto &led : leds) {
-            led = CRGB::Crimson;
+            led = CRGB::Red;
         }
         FastLED.show(20);
     }

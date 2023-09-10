@@ -94,7 +94,7 @@ StorageVars_t storage_vars;
 // EncoderTool::PolledEncoder encoder;
 RotaryEncoder encoder(ENC_A_PIN, ENC_B_PIN, RotaryEncoder::LatchMode::FOUR3);
 
-RGBLeds rgb_leds;
+RGBLeds rgb_leds(storage_vars.rgbSettings);
 
 DigitalSwitch digitalKeys[] = {
     DigitalSwitch(KEY0_PIN, 0),
@@ -196,24 +196,8 @@ void loop() {
         }
     }
 
-    // if (curr_time_us - last_blink_time_us > blink_period_us) {
-    //     last_blink_time_us = curr_time_us;
-
-    //     if (!TinyUSBDevice.mounted()) {
-    //         rgb_leds.set_state(RGBState::DISCONNECTED);
-    //     } else {
-    //         // rgb_leds.set_state(storage_vars.rgbSettings.connectedState);
-    //         rgb_leds.set_state(RGBState::CONNECTED);
-    //     }
-
-    //     rgb_leds.loop_service();
-
-    //     // Serial.printf("A: %d, B: %d, Enc pos: %d\n", digitalRead(ENC_A_PIN), digitalRead(ENC_B_PIN),
-    //     //               encoder.getPosition());
-    // }
+    // Run RGB Lights
     rgb_light_service(curr_time_us);
-
-    // Keyboard.removeAll();
 
     for (AnalogSwitch &key : analogKeys) {
         // key.setCurrentReading(adc_input.);
@@ -272,7 +256,7 @@ void loop() {
         encoder.setPosition(0);
     }
 
-    // Run Lighting
+    // Run Key Lighting
     for (KeyLighting &lighting : keyLighting) {
         lighting.lightingTask(curr_time_us);
     }
@@ -310,11 +294,10 @@ void typeHIDKey(const KeyMapEntry_t *entry) {
 void pressHIDKey(const KeyMapEntry_t *entry) {
     switch (entry->keyType) {
     case KeyType_t::KEYBOARD:
-        // Keyboard.add(KeyboardKeycode(entry->keycode.keyboard));
         keyboard_device.add_key(entry->keycode.keyboard);
         break;
     case KeyType_t::CONSUMER:
-        // Consumer.press(ConsumerKeycode(entry->keycode.consumer));
+        // None, only type supported
         break;
     case KeyType_t::MOUSE:
         // Unsupported for now
@@ -327,11 +310,12 @@ void pressHIDKey(const KeyMapEntry_t *entry) {
 void releaseHIDKey(const KeyMapEntry_t *entry) {
     switch (entry->keyType) {
     case KeyType_t::KEYBOARD:
-        // Keyboard.remove(KeyboardKeycode(entry->keycode.keyboard));
+        // if (!keyboard_device.isPressed(entry->keycode.keyboard)) {
         keyboard_device.remove_key(entry->keycode.keyboard);
+        // }
         break;
     case KeyType_t::CONSUMER:
-        // Consumer.release(ConsumerKeycode(entry->keycode.consumer));
+        // None, only type supported
         break;
     case KeyType_t::MOUSE:
         // Unsupported for now
@@ -345,17 +329,14 @@ void rgb_light_service(uint64_t curr_time_us) {
     if (curr_time_us - last_blink_time_us > blink_period_us) {
         last_blink_time_us = curr_time_us;
 
-        if (TinyUSBDevice.mounted()) {
-            rgb_leds.set_state(RGBState::CONNECTED);
-        } else {
-            // rgb_leds.set_state(storage_vars.rgbSettings.connectedState);
-            rgb_leds.set_state(RGBState::DISCONNECTED);
-        }
+        // if (TinyUSBDevice.mounted()) {
+        //     // rgb_leds.set_state(RGBState::CONNECTED);
+        // } else {
+        //     // rgb_leds.set_state(storage_vars.rgbSettings.connectedState);
+        //     // rgb_leds.set_state(RGBState::DISCONNECTED);
+        // }
 
         rgb_leds.loop_service();
-
-        // Serial.printf("A: %d, B: %d, Enc pos: %d\n", digitalRead(ENC_A_PIN), digitalRead(ENC_B_PIN),
-        //               encoder.getPosition());
     }
 }
 
@@ -451,7 +432,14 @@ void fillDefaultStorageVars(StorageVars_t *_storage_vars) {
     };
 
     // Set RGB
-    _storage_vars->rgbSettings.connectedState = RGBState::CONNECTED;
+    _storage_vars->rgbSettings = {
+        .mode = RGBMode::RAINBOW,
+        .color_1 = CRGB::Red,
+        .color_2 = CRGB::Green,
+        .color_3 = CRGB::Blue,
+        .brightness = 255u,
+        .speed_bpm = 20.0,
+    };
 }
 
 /**
@@ -669,6 +657,32 @@ void read_serial() {
             datastream_period_ms = request_msg["dstrm"].as<unsigned int>();
         }
 
+        // RGB Lighting settings
+        if (request_msg.containsKey("rgb_m")) {
+            storage_vars.rgbSettings.mode = static_cast<RGBMode>(request_msg["rgb_m"].as<unsigned int>());
+            rgb_leds.new_mode();
+        }
+        if (request_msg.containsKey("rgb_b")) {
+            storage_vars.rgbSettings.brightness = request_msg["rgb_b"].as<unsigned int>();
+            rgb_leds.new_mode();
+        }
+        if (request_msg.containsKey("rgb_c1")) {
+            storage_vars.rgbSettings.color_1 = request_msg["rgb_c1"].as<unsigned int>();
+            rgb_leds.new_mode();
+        }
+        if (request_msg.containsKey("rgb_c2")) {
+            storage_vars.rgbSettings.color_1 = request_msg["rgb_c2"].as<unsigned int>();
+            rgb_leds.new_mode();
+        }
+        if (request_msg.containsKey("rgb_c3")) {
+            storage_vars.rgbSettings.color_1 = request_msg["rgb_c3"].as<unsigned int>();
+            rgb_leds.new_mode();
+        }
+        if (request_msg.containsKey("rgb_s")) {
+            storage_vars.rgbSettings.speed_bpm = request_msg["rgb_s"].as<float>();
+            rgb_leds.new_mode();
+        }
+
         // Clear Flash Memory datastream mode
         if (request_msg.containsKey("clear")) {
             if (request_msg["clear"].as<unsigned int>() == 1234u) {
@@ -769,6 +783,25 @@ void read_serial() {
                     response_msg["l_s"] = keyLighting[key_id].settings.static_duty_cycle;
                 }
             }
+        }
+
+        if (request_msg.containsKey("rgb_m")) {
+            response_msg["rgb_m"] = static_cast<uint8_t>(storage_vars.rgbSettings.mode);
+        }
+        if (request_msg.containsKey("rgb_b")) {
+            response_msg["rgb_b"] = static_cast<uint8_t>(storage_vars.rgbSettings.brightness);
+        }
+        if (request_msg.containsKey("rgb_c1")) {
+            response_msg["rgb_c1"] = storage_vars.rgbSettings.color_1;
+        }
+        if (request_msg.containsKey("rgb_c2")) {
+            response_msg["rgb_c2"] = storage_vars.rgbSettings.color_2;
+        }
+        if (request_msg.containsKey("rgb_c3")) {
+            response_msg["rgb_c3"] = storage_vars.rgbSettings.color_3;
+        }
+        if (request_msg.containsKey("rgb_s")) {
+            response_msg["rgb_s"] = storage_vars.rgbSettings.speed_bpm;
         }
 
     }

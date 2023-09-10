@@ -82,14 +82,29 @@ class HIDKeyboard {
     }
 
     /**
-     * @brief Get whether key is currently pressed or released
+     * @brief Get whether the given key is currently pressed or released
+     *
+     * @return true
+     * @return false
+     */
+    bool isPressed(uint8_t key) const {
+        for (const auto &pressed_key : pressed_keys) {
+            if (pressed_key == key) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    /**
+     * @brief Get whether the any key is currently pressed or released
      *
      * @return true
      * @return false
      */
     bool isPressed() const {
-        for (const auto &key : pressed_keys) {
-            if (key != 0) {
+        for (const auto &pressed_key : pressed_keys) {
+            if (pressed_key != 0) {
                 return true;
             }
         }
