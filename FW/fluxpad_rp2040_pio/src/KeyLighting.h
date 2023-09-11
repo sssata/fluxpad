@@ -13,10 +13,9 @@ enum LightingMode { LIGHTING_MODE_OFF, LIGHTING_MODE_STATIC, LIGHTING_MODE_FADE,
 
 typedef struct {
     LightingMode mode;
-    uint8_t fade_duty_cycle;
+    uint8_t brightness;
     uint32_t fade_half_life_us;
     uint32_t flash_duration_us;
-    uint8_t static_duty_cycle;
 } KeyLightingSettings_t;
 
 class KeyLighting {
@@ -50,12 +49,12 @@ class KeyLighting {
             set_duty_cycle(DUTY_CYCLE_OFF);
             break;
         case LIGHTING_MODE_STATIC:
-            set_duty_cycle(settings.static_duty_cycle);
+            set_duty_cycle(settings.brightness);
             break;
         case LIGHTING_MODE_FADE:
             if (pressed_p) {
                 // Turn on the led
-                set_duty_cycle(settings.fade_duty_cycle);
+                set_duty_cycle(settings.brightness);
             } else {
                 // Fade the led
                 if (time_us - last_fade_time_us > UPDATE_PERIOD_US) {
@@ -88,13 +87,13 @@ class KeyLighting {
     bool pressed_prev;
     float fade_factor;
     uint8_t last_duty_cycle;
-    uint32_t last_fade_time_us;
-    uint32_t last_pressed_time_us;
+    uint64_t last_fade_time_us;
+    uint64_t last_pressed_time_us;
 
     bool set_duty_cycle(uint8_t duty_cycle) {
         if (last_duty_cycle != duty_cycle) {
             analogWrite(pin, duty_cycle);
-            Serial.printf("duty: %d\n", duty_cycle);
+            // Serial.printf("duty: %d\n", duty_cycle);
             last_duty_cycle = duty_cycle;
             return true;
         }
