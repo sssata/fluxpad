@@ -14,8 +14,7 @@ enum LightingMode { LIGHTING_MODE_OFF, LIGHTING_MODE_STATIC, LIGHTING_MODE_FADE,
 typedef struct {
     LightingMode mode;
     uint8_t brightness;
-    uint32_t fade_half_life_us;
-    uint32_t flash_duration_us;
+    uint32_t duration_us;
 } KeyLightingSettings_t;
 
 class KeyLighting {
@@ -38,7 +37,7 @@ class KeyLighting {
 
     void applySettings(const KeyLightingSettings_t &_settings) {
         settings = _settings;
-        fade_factor = pow(0.5, (static_cast<float>(UPDATE_PERIOD_US) / static_cast<float>(settings.fade_half_life_us)));
+        fade_factor = pow(0.5, (static_cast<float>(UPDATE_PERIOD_US) / static_cast<float>(settings.duration_us)));
     }
 
     void lightingTask(uint64_t time_us) {
@@ -71,7 +70,7 @@ class KeyLighting {
             }
             pressed_prev = pressed;
 
-            if (time_us - last_pressed_time_us > settings.flash_duration_us) {
+            if (time_us - last_pressed_time_us > settings.duration_us) {
                 set_duty_cycle(DUTY_CYCLE_OFF);
             } else {
                 set_duty_cycle(DUTY_CYCLE_ON);

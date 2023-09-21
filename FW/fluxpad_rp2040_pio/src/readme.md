@@ -91,8 +91,7 @@ This is a list of valid keys that can appear in a `request message`
 | `c_d` | Calibration ADC Down | Calibration ADC value of key in down position | number
 | `l_m` | Lighting Mode [0,4] | Lighting mode, Off, Fade, Flash, Static | number
 | `l_b` | Lighting Brightness [0,255] | Brightness of per-key lighting | integer
-| `l_h` | Fade Half Life [us]  | Fade Mode lighting half life in us | number
-| `l_f` | Flash Duration [us] | Flash Mode lighting duration in us | number
+| `l_d` | Lighting Duration [us] | Lighting duration in flash mode or fade half life in fade mod, us | number
 | `rgb_m` | RGB Mode [0,3] | RGB Lighting Mode, 0=Off, 1=Static, 2=Rainbow | integer
 | `rgb_b` | RGB Brightness [0,255] | RGB Lighting Speed, for Static. Cycles per as a 32 bit number. | integer
 | `rgb_s` | RGB Speed [0,3] | RGB Lighting Speed, for Rainbow. Cycles per minute. | integer

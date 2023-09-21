@@ -26,6 +26,13 @@ class CommandType(enum.Enum):
     READ = "r"
 
 
+class LightingMode(enum.IntEnum):
+    Off = 0
+    Static = 1
+    Fade = 2
+    Flash = 3
+
+
 class MessageKey:
     COMMAND = "cmd"
     TOKEN = "tkn"
@@ -48,8 +55,7 @@ class MessageKey:
     DATASTREAM_FREQUENCY = "dstrm_freq"
     LIGHTING_MODE = "l_m"
     LIGHTING_FADE_BRIGHTNESS = "l_b"
-    LIGHTING_FADE_HALF_LIFE = "l_h"
-    LIGHTING_FLASH_DURATION = "l_f"
+    LIGHTING_FLASH_DURATION = "l_d"
     RGB_MODE = "rgb_m"
     RGB_BRIHTNESS = "rgb_b"
     RGB_SPEED = "rgb_s"
@@ -208,6 +214,36 @@ class DigitalSettingsMessage(BaseMessage):
         self._assert_uint8(debounce_ms)
         self.data[MessageKey.RELEASE_DEBOUNCE] = debounce_ms
 
+    # LIGHTING MODE
+    @property
+    def mode(self):
+        return int(self.data[MessageKey.LIGHTING_MODE])
+
+    @mode.setter
+    def mode(self, mode: int):
+        self._assert_uint8(mode)
+        self.data[MessageKey.LIGHTING_MODE] = mode
+
+    # LIGHTING BRIGHTNESS
+    @property
+    def brightness(self):
+        return int(self.data[MessageKey.LIGHTING_FADE_BRIGHTNESS])
+
+    @brightness.setter
+    def brightness(self, brightness: int):
+        self._assert_uint8(brightness)
+        self.data[MessageKey.LIGHTING_FADE_BRIGHTNESS] = brightness
+
+    # LIGHTING FLASH DURATION
+    @property
+    def flash_duration(self):
+        return int(self.data[MessageKey.LIGHTING_FLASH_DURATION])
+
+    @flash_duration.setter
+    def flash_duration(self, flash_duration_us: int):
+        self.data[MessageKey.LIGHTING_FLASH_DURATION] = flash_duration_us
+
+
 class AnalogSettingsMessage(BaseMessage):
 
     # KEY ID
@@ -320,6 +356,35 @@ class AnalogSettingsMessage(BaseMessage):
         assert isinstance(rapid_trigger_enable, bool)
         self.data[MessageKey.RAPID_TRIGGER] = rapid_trigger_enable
 
+    # LIGHTING MODE
+    @property
+    def mode(self):
+        return int(self.data[MessageKey.LIGHTING_MODE])
+
+    @mode.setter
+    def mode(self, mode: int):
+        self._assert_uint8(mode)
+        self.data[MessageKey.LIGHTING_MODE] = mode
+
+    # LIGHTING BRIGHTNESS
+    @property
+    def brightness(self):
+        return int(self.data[MessageKey.LIGHTING_FADE_BRIGHTNESS])
+
+    @brightness.setter
+    def brightness(self, brightness: int):
+        self._assert_uint8(brightness)
+        self.data[MessageKey.LIGHTING_FADE_BRIGHTNESS] = brightness
+
+    # LIGHTING FLASH DURATION
+    @property
+    def flash_duration(self):
+        return int(self.data[MessageKey.LIGHTING_FLASH_DURATION])
+
+    @flash_duration.setter
+    def flash_duration(self, flash_duration_us: int):
+        self.data[MessageKey.LIGHTING_FLASH_DURATION] = flash_duration_us
+
 
 class AnalogCalibrationMessage(BaseMessage):
     """Analog key calibration message containing
@@ -405,15 +470,14 @@ class KeyLightingMessage(BaseMessage):
         self._assert_uint8(brightness)
         self.data[MessageKey.LIGHTING_FADE_BRIGHTNESS] = brightness
 
-    # LIGHTING BRIGHTNESS
+    # LIGHTING FLASH DURATION
     @property
-    def fade_half_life(self):
-        return int(self.data[MessageKey.LIGHTING_FADE_BRIGHTNESS])
+    def flash_duration(self):
+        return int(self.data[MessageKey.LIGHTING_FLASH_DURATION])
 
-    @brightness.setter
-    def brightness(self, brightness: int):
-        self._assert_uint8(brightness)
-        self.data[MessageKey.LIGHTING_FADE_BRIGHTNESS] = brightness
+    @flash_duration.setter
+    def flash_duration(self, flash_duration_us: int):
+        self.data[MessageKey.LIGHTING_FLASH_DURATION] = flash_duration_us
     
 
 class AnalogReadMessage(BaseMessage):
@@ -691,14 +755,14 @@ class FluxpadSettings:
             with path.open("r") as f:
                 root_json = json.load(f)
         except Exception:
-            logging.error(f"Failed to load settings from {path}", exc_info=1)
+            logging.error(f"Failed to load settings from {path}", exc_info=True)
             return
 
         try:
             for json_object in root_json[self.KEY_SETTINGS_KEY]:
                 self.key_settings_list[json_object[MessageKey.KEY_ID]].data = json_object
         except Exception:
-            logging.error(f"Failed to parse settings from {path}", exc_info=1)
+            logging.error(f"Failed to parse settings from {path}", exc_info=True)
         
     
     def save_to_file(self, path: pathlib.Path):

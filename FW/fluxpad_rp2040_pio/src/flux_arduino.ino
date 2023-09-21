@@ -189,8 +189,8 @@ void loop() {
 
     if (!debug_mode) {
         if (curr_time_us - last_print_us > print_period_us) {
-            float loop_freq = (static_cast<float>(loop_count) / (static_cast<float>(print_period_us) / 1000000.0f));
-            Serial.printf("Loop count: %d\n", loop_freq);
+            float loop_freq = static_cast<float>(loop_count) / (static_cast<float>(print_period_us) / 1000000.0f);
+            Serial.printf("Loop freq: %f\n", loop_freq);
             loop_count = 0;
             last_print_us = curr_time_us;
         }
@@ -426,8 +426,7 @@ void fillDefaultStorageVars(StorageVars_t *_storage_vars) {
         keyLightingSettings = {
             .mode = LIGHTING_MODE_FADE,
             .brightness = DUTY_CYCLE_ON,
-            .fade_half_life_us = 20 * 1000,
-            .flash_duration_us = 1000 * 1000,
+            .duration_us = 20 * 1000,
         };
     };
 
@@ -620,18 +619,16 @@ void read_serial() {
 
             if (key_has_lighting(key_id)) {
                 if (request_msg.containsKey("l_m")) {
-                    keyLighting[key_id].settings.mode = LightingMode(request_msg["l_m"].as<unsigned int>());
+                    storage_vars.lightingSettings[key_id].mode = LightingMode(request_msg["l_m"].as<unsigned int>());
+                }
+                if (request_msg.containsKey("l_b")) {
+                    storage_vars.lightingSettings[key_id].brightness =
+                        static_cast<uint8_t>(request_msg["l_b"].as<unsigned int>());
                 }
                 if (request_msg.containsKey("l_d")) {
-                    keyLighting[key_id].settings.brightness =
-                        static_cast<uint8_t>(request_msg["l_d"].as<unsigned int>());
+                    storage_vars.lightingSettings[key_id].duration_us = request_msg["l_d"].as<unsigned int>();
                 }
-                if (request_msg.containsKey("l_h")) {
-                    keyLighting[key_id].settings.fade_half_life_us = request_msg["l_h"].as<unsigned int>();
-                }
-                if (request_msg.containsKey("l_f")) {
-                    keyLighting[key_id].settings.flash_duration_us = request_msg["l_f"].as<unsigned int>();
-                }
+                keyLighting[key_id].applySettings(storage_vars.lightingSettings[key_id]);
             }
         }
 
@@ -769,11 +766,8 @@ void read_serial() {
                 if (request_msg.containsKey("l_b")) {
                     response_msg["l_b"] = keyLighting[key_id].settings.brightness;
                 }
-                if (request_msg.containsKey("l_h")) {
-                    response_msg["l_h"] = keyLighting[key_id].settings.fade_half_life_us;
-                }
-                if (request_msg.containsKey("l_f")) {
-                    response_msg["l_f"] = keyLighting[key_id].settings.flash_duration_us;
+                if (request_msg.containsKey("l_d")) {
+                    response_msg["l_d"] = keyLighting[key_id].settings.duration_us;
                 }
             }
         }

@@ -98,7 +98,7 @@ class SliderSetting(ttk.Labelframe):
         self.entry.tk_focusNext().focus()
 
     def set_value(self, value):
-        print(f"hello {value}")
+        # print(f"Set slider value to {value}")
         self.double_var.set(value/self.resolution)
-        print(f"hello {self.double_var.get()}")
+        print(f"Set slider value to {self.double_var.get()}")
         self.on_slider_move(None)

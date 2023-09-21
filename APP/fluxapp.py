@@ -652,6 +652,47 @@ class SettingsFrame(ttk.Frame):
             self.settings_panel_list[4].to_settings_message(fluxpad_settings.key_settings_list[4])
 
 
+class KeyLighting(ttk.Labelframe):
+    def __init__(self, master=None):
+        super().__init__(master=master)
+
+        self.rowconfigure(1, weight=0)
+
+        self.columnconfigure(1, weight=1)
+        
+        self.mode_label = ttk.Label(self, text="Lighting Mode")
+        self.mode_label.grid(row=1, column=1)
+
+        self.mode_selector = ttk.Combobox(self, state="readonly", values=[mode.name for mode in fluxpad_interface.LightingMode])
+        self.mode_selector.grid(row=2, column=1)
+
+        # self.debounce_release = SliderSetting(self, text="Release Debouce", var_type=int, min_value=0, max_value=20, resolution=1, decimal_places=0, units="ms")
+        # self.debounce_release.grid(row=2, column=1, sticky="EW", padx=PADDING, pady=PADDING)
+
+        self.brightness_slider = SliderSetting(self, text="Brightness", var_type=float, min_value=0, max_value=100, resolution=0.5, decimal_places=1, units="percent")
+        self.brightness_slider.grid(row=3, column=1, sticky="EW", padx=PADDING, pady=PADDING)
+
+        self.speed_slider = SliderSetting(self, text="Speed", var_type=int, min_value=0, max_value=200, resolution=1, decimal_places=0, units="ms")
+        self.speed_slider.grid(row=4, column=1, sticky="EW", padx=PADDING, pady=PADDING)
+        # self.speed_slider = SliderSetting(self, var_type=int, min_value=0, max_value=255)
+
+        # Set default settings
+        self.brightness_slider.set_value(100)
+        self.speed_slider.set_value(20.0)
+        self.mode_selector.set(fluxpad_interface.LightingMode.Fade.name)
+
+
+    def load_from_settings_message(self, message: Union[fluxpad_interface.AnalogSettingsMessage, fluxpad_interface.DigitalSettingsMessage]):
+        self.speed_slider.set_value(message.flash_duration / 1000)
+        self.brightness_slider.set_value(message.brightness / 2.55)
+        self.mode_selector.set(fluxpad_interface.LightingMode(message.mode).name)
+
+    def to_settings_message(self, message: Union[fluxpad_interface.AnalogSettingsMessage, fluxpad_interface.DigitalSettingsMessage]):
+        message.brightness = int(round(self.brightness_slider.value * 2.55))
+        message.flash_duration = int(round(self.speed_slider.value * 1000))
+        message.mode = fluxpad_interface.LightingMode[self.mode_selector.get()].value
+
+
 class LightingFrame(ttk.Frame):
     def __init__(self, master=None):
         super().__init__(master=master)
@@ -663,11 +704,108 @@ class LightingFrame(ttk.Frame):
 
         self.key_select_frame = SelectKeySettingsFrame(self)
         self.key_select_frame.grid(row=1, column=1, sticky="NSEW")
+        self.key_select_frame.btn_list[0].bind("<Button-1>", lambda event: self.on_select_key(event, 0))
+        self.key_select_frame.btn_list[1].bind("<Button-1>", lambda event: self.on_select_key(event, 1))
+        self.key_select_frame.btn_list[2].bind("<Button-1>", lambda event: self.on_select_key(event, 2))
+        self.key_select_frame.btn_list[3].bind("<Button-1>", lambda event: self.on_select_key(event, 3))
+        self.key_select_frame.btn_list[4].bind("<Button-1>", lambda event: self.on_select_key(event, 4))
 
         self.label_wip = ttk.Label(self, text="Lighting Settings Coming Soon")
         self.label_wip.grid(row=2, column=1)
+        self.lighting_panel_list = [
+            KeyLighting(self),
+            KeyLighting(self),
+            KeyLighting(self),
+            KeyLighting(self),
+            KeyLighting(self),
+        ]
+
+        # Initialize State
+        self.selected_settings_panel = -1
+        self.on_select_key(None, 2)
 
 
+    def on_select_key(self, event: tk.Event, key_id: int):
+        """Callback for key selected"""
+        logging.debug(f"Selected key {key_id}")
+
+        # Don't do anything if we're already on the right panel
+        if self.selected_settings_panel == key_id:
+            return
+        
+        # Hide all settings frames
+        self.lighting_panel_list[self.selected_settings_panel].grid_forget()
+        self.key_select_frame.btn_list[self.selected_settings_panel].configure(style="TButton")
+
+        # Show selected settings frame
+        self.lighting_panel_list[key_id].grid(row=2, column=1, sticky="NSEW")
+        self.selected_settings_panel = key_id
+
+        # Change Title of settings frame according to circumstances
+        if key_id > 2:
+            if not self.key_select_frame.is_per_key_analog.get():
+                self.lighting_panel_list[key_id].configure(text="Analog Keys")
+            else:
+                self.lighting_panel_list[key_id].configure(text=f"Analog Key {key_id-1}")
+
+        else:
+            if not self.key_select_frame.is_per_key_digital.get():
+                self.lighting_panel_list[key_id].configure(text="Digital Keys")
+            else:
+                self.lighting_panel_list[key_id].configure(text=f"Digital Key {key_id+1}")
+
+
+        self.key_select_frame.btn_list[key_id].configure(style="Accent.TButton")
+    
+    def is_lighting_equal(self, setting1: Union[fluxpad_interface.AnalogSettingsMessage, fluxpad_interface.DigitalSettingsMessage], setting2: Union[fluxpad_interface.AnalogSettingsMessage, fluxpad_interface.DigitalSettingsMessage]):
+        """Check if two given analog settings messages have equal values"""
+        if (setting1.brightness == setting2.brightness and
+            setting1.flash_duration == setting2.flash_duration and
+            setting1.mode == setting2.mode):
+            return True
+        return False
+
+
+    def load_from_fluxpad_settings(self, fluxpad_settings: fluxpad_interface.FluxpadSettings):
+        """Load GUI components from given fluxpad settings"""
+        self.lighting_panel_list[0].load_from_settings_message(fluxpad_settings.key_settings_list[0])
+        self.lighting_panel_list[1].load_from_settings_message(fluxpad_settings.key_settings_list[1])
+        self.lighting_panel_list[2].load_from_settings_message(fluxpad_settings.key_settings_list[2])
+        self.lighting_panel_list[3].load_from_settings_message(fluxpad_settings.key_settings_list[3])
+        self.lighting_panel_list[4].load_from_settings_message(fluxpad_settings.key_settings_list[4])
+
+        # Check if all digital keys have the same settings and set per key digital checkbox accordingly
+        if (self.is_lighting_equal(fluxpad_settings.key_settings_list[0], fluxpad_settings.key_settings_list[1])):
+            self.key_select_frame.is_per_key_digital.set(False)
+        else:
+            self.key_select_frame.is_per_key_digital.set(True)
+        self.key_select_frame.on_per_key_digital_click() # force update of digital keys
+
+        # Check if all analog keys have the same settings and set per key analog checkbox accordingly
+        if (self.is_lighting_equal(fluxpad_settings.key_settings_list[2], fluxpad_settings.key_settings_list[3]) and self.is_lighting_equal(fluxpad_settings.key_settings_list[3], fluxpad_settings.key_settings_list[4])):
+            self.key_select_frame.is_per_key_analog.set(False)
+        else:
+            self.key_select_frame.is_per_key_analog.set(True)
+        self.key_select_frame.on_per_key_analog_click()  # force update of analog keys
+
+
+    def save_to_fluxpad_settings(self, fluxpad_settings: fluxpad_interface.FluxpadSettings):
+
+        self.lighting_panel_list[0].to_settings_message(fluxpad_settings.key_settings_list[0])
+        # If per key is not checked, use settings from key 0 for key 1
+        if not self.key_select_frame.is_per_key_digital.get():
+            self.lighting_panel_list[0].to_settings_message(fluxpad_settings.key_settings_list[1])
+        else:
+            self.lighting_panel_list[1].to_settings_message(fluxpad_settings.key_settings_list[1])
+
+        self.lighting_panel_list[2].to_settings_message(fluxpad_settings.key_settings_list[2])
+        # If per key is not checked, use settings from key 2 for key 3, 4 and 5
+        if not self.key_select_frame.is_per_key_analog.get():
+            self.lighting_panel_list[2].to_settings_message(fluxpad_settings.key_settings_list[3])
+            self.lighting_panel_list[2].to_settings_message(fluxpad_settings.key_settings_list[4])
+        else:
+            self.lighting_panel_list[3].to_settings_message(fluxpad_settings.key_settings_list[3])
+            self.lighting_panel_list[4].to_settings_message(fluxpad_settings.key_settings_list[4])
 
 class AnalogCalibrationFrame(ttk.Frame):
     BAR_WIDTH_PX = 20
@@ -1043,7 +1181,8 @@ class Application(ttk.Frame):
                         message.height_mm = 0
                         message.key_id = selected_analog_key + 2  # convert from analog key name (ie analog key 1 or 2) to key id
                         response = self.fluxpad.send_read_request(message)
-                        self.frame_utilities.calibration_labelframe.analog_cal_frame_list[selected_analog_key].update_height(response.height_mm - 2)
+                        if self.on_calibration_tab:  # only do tkinter update if we're still on calibrate window, otherwise risk race condition
+                            self.frame_utilities.calibration_labelframe.analog_cal_frame_list[selected_analog_key].update_height(response.height_mm - 2)
                     except fluxpad_interface.serial.SerialException:
                         logging.info(f"Serial exception {self.fluxpad.port.name}")
                     except Exception:
@@ -1087,11 +1226,13 @@ class Application(ttk.Frame):
         """Update the GUI to match the current self.fluxpad_settings"""
         self.frame_keymap.load_from_settings(self.fluxpad_settings)
         self.frame_settings.load_from_fluxpad_settings(self.fluxpad_settings)
+        self.frame_lighting.load_from_fluxpad_settings(self.fluxpad_settings)
 
     def _save_to_settings(self):
         """Take all settings currently set in the GUI and load them to the self.fluxpad_settings object"""
         self.frame_keymap.save_to_settings(self.fluxpad_settings)
         self.frame_settings.save_to_fluxpad_settings(self.fluxpad_settings)
+        self.frame_lighting.save_to_fluxpad_settings(self.fluxpad_settings)
 
     def _fix_adc_samples(self):
         """Sets the ADC Samples to 22"""
