@@ -1,9 +1,6 @@
 ## Project Updates
 
-|  New website: [fluxpad.xyz](fluxpad.xyz) Parts of it are still under construction and have placeholder images. |
-|---|
-
-| Low stock left in [Tindie store!](https://www.tindie.com/products/kappachino/fluxpad-analog-keypad/)!|
+|  Second version on sale at [fluxpad.xyz](fluxpad.xyz)! |
 |---|
 
 # FLUXPAD Analog Keypad
