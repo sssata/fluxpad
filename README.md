@@ -1,6 +1,6 @@
 ## Project Updates
 
-|  Second version on sale at [fluxpad.xyz](fluxpad.xyz)! |
+|  Second version on sale at [fluxpad.xyz](https://fluxpad.xyz/)! |
 |---|
 
 # FLUXPAD Analog Keypad
