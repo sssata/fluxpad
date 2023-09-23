@@ -57,7 +57,7 @@ class MessageKey:
     LIGHTING_FADE_BRIGHTNESS = "l_b"
     LIGHTING_FLASH_DURATION = "l_d"
     RGB_MODE = "rgb_m"
-    RGB_BRIHTNESS = "rgb_b"
+    RGB_BRIGHTNESS = "rgb_b"
     RGB_SPEED = "rgb_s"
     RGB_C1 = "rgb_c1"
     RGB_C2 = "rgb_c2"
@@ -436,48 +436,67 @@ class AnalogCalibrationMessage(BaseMessage):
             pass
 
 
-class KeyLightingMessage(BaseMessage):
+class RGBSettingsMessage(BaseMessage):
     """KeyLightingMessage containing all info about a key's
     per-key lighting settings"""
-    
-    # KEY ID
-    @property
-    def key_id(self):
-        return self.data[MessageKey.KEY_ID]
 
-    @key_id.setter
-    def key_id(self, key_id: int):
-        self._assert_uint8(key_id)
-        self.data[MessageKey.KEY_ID] = key_id
-
-    # LIGHTING MODE
+    # RGB MODE
     @property
     def mode(self):
-        return int(self.data[MessageKey.LIGHTING_MODE])
+        return int(self.data[MessageKey.RGB_MODE])
 
     @mode.setter
     def mode(self, mode: int):
         self._assert_uint8(mode)
-        self.data[MessageKey.LIGHTING_MODE] = mode
+        self.data[MessageKey.RGB_MODE] = mode
 
-    # LIGHTING BRIGHTNESS
+    # RGB Color 1
+    @property
+    def color1(self):
+        return int(self.data[MessageKey.RGB_C1])
+
+    @color1.setter
+    def color1(self, color: int):
+        self._assert_uint8(color)
+        self.data[MessageKey.RGB_C1] = color
+
+    # RGB Color 2
+    @property
+    def color2(self):
+        return int(self.data[MessageKey.RGB_C2])
+
+    @color2.setter
+    def color2(self, color: int):
+        self._assert_uint8(color)
+        self.data[MessageKey.RGB_C2] = color
+
+    # RGB Color 3
+    @property
+    def color3(self):
+        return int(self.data[MessageKey.RGB_C3])
+
+    @color3.setter
+    def color3(self, color: int):
+        self._assert_uint8(color)
+        self.data[MessageKey.RGB_C3] = color
+
+    # RGB BRIGHTNESS
     @property
     def brightness(self):
-        return int(self.data[MessageKey.LIGHTING_FADE_BRIGHTNESS])
+        return int(self.data[MessageKey.RGB_BRIGHTNESS])
 
     @brightness.setter
     def brightness(self, brightness: int):
-        self._assert_uint8(brightness)
-        self.data[MessageKey.LIGHTING_FADE_BRIGHTNESS] = brightness
+        self.data[MessageKey.RGB_BRIGHTNESS] = brightness
 
-    # LIGHTING FLASH DURATION
+    # RGB SPEED
     @property
-    def flash_duration(self):
-        return int(self.data[MessageKey.LIGHTING_FLASH_DURATION])
-
-    @flash_duration.setter
-    def flash_duration(self, flash_duration_us: int):
-        self.data[MessageKey.LIGHTING_FLASH_DURATION] = flash_duration_us
+    def speed(self):
+        return int(self.data[MessageKey.RGB_SPEED])
+    
+    @speed.setter
+    def speed(self, speed: int):
+        self.data[MessageKey.RGB_SPEED] = speed
     
 
 class AnalogReadMessage(BaseMessage):

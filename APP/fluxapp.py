@@ -665,21 +665,52 @@ class KeyLighting(ttk.Labelframe):
 
         self.mode_selector = ttk.Combobox(self, state="readonly", values=[mode.name for mode in fluxpad_interface.LightingMode])
         self.mode_selector.grid(row=2, column=1)
-
-        # self.debounce_release = SliderSetting(self, text="Release Debouce", var_type=int, min_value=0, max_value=20, resolution=1, decimal_places=0, units="ms")
-        # self.debounce_release.grid(row=2, column=1, sticky="EW", padx=PADDING, pady=PADDING)
+        self.mode_selector.bind("<<ComboboxSelected>>", self.on_select_mode)
 
         self.brightness_slider = SliderSetting(self, text="Brightness", var_type=float, min_value=0, max_value=100, resolution=0.5, decimal_places=1, units="percent")
         self.brightness_slider.grid(row=3, column=1, sticky="EW", padx=PADDING, pady=PADDING)
 
         self.speed_slider = SliderSetting(self, text="Speed", var_type=int, min_value=0, max_value=200, resolution=1, decimal_places=0, units="ms")
         self.speed_slider.grid(row=4, column=1, sticky="EW", padx=PADDING, pady=PADDING)
-        # self.speed_slider = SliderSetting(self, var_type=int, min_value=0, max_value=255)
+
 
         # Set default settings
         self.brightness_slider.set_value(100)
         self.speed_slider.set_value(20.0)
         self.mode_selector.set(fluxpad_interface.LightingMode.Fade.name)
+
+    def on_select_mode(self, event: tk.Event):
+        selected_mode_str = self.mode_selector.get()
+
+        if selected_mode_str == fluxpad_interface.LightingMode.Off.name:
+            # Handle Off mode
+            self.brightness_slider.slider.state(["disabled"])
+            self.speed_slider.slider.state(["disabled"])
+            self.speed_slider.configure(text="Speed")
+
+        elif selected_mode_str == fluxpad_interface.LightingMode.Static.name:
+            # Handle Static mode
+            self.brightness_slider.slider.state(["!disabled"])
+            self.speed_slider.slider.state(["disabled"])
+            self.speed_slider.configure(text="Speed")
+
+        elif selected_mode_str == fluxpad_interface.LightingMode.Fade.name:
+            # Handle Fade mode
+            self.brightness_slider.slider.state(["!disabled"])
+            self.speed_slider.slider.state(["!disabled"])
+            self.speed_slider.configure(text="Fade Half Life")
+
+        elif selected_mode_str == fluxpad_interface.LightingMode.Flash.name:
+            # Handle Flash mode
+            self.brightness_slider.slider.state(["!disabled"])
+            self.speed_slider.slider.state(["!disabled"])
+            self.speed_slider.configure(text="Flash Time")
+
+        else:
+            # Handle any other case (optional)
+            logging.error("Unknown lighting mode")
+
+        self.mode_selector.selection_clear()
 
 
     def load_from_settings_message(self, message: Union[fluxpad_interface.AnalogSettingsMessage, fluxpad_interface.DigitalSettingsMessage]):
@@ -765,7 +796,6 @@ class LightingFrame(ttk.Frame):
             return True
         return False
 
-
     def load_from_fluxpad_settings(self, fluxpad_settings: fluxpad_interface.FluxpadSettings):
         """Load GUI components from given fluxpad settings"""
         self.lighting_panel_list[0].load_from_settings_message(fluxpad_settings.key_settings_list[0])
@@ -806,6 +836,18 @@ class LightingFrame(ttk.Frame):
         else:
             self.lighting_panel_list[3].to_settings_message(fluxpad_settings.key_settings_list[3])
             self.lighting_panel_list[4].to_settings_message(fluxpad_settings.key_settings_list[4])
+
+
+class RGBFrame(ttk.Frame):
+    def __init__(self, master=None):
+        super().__init__(master=master)
+
+        self.rowconfigure(1, weight=0)
+        self.rowconfigure(2, weight=1)
+
+        self.columnconfigure(1, weight=1)
+
+
 
 class AnalogCalibrationFrame(ttk.Frame):
     BAR_WIDTH_PX = 20
