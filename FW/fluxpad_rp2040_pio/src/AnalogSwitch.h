@@ -30,29 +30,32 @@ typedef int64_t q53_10_t;
 #define LUT_BITS 4
 const q22_10_t adc_to_dist_lut[] = {
     FLOAT_TO_Q22_10(0.0f), // 0
-    FLOAT_TO_Q22_10(0.8f), // 256
-    FLOAT_TO_Q22_10(2.1f), // 512
-    FLOAT_TO_Q22_10(2.54f), // 768
-    FLOAT_TO_Q22_10(2.71f),  // 1024
-    FLOAT_TO_Q22_10(2.89),  // 1280
-    FLOAT_TO_Q22_10(3.12f),  // 1536
-    FLOAT_TO_Q22_10(3.4f),  // 1792
-    FLOAT_TO_Q22_10(3.75f), // 2048
-    FLOAT_TO_Q22_10(4.2f), // 2304
-    FLOAT_TO_Q22_10(4.9f), // 2560
-    FLOAT_TO_Q22_10(6.0f), // 2816
-    FLOAT_TO_Q22_10(8.1f), // 3072
-    FLOAT_TO_Q22_10(8.6f), // 3328
+    FLOAT_TO_Q22_10(0.6f), // 256
+    FLOAT_TO_Q22_10(1.8f), // 512
+    FLOAT_TO_Q22_10(2.42f), // 768
+    FLOAT_TO_Q22_10(2.65f),  // 1024
+    FLOAT_TO_Q22_10(2.79),  // 1280
+    FLOAT_TO_Q22_10(2.95f),  // 1536
+    FLOAT_TO_Q22_10(3.15f),  // 1792
+    FLOAT_TO_Q22_10(3.4f), // 2048
+    FLOAT_TO_Q22_10(3.71f), // 2304
+    FLOAT_TO_Q22_10(4.05f), // 2560
+    FLOAT_TO_Q22_10(4.55f), // 2816
+    FLOAT_TO_Q22_10(5.31f), // 3072
+    FLOAT_TO_Q22_10(6.55f), // 3328
     FLOAT_TO_Q22_10(9.0f), // 3584
     FLOAT_TO_Q22_10(9.5f), // 3840
     FLOAT_TO_Q22_10(10.0f), // 4096
 };
 
+const q22_10_t adc_clamp_min = INT_TO_Q22_10(0);
+const q22_10_t adc_clamp_max = INT_TO_Q22_10(1<<ADC_BITS);
+
 const q22_10_t reference_up_mm = FLOAT_TO_Q22_10(6.0f);
 const q22_10_t reference_down_mm = FLOAT_TO_Q22_10(2.0f);
 
-const q22_10_t reference_up_adc = INT_TO_Q22_10(2816);
-const q22_10_t reference_down_adc = INT_TO_Q22_10(492);
+const q22_10_t reference_up_adc = INT_TO_Q22_10(3214);
+const q22_10_t reference_down_adc = INT_TO_Q22_10(594);
 const size_t ADC_SAMPLES_N = 110;
 
 /**
@@ -254,7 +257,10 @@ class AnalogSwitch {
 
     void setCurrentReading(uint32_t reading_counts) { INT_TO_Q22_10(reading_counts); }
 
-    q22_10_t adcCountsToDistanceMM(q22_10_t counts) { return lut(counts); }
+    q22_10_t adcCountsToDistanceMM(q22_10_t counts) {
+        q22_10_t clamped_counts = max(min(counts, adc_clamp_max), adc_clamp_min);
+        return lut(clamped_counts);
+    }
 
   private:
     void resetMinMaxDistance() {
