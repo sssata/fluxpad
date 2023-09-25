@@ -33,6 +33,12 @@ class LightingMode(enum.IntEnum):
     Flash = 3
 
 
+class RGBMode(enum.IntEnum):
+    Off = 0
+    Static = 1
+    Rainbow = 2
+
+
 class MessageKey:
     COMMAND = "cmd"
     TOKEN = "tkn"
@@ -263,7 +269,7 @@ class AnalogSettingsMessage(BaseMessage):
 
     @key_code.setter
     def key_code(self, key_code: int):
-        self._assert_uint8(key_code)
+        self._assert_uint16(key_code)
         self.data[MessageKey.KEY_CODE] = key_code
 
     @property
@@ -457,7 +463,6 @@ class RGBSettingsMessage(BaseMessage):
 
     @color1.setter
     def color1(self, color: int):
-        self._assert_uint8(color)
         self.data[MessageKey.RGB_C1] = color
 
     # RGB Color 2
@@ -467,7 +472,6 @@ class RGBSettingsMessage(BaseMessage):
 
     @color2.setter
     def color2(self, color: int):
-        self._assert_uint8(color)
         self.data[MessageKey.RGB_C2] = color
 
     # RGB Color 3
@@ -477,7 +481,6 @@ class RGBSettingsMessage(BaseMessage):
 
     @color3.setter
     def color3(self, color: int):
-        self._assert_uint8(color)
         self.data[MessageKey.RGB_C3] = color
 
     # RGB BRIGHTNESS
@@ -535,7 +538,7 @@ class AnalogReadMessage(BaseMessage):
 #     """Composite class of all settings types"""
 #     pass
 
-AnyMessage = TypeVar("AnyMessage", DigitalSettingsMessage, AnalogSettingsMessage, EncoderSettingsMessage, AnalogCalibrationMessage, AnalogReadMessage, Union[DigitalSettingsMessage, AnalogSettingsMessage, EncoderSettingsMessage, AnalogCalibrationMessage, AnalogReadMessage])
+AnyMessage = TypeVar("AnyMessage", DigitalSettingsMessage, AnalogSettingsMessage, EncoderSettingsMessage, AnalogCalibrationMessage, AnalogReadMessage, RGBSettingsMessage, Union[DigitalSettingsMessage, AnalogSettingsMessage, EncoderSettingsMessage, AnalogCalibrationMessage, AnalogReadMessage, RGBSettingsMessage])
 
 
 class Fluxpad:
@@ -714,6 +717,7 @@ class FluxpadListener():
 class FluxpadSettings:
 
     KEY_SETTINGS_KEY = "key_settings"
+    RGB_SETTINGS_KEY = "rgb_settings"
     
     def __init__(self) -> None:
         self.key_settings_list: List[Union[EncoderSettingsMessage, AnalogSettingsMessage, DigitalSettingsMessage]] = [
@@ -725,6 +729,7 @@ class FluxpadSettings:
             EncoderSettingsMessage(),
             EncoderSettingsMessage(),
         ]
+        self.rgb_settings = RGBSettingsMessage()
 
     def _set_key_ids(self):
         key_id = 0
@@ -753,6 +758,18 @@ class FluxpadSettings:
             else:
                 key_settings.data = response.data.copy()
 
+        try:
+            # Read RGB Settings
+            self.rgb_settings.set_zeros()
+            response = fluxpad.send_read_request(self.rgb_settings)
+
+            # Check all requested keys exist
+            assert set(response.data.keys()) == set(self.rgb_settings.data.keys()), f"Difference: {set(response.data.keys()).symmetric_difference(set(self.rgb_settings.data.keys()))}"
+            logging.debug("Got RGB settings")
+        except Exception:
+            logging.error(f"Failed to get RGB settings {self.rgb_settings.data}", exc_info=True)
+        else:
+            self.rgb_settings.data = response.data.copy()
 
     def save_to_fluxpad(self, fluxpad: Fluxpad, include_calibration: bool = False):
         """Save all settings to the given connected fluxpad"""
@@ -767,6 +784,13 @@ class FluxpadSettings:
                 logging.debug(f"Wrote settings for Key ID {key_settings.key_id}")
             except Exception:
                 logging.error(f"Failed to write settings for Key ID {key_settings.key_id} with message {key_settings.data}", exc_info=True)
+
+        rgb_settings = self.rgb_settings
+        try:
+            response = fluxpad.send_write_request(rgb_settings)
+            logging.debug(f"Wrote rgb settings")
+        except Exception:
+            logging.error(f"Failed to write rgb settings with message {rgb_settings.data}", exc_info=True)
         
     def load_from_file(self, path: pathlib.Path):
         """Load all settings from the given file"""
@@ -781,8 +805,12 @@ class FluxpadSettings:
             for json_object in root_json[self.KEY_SETTINGS_KEY]:
                 self.key_settings_list[json_object[MessageKey.KEY_ID]].data = json_object
         except Exception:
-            logging.error(f"Failed to parse settings from {path}", exc_info=True)
-        
+            logging.error(f"Failed to parse key settings from {path}", exc_info=True)
+
+        try:
+            self.rgb_settings.data = root_json[self.RGB_SETTINGS_KEY]
+        except Exception:
+            logging.error(f"Failed to parse rgb settings from {path}", exc_info=True)
     
     def save_to_file(self, path: pathlib.Path):
         """Save all settings to the given file"""
@@ -795,7 +823,8 @@ class FluxpadSettings:
 
         # Construct master json to store all settings
         root_dict = dict()
-        root_dict[self.KEY_SETTINGS_KEY] = [key_settings.data for key_settings in self.key_settings_list]\
+        root_dict[self.KEY_SETTINGS_KEY] = [key_settings.data for key_settings in self.key_settings_list]
+        root_dict[self.RGB_SETTINGS_KEY] = self.rgb_settings.data
         
         with path.open("w") as f:
             json.dump(root_dict, f, indent=4)
