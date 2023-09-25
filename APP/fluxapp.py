@@ -211,12 +211,12 @@ class KeymapFrame(ttk.Frame):
         # Create key map
         self.lf_key1 = KeyMap(self, text="Digital Key 1")
         self.lf_key1.grid(row=1, column=2, sticky="NSEW")
-        self.lf_key1.set_scancode(ScanCodeList.KEY_0x35.value)
+        self.lf_key1.set_scancode(ScanCodeList.KEY_A.value)
         self.lf_key1.btn_key.bind("<Button-1>", lambda event: self.on_press_keymap(self.lf_key1, event))
 
         self.lf_key2 = KeyMap(self, text="Digital Key 2")
         self.lf_key2.grid(row=1, column=3, sticky="NSEW")
-        self.lf_key2.set_scancode(ScanCodeList.KEY_C.value)
+        self.lf_key2.set_scancode(ScanCodeList.KEY_S.value)
         self.lf_key2.btn_key.bind("<Button-1>", lambda event: self.on_press_keymap(self.lf_key2, event))
 
         self.lf_key3 = KeyMap(self, text="Analog Key 1")
@@ -333,7 +333,7 @@ class AnalogSettingsPanel(ttk.Labelframe):
         # Set default values
         self.press_debounce.set_value(1)
         self.release_debounce.set_value(6)
-        self.press_hysteresis.set_value(0.1)
+        self.press_hysteresis.set_value(0.2)
         self.release_hysteresis.set_value(0.4)
         self.upper_deadzone.set_value(0.3)
         self.release_point.set_value(3.7)
@@ -1141,7 +1141,7 @@ class CalibrationTopLevel(tk.Toplevel):
         # Instructions
         self.instructions = tk.Canvas(self, width=self.INSTRUCTION_WIDTH, height=self.INSTRUCTION_HEIGHT, highlightthickness=0, borderwidth=0)
         try:
-            image_name = f"cal_key{self.key_id-1}_{'up' if self.is_up else 'down'}.png"
+            image_name = f"cal_key{self.key_id-1}_{'up' if self.is_up else 'down'}_2.png"
             self.instruction_image = ImageTk.PhotoImage(Image.open(IMAGE_DIR / image_name))
             self.instructions.create_image(0,0,image=self.instruction_image, anchor=tk.NW)
         except Exception:
@@ -1378,7 +1378,7 @@ class Application(ttk.Frame):
                 while True:
                     
                     if self.fluxpad is None or not self.on_calibration_tab:
-                        logging.debug("Stopping")
+                        logging.info("Stopping")
                         try:
                             if self.fluxpad is not None and self.fluxpad.port.is_open:
                                 self.fluxpad.port.close()
@@ -1417,7 +1417,7 @@ class Application(ttk.Frame):
         self.on_calibration_tab = False
         while self.fluxpad.port.is_open or self.worker_busy:
             self.on_calibration_tab = False
-            logging.debug("Waiting for port to close")
+            logging.debug(f"Waiting for port to close, isopen {self.fluxpad.port.is_open}, busy {self.worker_busy}")
             time.sleep(0.1)
         newWindow = CalibrationTopLevel(self, is_up, self.fluxpad, key_id)
         newWindow.wait_window()
