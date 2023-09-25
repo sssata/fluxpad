@@ -59,7 +59,6 @@ class RGBLeds {
     }
 
     void new_mode() {
-        Serial.printf("newmode");
         switch (settings.mode) {
         case RGBMode::OFF:
             turn_off();
@@ -82,7 +81,6 @@ class RGBLeds {
     }
 
     void static_mode() {
-        Serial.print("static");
         leds[0].setColorCode(settings.color_1);
         leds[1].setColorCode(settings.color_2);
         leds[2].setColorCode(settings.color_3);

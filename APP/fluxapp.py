@@ -1,5 +1,6 @@
 # Built-in
 import tkinter as tk
+from tkinter import colorchooser
 from tkinter import ttk
 from typing import Union, Optional, Callable, List, Type
 from collections import deque
@@ -106,14 +107,15 @@ class EncoderMap(ttk.Labelframe):
         # self.rowconfigure(2,weight=1)
 
         self.cw_keymap = KeyMap(self, text="↻")
-        # self.cw_keymap.place(x=0, y=0, width=100, height=100)
-        self.cw_keymap.pack()
+        self.cw_keymap.place(x=2, y=0, width=154, height=70)
+        # self.cw_keymap.pack(fill="both", padx=)
+        # self.
         
         # self.cw_keymap.grid(row=1,column=1, sticky="NSEW", padx=PADDING, pady=PADDING)
         self.ccw_keymap = KeyMap(self, text="↺")
         # self.ccw_keymap.btn_key.configure(padding=0)
-        self.ccw_keymap.pack()
-        # self.ccw_keymap.place(x=0, y=100, width=100, height=100)
+        self.ccw_keymap.pack(fill="both")
+        self.ccw_keymap.place(x=2, y=75, width=154, height=70)
         # self.ccw_keymap.grid(row=2,column=1, sticky="NSEW", padx=PADDING, pady=PADDING)
 
 
@@ -312,19 +314,20 @@ class AnalogSettingsPanel(ttk.Labelframe):
         self.is_rapid_trigger = tk.BooleanVar(self)
         self.checkbox_rapid_trigger = ttk.Checkbutton(self, text="Rapid Trigger", variable=self.is_rapid_trigger, command=self.on_rapid_trigger_change)
         # self.checkbox_rapid_trigger.state(['!alternate'])  # Start unchecked
-        self.is_rapid_trigger.set(False)  # Start unchecked
+        self.is_rapid_trigger.set(True)  # Start unchecked
         self.checkbox_rapid_trigger.grid(row=1, column=1, sticky="W", padx=PADDING, pady=6)
         self.press_hysteresis = SliderSetting(self, text="Rapid Trigger Downstroke", var_type=float, min_value=0.05, max_value=1, resolution=0.05, units="mm")
         self.press_hysteresis.grid(row=2, column=1, sticky="EW", padx=PADDING, pady=PADDING)
         self.release_hysteresis = SliderSetting(self, text=" Rapid Trigger Upstroke", var_type=float, min_value=0.05, max_value=1, resolution=0.05, units="mm")
         self.release_hysteresis.grid(row=3, column=1, sticky="EW", padx=PADDING, pady=PADDING)
-        self.release_point = SliderSetting(self, text="Rapid Trigger Range Upper Limit", var_type=float, min_value=2, max_value=4, resolution=0.05, units="mm")
-        self.release_point.grid(row=4, column=1, sticky="EW", padx=PADDING, pady=PADDING)
-        self.actuation_point = SliderSetting(self, text="Rapid Trigger Range Lower Limit", var_type=float, min_value=0, max_value=2, resolution=0.05, units="mm")
+        self.upper_deadzone = SliderSetting(self, text="Rapid Trigger Upper Deadzone", var_type=float, min_value=0.0, max_value=2.0, resolution=0.05, units="mm")
+        self.upper_deadzone.grid(row=4, column=1, sticky="EW", padx=PADDING, pady=PADDING)
+        self.release_point = SliderSetting(self, text="Rapid Trigger Upper Deadzone", var_type=float, min_value=2.0, max_value=4.0, resolution=0.05, units="mm")
+        self.actuation_point = SliderSetting(self, text="Rapid Trigger Lower Deadzone", var_type=float, min_value=0.0, max_value=2.0, resolution=0.05, units="mm")
         self.actuation_point.grid(row=5, column=1, sticky="EW", padx=PADDING, pady=PADDING)
-        self.press_debounce = SliderSetting(self, text="Rapid Trigger Press Debounce", var_type=int, min_value=0, max_value=20, resolution=1, decimal_places=0, units="ms")
+        self.press_debounce = SliderSetting(self, text="Press Debounce", var_type=int, min_value=0, max_value=20, resolution=1, decimal_places=0, units="ms")
         self.press_debounce.grid(row=6, column=1, sticky="EW", padx=PADDING, pady=PADDING)
-        self.release_debounce = SliderSetting(self, text="Rapid Trigger Release Debounce", var_type=int, min_value=0, max_value=20, resolution=1, decimal_places=0, units="ms")
+        self.release_debounce = SliderSetting(self, text="Release Debounce", var_type=int, min_value=0, max_value=20, resolution=1, decimal_places=0, units="ms")
         self.release_debounce.grid(row=7, column=1, sticky="EW", padx=PADDING, pady=PADDING)
 
         # Set default values
@@ -332,6 +335,7 @@ class AnalogSettingsPanel(ttk.Labelframe):
         self.release_debounce.set_value(6)
         self.press_hysteresis.set_value(0.1)
         self.release_hysteresis.set_value(0.4)
+        self.upper_deadzone.set_value(0.3)
         self.release_point.set_value(3.7)
         self.actuation_point.set_value(0.3)
         self.on_rapid_trigger_change()
@@ -340,14 +344,44 @@ class AnalogSettingsPanel(ttk.Labelframe):
     def on_rapid_trigger_change(self):
 
         if self.is_rapid_trigger.get():
-            self.release_point.configure(text="Rapid Trigger Range Upper Limit")
-            self.actuation_point.configure(text="Rapid Trigger Range Lower Limit")
+            self.release_point.configure(text="Rapid Trigger Upper Deadzone")
+            if self.release_point.min_value == 2:
+                self.release_point.grid_forget()
+                self.upper_deadzone.grid(row=4, column=1, sticky="EW", padx=PADDING, pady=PADDING)
+                new_height = 4 - self.release_point.value
+            else:
+                new_height = self.upper_deadzone.value
+            # self.release_point.grid_forget()
+            # del self.release_point
+            # self.release_point = SliderSetting(self, text="Rapid Trigger Upper Deadzone", var_type=float, min_value=0, max_value=2, resolution=0.05, units="mm")
+            self.release_point.min_value = 0.0
+            # self.release_point.max_value = 2.0
+            self.upper_deadzone.set_value(new_height)
+            # self.upper_deadzone.on_slider_move(0)
+            # self.release_point.grid(row=4, column=1, sticky="EW", padx=PADDING, pady=PADDING)
+            self.actuation_point.configure(text="Rapid Trigger Lower Deadzone")
             self.release_hysteresis.slider.state(["!disabled"])
             self.press_hysteresis.slider.state(["!disabled"])
 
         else:
-            self.release_point.configure(text="Release Point")
-            self.actuation_point.configure(text="Actuation Point")
+            self.release_point.configure(text="Release Height")
+            if self.release_point.min_value == 2:
+                new_height = self.release_point.value
+            else:
+                self.upper_deadzone.grid_forget()
+                self.release_point.grid(row=4, column=1, sticky="EW", padx=PADDING, pady=PADDING)
+                new_height = 4 - self.upper_deadzone.value
+            # self.release_point.grid_forget()
+            # del self.release_point
+            # self.release_point = SliderSetting(self, text="Release Point", var_type=float, min_value=2, max_value=4, resolution=0.05, units="mm")
+            self.release_point.min_value = 2.0
+            # self.release_point.max_value = 4.0
+            self.release_point.grid(row=4, column=1, sticky="EW", padx=PADDING, pady=PADDING)
+            self.release_point.set_value(new_height)
+            self.release_point.on_slider_move(0)
+            # self.release_point.grid(row=4, column=1, sticky="EW", padx=PADDING, pady=PADDING)
+            # self.release_point.configure(text="Release Point")
+            self.actuation_point.configure(text="Actuation Height")
             self.release_hysteresis.slider.state(["disabled"])
             self.press_hysteresis.slider.state(["disabled"])
 
@@ -359,7 +393,11 @@ class AnalogSettingsPanel(ttk.Labelframe):
         self.press_hysteresis.set_value(message.actuate_hysteresis)
         self.release_hysteresis.set_value(message.release_hysteresis)
         self.actuation_point.set_value(message.actuate_point - 2)  # Bottom out is 2mm in settings, while it's 0mm in GUI
-        self.release_point.set_value(message.release_point - 2)
+
+        if self.is_rapid_trigger.get():
+            self.upper_deadzone.set_value(6 - message.release_point)
+        else:
+            self.release_point.set_value(message.release_point - 2)
         self.on_rapid_trigger_change()
 
     def to_settings_message(self, message: fluxpad_interface.AnalogSettingsMessage):
@@ -368,8 +406,11 @@ class AnalogSettingsPanel(ttk.Labelframe):
         message.release_debounce = self.release_debounce.value
         message.actuate_hysteresis = self.press_hysteresis.value
         message.release_hysteresis = self.release_hysteresis.value
-        message.actuate_point = self.actuation_point.value + 2  # Bottom out is 2mm in settings, while it's 0mm in GUI
-        message.release_point = self.release_point.value + 2
+        message.actuate_point = 2 + self.actuation_point.value  # Bottom out is 2mm in settings, while it's 0mm in GUI
+        if message.rapid_trigger:
+            message.release_point = 6 - self.upper_deadzone.value
+        else:
+            message.release_point = 2 + self.release_point.value
 
 class DigitalSettingsPanel(ttk.Labelframe):
 
@@ -838,15 +879,147 @@ class LightingFrame(ttk.Frame):
             self.lighting_panel_list[4].to_settings_message(fluxpad_settings.key_settings_list[4])
 
 
+class ColorPicker(ttk.Labelframe):
+    
+    def __init__(self, master=None, text=None, led_number=0):
+        super().__init__(master=master, text=text)
+        self.columnconfigure(0, weight=0)
+        self.columnconfigure(1, weight=0)
+        self.rowconfigure(0, weight=0)
+        self.rowconfigure(1, weight=0)
+
+        self.color: int = 0xFF
+        self.led_number = led_number
+        self.style = ttk.Style(self)
+        # self.style.configure(self.get_button_style_string(), foreground=self.get_color_hex_string(), background=self.get_color_hex_string())
+        # self.style.map(self.get_button_style_string(), background=[('active', self.get_color_hex_string())])
+
+        self.style.map(self.get_button_style_string(),
+            background = [("active", "red"), ("!active", "blue")],
+            foreground = [("active", "yellow"), ("!active", "blue")])
+        self.select_button = ttk.Button(self, text="Choose Color", command=self.on_choose_color)
+        self.select_button.grid(row=1, column=1, padx=4, pady=4)
+        self.color_box = ttk.Button(self, width=2, text=" ", style=self.get_button_style_string(), state="disabled")
+        self.color_box.grid(row=1, column=2, padx=0, pady=2)
+
+    def get_color(self):
+        return self.color
+
+    def set_color(self, new_color: int):
+        self.color = new_color
+        self.style.map(self.get_button_style_string(),
+            background = [("active", "red"), ("!active", self.get_color_hex_string())],
+            foreground = [("active", "yellow"), ("!active", self.get_color_hex_string())])
+        logging.info(self.get_button_style_string())
+        # self.color_box.configure(style=self.get_button_style_string())
+
+    def on_choose_color(self):
+        rgb_tuple,_ = colorchooser.askcolor(initialcolor=f"#{self.color:06X}")
+        if rgb_tuple is None:
+            logging.info("No color selected")
+            return
+        
+        logging.info(f"Selected R: {rgb_tuple[0]:X}, G: {rgb_tuple[1]:X}, B: {rgb_tuple[2]:X}")
+        new_color = (rgb_tuple[0] << 16) + (rgb_tuple[1] << 8) + rgb_tuple[2]
+        logging.info(f"Hex: {new_color:X}")
+        self.set_color(new_color)
+
+    def get_color_hex_string(self):
+        return f"#{self.color:06X}"
+    
+    def get_button_style_string(self):
+        return f"LEDColor{self.led_number}.TLabel"
+
+
 class RGBFrame(ttk.Frame):
     def __init__(self, master=None):
         super().__init__(master=master)
 
-        self.rowconfigure(1, weight=0)
-        self.rowconfigure(2, weight=1)
+        # self.rowconfigure(1, weight=1)
+        # self.rowconfigure(2, weight=1)
+        # self.rowconfigure(3, weight=1)
+        # self.rowconfigure(4, weight=1)
+        # self.rowconfigure(5, weight=1)
+        # self.rowconfigure(6, weight=1)
 
         self.columnconfigure(1, weight=1)
 
+
+        self.mode_label = ttk.Label(self, text="RGB Mode")
+        self.mode_label.grid(row=1, column=1, sticky="W", padx=PADDING, pady=PADDING)
+
+        self.mode_selector = ttk.Combobox(self, state="readonly", values=[mode.name for mode in fluxpad_interface.RGBMode])
+        self.mode_selector.grid(row=2, column=1, sticky="W", padx=PADDING, pady=PADDING)
+        self.mode_selector.bind("<<ComboboxSelected>>", self.on_select_mode)
+
+        self.brightness_slider = SliderSetting(self, text="Brightness", var_type=float, min_value=0, max_value=100, resolution=0.5, decimal_places=1, units="percent")
+        self.brightness_slider.grid(row=3, column=1, sticky="EW", padx=PADDING, pady=PADDING)
+
+        self.speed_slider = SliderSetting(self, text="Rainbow Speed", var_type=int, min_value=5, max_value=60, resolution=1, decimal_places=0, units="bpm")
+        self.speed_slider.grid(row=4, column=1, sticky="EW", padx=PADDING, pady=PADDING)
+
+        self.color_choosers = [
+            ColorPicker(self, text="LED 1 Color", led_number=0),
+            ColorPicker(self, text="LED 2 Color", led_number=1),
+            ColorPicker(self, text="LED 3 Color", led_number=2),
+        ]
+
+        # self.c1_label = ttk.Label(self, text="LED 1 Color")
+        # self.c1_label.grid(row=5, column=1, sticky="W", padx=PADDING, pady=PADDING)
+        # self.c1_chooser = ttk.Button(self, text="Choose Color", command=lambda: self.on_select_color_picker(1))
+        # self.c1_chooser.grid(row=6, column=1, sticky="W", padx=PADDING, pady=PADDING)
+        # self.c1_chooser.bind()
+        # self.c1
+        # self.c2_chooser = ttk.Button(self, text="Choose Color")
+        # self.c3_chooser = ttk.Button(self, text="Choose Color")
+
+
+        # Set default settings
+        self.brightness_slider.set_value(100.0)
+        self.speed_slider.set_value(20)
+        self.mode_selector.set(fluxpad_interface.RGBMode.Rainbow.name)
+        self.on_select_mode(None)
+
+    def on_select_mode(self, event: tk.Event):
+        selected_mode_str = self.mode_selector.get()
+
+        if selected_mode_str == fluxpad_interface.RGBMode.Off.name:
+            self.brightness_slider.grid_forget()
+            self.speed_slider.grid_forget()
+            for color_chooser in self.color_choosers:
+                color_chooser.grid_forget()
+
+        elif selected_mode_str == fluxpad_interface.RGBMode.Static.name:
+            self.brightness_slider.grid(row=3, column=1, sticky="EW", padx=PADDING, pady=PADDING)
+            self.speed_slider.grid_forget()
+            self.color_choosers[0].grid(row=4, column=1, sticky="EW", padx=PADDING, pady=PADDING)
+            self.color_choosers[1].grid(row=5, column=1, sticky="EW", padx=PADDING, pady=PADDING)
+            self.color_choosers[2].grid(row=6, column=1, sticky="EW", padx=PADDING, pady=PADDING)
+        elif selected_mode_str == fluxpad_interface.RGBMode.Rainbow.name:
+            self.brightness_slider.grid(row=3, column=1, sticky="EW", padx=PADDING, pady=PADDING)
+            self.speed_slider.grid(row=4, column=1, sticky="EW", padx=PADDING, pady=PADDING)
+            for color_chooser in self.color_choosers:
+                color_chooser.grid_forget()
+
+        self.mode_selector.selection_clear()
+
+    def load_from_fluxpad_settings(self, fluxpad_settings: fluxpad_interface.FluxpadSettings):
+        """Load GUI components from given fluxpad settings"""
+        self.mode_selector.set(fluxpad_interface.RGBMode(fluxpad_settings.rgb_settings.mode).name)
+        self.brightness_slider.set_value(fluxpad_settings.rgb_settings.brightness / 2.55)
+        self.speed_slider.set_value(fluxpad_settings.rgb_settings.speed)
+        self.color_choosers[0].set_color(fluxpad_settings.rgb_settings.color1)
+        self.color_choosers[1].set_color(fluxpad_settings.rgb_settings.color2)
+        self.color_choosers[2].set_color(fluxpad_settings.rgb_settings.color3)
+        self.on_select_mode(None)
+
+    def save_to_fluxpad_settings(self, fluxpad_settings: fluxpad_interface.FluxpadSettings):
+        fluxpad_settings.rgb_settings.mode = fluxpad_interface.RGBMode[self.mode_selector.get()].value
+        fluxpad_settings.rgb_settings.brightness = int(round(self.brightness_slider.value * 2.55))
+        fluxpad_settings.rgb_settings.speed = self.speed_slider.value
+        fluxpad_settings.rgb_settings.color1 = self.color_choosers[0].get_color()
+        fluxpad_settings.rgb_settings.color2 = self.color_choosers[1].get_color()
+        fluxpad_settings.rgb_settings.color3 = self.color_choosers[2].get_color()
 
 
 class AnalogCalibrationFrame(ttk.Frame):
@@ -1108,11 +1281,13 @@ class Application(ttk.Frame):
         self.frame_settings = SettingsFrame(self.notebook)
         self.frame_lighting = LightingFrame(self.notebook)
         self.frame_utilities = UtilitiesFrame(self.notebook)
+        self.frame_rgb = RGBFrame(self.notebook)
 
         # Add tabs
         self.notebook.add(self.frame_keymap, text="Keymap")
         self.notebook.add(self.frame_settings, text="Settings")
         self.notebook.add(self.frame_lighting, text="Lighting")
+        self.notebook.add(self.frame_rgb, text="RGB")
         self.notebook.add(self.frame_utilities, text="Utilities")
         
         self.notebook.grid(row=1, column=1, sticky="NSEW", pady=(0, 4), padx=4)
@@ -1259,7 +1434,7 @@ class Application(ttk.Frame):
         else: 
             self.frame_keymap.lf_mapedit.is_active = False
         
-        if self.notebook.index("current") == 3:  # Check if tab on top is utilities tab
+        if self.notebook.index("current") == 4:  # Check if tab on top is utilities tab
             self.on_calibration_tab = True
         else:
             self.on_calibration_tab = False
@@ -1269,12 +1444,15 @@ class Application(ttk.Frame):
         self.frame_keymap.load_from_settings(self.fluxpad_settings)
         self.frame_settings.load_from_fluxpad_settings(self.fluxpad_settings)
         self.frame_lighting.load_from_fluxpad_settings(self.fluxpad_settings)
+        self.frame_rgb.load_from_fluxpad_settings(self.fluxpad_settings)
 
     def _save_to_settings(self):
         """Take all settings currently set in the GUI and load them to the self.fluxpad_settings object"""
         self.frame_keymap.save_to_settings(self.fluxpad_settings)
         self.frame_settings.save_to_fluxpad_settings(self.fluxpad_settings)
         self.frame_lighting.save_to_fluxpad_settings(self.fluxpad_settings)
+        self.frame_rgb.save_to_fluxpad_settings(self.fluxpad_settings)
+
 
     def _fix_adc_samples(self):
         """Sets the ADC Samples to 22"""
@@ -1287,6 +1465,9 @@ class Application(ttk.Frame):
                 parent=self,
                 filetypes=[("Fluxpad settings file", ".json")]
             )
+            if not load_file:
+                logging.info("Canceled load from file")
+                return
             pathlib.Path(load_file)
             self.fluxpad_settings.load_from_file(pathlib.Path(load_file))
             self._fix_adc_samples()
@@ -1316,6 +1497,9 @@ class Application(ttk.Frame):
                 defaultextension=".json",
                 filetypes=[("Fluxpad settings file", ".json")]
             )
+            if not save_file:
+                logging.info("Canceled save to file")
+                return
             self._save_to_settings()
             self.fluxpad_settings.save_to_file(pathlib.Path(save_file))
         except Exception:
@@ -1355,16 +1539,16 @@ if __name__ == "__main__":
         ...
         use_sv_ttk.set_theme("light")
 
-    WIDTH = 400
-    HEIGHT = 580
+    WIDTH = 500
+    HEIGHT = 620
 
     ws = root.winfo_screenwidth()
     hs = root.winfo_screenheight()
     x = int((ws/2) - (WIDTH/2))
     y = int((hs/2) - (HEIGHT/2))
         
-    # root.geometry(f"{WIDTH}x{HEIGHT}+{x}+{y}")
-    # root.resizable(width=False, height=False)
+    root.geometry(f"{WIDTH}x{HEIGHT}+{x}+{y}")
+    root.resizable(width=False, height=False)
     root.title("FLUXAPP")
     root.iconbitmap((IMAGE_DIR / "FluxappIcon.ico").resolve())
     app = Application(master=root)

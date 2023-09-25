@@ -124,25 +124,13 @@ uint32_t last_datatream_time_ms = 0;
 
 void setup() {
 
-    // DISABLE UART RX TX LEDS
-    // pinMode(PIN_LED2, INPUT_PULLUP);
-    // pinMode(PIN_LED3, INPUT_PULLUP);
-
     EEPROM.begin(1024);
 
     analogReadResolution(12);
 
     Serial.setTimeout(100);
     Serial.begin(115200);
-    // Keyboard.begin();
-    // Consumer.begin();
     usb_service_setup(VID, PID);
-    // adc_input.setFrequency(5000);
-    // adc_input.setBuffers(100, 1zzzzzzz6);
-    // adc_input.begin();
-
-    // encoder.begin(ENC_A_PIN, ENC_B_PIN, EncoderTool::CountMode::quarter, INPUT_PULLUP);
-    // encoder = RotaryEncoder(ENC_A_PIN, ENC_A_PIN);
 
     pinMode(ENC_A_PIN, INPUT_PULLUP);
     pinMode(ENC_B_PIN, INPUT_PULLUP);
@@ -166,7 +154,6 @@ void setup() {
         i++;
     }
 
-    pinMode(3, OUTPUT_12MA);
     rgb_leds.setup();
 
     last_time_us = time_us_64();
@@ -179,7 +166,6 @@ uint32_t blink_period_us = HZ_TO_PERIOD_US(50);
 void loop() {
 
     uint64_t curr_time_us = time_us_64();
-    curr_time_us += UINT32_MAX;
     if (curr_time_us - last_time_us < mainloop_period_us) {
         return;
     }
@@ -261,14 +247,10 @@ void loop() {
         lighting.lightingTask(curr_time_us);
     }
 
-    // keyLighting[0].lightingTask(curr_time_us);
-    // keyLighting[1].lightingTask(curr_time_us);
-    // keyLighting[2].lightingTask(curr_time_us);
-    // keyLighting[3].lightingTask(curr_time_us);
-    // keyLighting[4].lightingTask(curr_time_us);
-
     // Keyboard.send();
-    usb_service();
+    if (!debug_mode) {
+        usb_service();
+    }
     read_serial();
 
     // Send data out in datastream mode
@@ -664,11 +646,11 @@ void read_serial() {
             rgb_leds.new_mode();
         }
         if (request_msg.containsKey("rgb_c2")) {
-            storage_vars.rgbSettings.color_1 = request_msg["rgb_c2"].as<unsigned int>();
+            storage_vars.rgbSettings.color_2 = request_msg["rgb_c2"].as<unsigned int>();
             rgb_leds.new_mode();
         }
         if (request_msg.containsKey("rgb_c3")) {
-            storage_vars.rgbSettings.color_1 = request_msg["rgb_c3"].as<unsigned int>();
+            storage_vars.rgbSettings.color_3 = request_msg["rgb_c3"].as<unsigned int>();
             rgb_leds.new_mode();
         }
         if (request_msg.containsKey("rgb_s")) {
