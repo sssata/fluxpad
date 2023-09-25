@@ -2,14 +2,13 @@ on:
   pull_request:
     branches:
     - main
+    - fluxpad-2
     
 jobs:
   build-arduino:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v2
-        with:
-          lfs: false
       - uses: arduino/compile-sketches@v1.0.1
         with:
           cli-version: 0.31.0
@@ -43,7 +42,7 @@ jobs:
     - name: Checkout with submodules
       uses: actions/checkout@v3
       with:
-        lfs: true
+        lfs: false
         submodules: 'recursive'
 
     - name: Create Executable
