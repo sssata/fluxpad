@@ -197,12 +197,13 @@ def _has_info_uf2_file(directory_path: pathlib.Path):
 def _reset_port(port: serial.Serial):
         """Resets given port by opening and closing port at 1200 baud"""
         port.close()
-        assert not port.is_open
+        time.sleep(0.1)
+        # assert not port.is_open
         port.baudrate = 1200
         port.open()
-        time.sleep(0.1)
+        time.sleep(0.5)
         port.close()
-        time.sleep(0.1)
+        time.sleep(0.2)
 
 
 class FirmwareUpdateFrame(ttk.Labelframe):
@@ -228,6 +229,7 @@ class FirmwareUpdateFrame(ttk.Labelframe):
         self.btn_update.grid(row=3, column=0, padx=5, pady=5, sticky="W")
 
         self.fluxpad: Optional[Fluxpad] = None
+        self.stop_listener_callback = None
         
         self.fw_bin_path = (firmware_dir / "firmware.uf2").resolve()
     
@@ -240,8 +242,12 @@ class FirmwareUpdateFrame(ttk.Labelframe):
     def enable_update(self):
         self.btn_update.state(["!disabled"])
 
+    def set_stop_listener_callback(self, callback):
+        self.stop_listener_callback = callback
+
     def upload_firmware_callback(self):
         try:
+            self.stop_listener_callback()
             assert self.fluxpad is not None
             progress = upload_firmware_threaded(self.fluxpad.port, self.fw_bin_path)
             while progress.update_event.wait(timeout=10):

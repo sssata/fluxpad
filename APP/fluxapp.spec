@@ -8,7 +8,7 @@ added_files = [
          ( 'Sun-Valley-ttk-theme/sv.tcl', '.' ),
          ( 'images/*.png', 'images' ),
          ( 'images/*.ico', 'images' ),
-         ( 'binaries/*.bin', 'binaries' ),
+         ( 'binaries/*.uf2', 'binaries' ),
 ]
 
 a = Analysis(

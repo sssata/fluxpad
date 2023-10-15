@@ -1102,14 +1102,6 @@ class UtilitiesFrame(ttk.Frame):
         self.firmware_update_frame = firmware_updater.FirmwareUpdateFrame(self, FIRMWARE_DIR)
         self.firmware_update_frame.grid(row=3, column=1, sticky="NEW")
 
-class UpdaterFrame(ttk.Frame):
-        
-    def __init__(self, master, *args, **kwargs):
-        super().__init__(master, *args, **kwargs)
-        self.rowconfigure(1, weight=0)
-        self.rowconfigure(2, weight=0)
-        self.columnconfigure(1, weight=1)
-
 
 
 class CalibrationTopLevel(tk.Toplevel):
@@ -1332,6 +1324,9 @@ class Application(ttk.Frame):
         self.frame_utilities.calibration_labelframe.analog_cal_frame_list[2].btn_set_up.configure(command=lambda: self.on_calibrate_button(is_up=True, key_id=4))
         self.frame_utilities.calibration_labelframe.analog_cal_frame_list[2].btn_set_down.configure(command=lambda: self.on_calibrate_button(is_up=False, key_id=4))
 
+        # Wire calibration listener callback
+        self.frame_utilities.firmware_update_frame.set_stop_listener_callback(self.on_fw_upload_button)
+
         # Show menu bar
         self.master.configure(menu=self.menubar)
 
@@ -1374,7 +1369,7 @@ class Application(ttk.Frame):
         self.save_menu.entryconfigure(1, state=tk.DISABLED)
         self.load_menu.entryconfigure(1, state=tk.DISABLED)
         self.frame_utilities.firmware_update_frame.disable_update()
-
+        self.frame_utilities.firmware_update_frame.set_fluxpad(None)
 
     def ask_load_from_fluxpad(self):
         should_load = messagebox.askyesno("Fluxpad Connected", "Load settings from connected FLUXPAD?")
@@ -1438,6 +1433,13 @@ class Application(ttk.Frame):
         logging.info("Calibration complete")
         self.on_notebook_tab_changed(tk.Event())
         self.update()
+
+    def on_fw_upload_button(self):
+        self.on_calibration_tab = False
+        while self.fluxpad.port.is_open or self.worker_busy:
+            self.on_calibration_tab = False
+            logging.debug(f"Waiting for port to close, isopen {self.fluxpad.port.is_open}, busy {self.worker_busy}")
+            time.sleep(0.1)
 
     def on_notebook_tab_changed(self, event: tk.Event):
         """"Turn on and off keyboard listener and calibration worker based on which tab is active"""
