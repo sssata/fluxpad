@@ -261,6 +261,9 @@ void typeHIDKey(const KeyMapEntry_t *entry) {
     switch (entry->keyType) {
     case KeyType_t::KEYBOARD:
         // Keyboard.write(KeyboardKeycode(entry->keycode.keyboard));
+        keyboard_device.add_key(entry->keycode.keyboard);
+        keyboard_device.hid_keyboard_service(usb_hid, RID_KEYBOARD);
+        keyboard_device.remove_key(entry->keycode.keyboard);
         break;
     case KeyType_t::CONSUMER:
         consumer_device.consumer_press_and_release_key(entry->keycode.consumer);
