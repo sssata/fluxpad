@@ -5,11 +5,12 @@ from tkinter import ttk
 from typing import Union, Optional, Callable, List, Type
 from collections import deque
 import logging
+import platform
+import statistics
 from tkinter import font
 import pathlib
 import time
 import threading
-import statistics
 from tkinter import messagebox
 from tkinter import filedialog
 import math
@@ -42,10 +43,12 @@ CALIBRATION_BAR_FG_COLOR = '#005fb8'
 if getattr(sys, 'frozen', False) and hasattr(sys, '_MEIPASS'):
     print('running in a PyInstaller bundle')
     IMAGE_DIR = (pathlib.Path(__file__).parent / "images").resolve()
+    FIRMWARE_DIR = (pathlib.Path(__file__).parent / "binaries").resolve()
     BOSSAC_PATH = (pathlib.Path(__file__).parent / "tools" / "bossac.exe").resolve()
 else:
     print('running in a normal Python process')
     IMAGE_DIR = (pathlib.Path(__file__).parent / "images").resolve()
+    FIRMWARE_DIR = (pathlib.Path(__file__).parent / "binaries").resolve()
     BOSSAC_PATH = (pathlib.Path(__file__).parent / "tools" / "bossac.exe").resolve()
 
 
@@ -588,7 +591,7 @@ class SettingsFrame(ttk.Frame):
         logging.debug("Selected per key analog")
 
         # Switch back to digital key 1 if currently on digital key 2
-        if self.key_select_frame.is_per_key_analog.get() and self.selected_settings_panel == 3:
+        if self.key_select_frame.is_per_key_analog.get() and self.selected_settings_panel in (3,4):
             self.on_select_key(tk.Event(), 2)
 
     
@@ -1096,8 +1099,17 @@ class UtilitiesFrame(ttk.Frame):
         test_label.grid(row=2, column=1, sticky="NEW")
 
         # Don't show firmware update for now
-        self.firmware_update_frame = firmware_updater.FirmwareUpdateFrame(self)
-        # self.firmware_update_frame.grid(row=3, column=1, sticky="NEW")
+        self.firmware_update_frame = firmware_updater.FirmwareUpdateFrame(self, FIRMWARE_DIR)
+        self.firmware_update_frame.grid(row=3, column=1, sticky="NEW")
+
+class UpdaterFrame(ttk.Frame):
+        
+    def __init__(self, master, *args, **kwargs):
+        super().__init__(master, *args, **kwargs)
+        self.rowconfigure(1, weight=0)
+        self.rowconfigure(2, weight=0)
+        self.columnconfigure(1, weight=1)
+
 
 
 class CalibrationTopLevel(tk.Toplevel):
@@ -1260,7 +1272,6 @@ class CalibrationTopLevel(tk.Toplevel):
         self.destroy()
 
 
-
 class Application(ttk.Frame):
     """Top Level application frame"""
 
@@ -1402,6 +1413,8 @@ class Application(ttk.Frame):
                             self.frame_utilities.calibration_labelframe.analog_cal_frame_list[selected_analog_key].update_height(response.height_mm - 2)
                     except fluxpad_interface.serial.SerialException:
                         logging.info(f"Serial exception {self.fluxpad.port.name}")
+                        self.on_calibration_tab = False
+                        break
                     except Exception:
                         logging.error("Exception at calibration worker", exc_info=1)
                     finally:
@@ -1540,7 +1553,10 @@ if __name__ == "__main__":
         use_sv_ttk.set_theme("light")
 
     WIDTH = 500
-    HEIGHT = 620
+    if platform.system() == "Windows" and platform.release() == "11":
+        HEIGHT = 660
+    else:
+        HEIGHT = 620
 
     ws = root.winfo_screenwidth()
     hs = root.winfo_screenheight()

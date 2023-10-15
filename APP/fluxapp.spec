@@ -8,7 +8,6 @@ added_files = [
          ( 'Sun-Valley-ttk-theme/sv.tcl', '.' ),
          ( 'images/*.png', 'images' ),
          ( 'images/*.ico', 'images' ),
-         ( 'tools/*.exe', 'tools' ),
          ( 'binaries/*.bin', 'binaries' ),
 ]
 
