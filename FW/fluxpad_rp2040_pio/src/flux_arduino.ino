@@ -19,7 +19,7 @@
 
 #define HZ_TO_PERIOD_US(x) (1000000 / (x))
 
-#define VERSION 1
+#define VERSION 2
 
 // PIN DEFINITIONS
 constexpr uint32_t ENC_A_PIN = 23u;

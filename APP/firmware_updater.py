@@ -19,6 +19,8 @@ from fluxpad_interface import Fluxpad
 
 BUFFER_SIZE = 128 * 1024
 
+CURR_FW_VERSION = 2
+
 class SameFileError(OSError):
     """Raised when source and destination are the same file."""
 
@@ -245,13 +247,31 @@ class FirmwareUpdateFrame(ttk.Labelframe):
     def set_stop_listener_callback(self, callback):
         self.stop_listener_callback = callback
 
+    def check_version(self, version):
+        if version < CURR_FW_VERSION:
+            if messagebox.askokcancel("Firmware Update", f"Current Firmware version is {version}, update to version {CURR_FW_VERSION} (latest)?"):
+                return True
+        elif version == CURR_FW_VERSION:
+            if messagebox.askokcancel("Firmware Update", f"Current Firmware version {version} is already latest, update anyway?"):
+                return True
+        else:
+            if messagebox.askokcancel("Firmware Update", f"Current Firmware version is future version {version} not supported by this version of fluxapp, downgrade to version {CURR_FW_VERSION}?"):
+                return True
+        return False
+
     def upload_firmware_callback(self):
         try:
             self.stop_listener_callback()
             assert self.fluxpad is not None
+            self.fluxpad.open()
+            version = self.fluxpad.get_version()
+            self.fluxpad.close()
+
+            if not self.check_version(version):
+                return
+
             progress = upload_firmware_threaded(self.fluxpad.port, self.fw_bin_path)
             while progress.update_event.wait(timeout=10):
-                print("waited")
                 with progress.lock:
                     self.label_progress.configure(text=progress.current_step)
                     self.progressbar_update.configure(value=progress.progress_percent)
@@ -259,7 +279,6 @@ class FirmwareUpdateFrame(ttk.Labelframe):
                     self.progressbar_update.update()
                     self.label_progress.update()
                     if progress.is_done:
-                        print("isdone")
                         break
             if progress.error_string:
                 raise Exception(progress.error_string)
