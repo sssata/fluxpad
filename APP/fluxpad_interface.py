@@ -24,6 +24,7 @@ def find_fluxpad_port():
 class CommandType(enum.Enum):
     WRITE = "w"
     READ = "r"
+    VERSION = "v"
 
 
 class LightingMode(enum.IntEnum):
@@ -41,6 +42,7 @@ class RGBMode(enum.IntEnum):
 
 class MessageKey:
     COMMAND = "cmd"
+    VERSION = "V"
     TOKEN = "tkn"
     KEY_ID = "key"
     KEY_TYPE = "k_t"
@@ -534,11 +536,23 @@ class AnalogReadMessage(BaseMessage):
         """Dummy function for read cmd, doesn't actually set height_mm"""
         self.data[MessageKey.HEIGHT] = 0
 
+class VersionReadMessage(BaseMessage):
+
+    # VERSION
+    @property
+    def version(self):
+        return self.data[MessageKey.VERSION]
+
+    @version.setter
+    def version(self, version: int):
+        self._assert_uint8(version)
+        self.data[MessageKey.VERSION] = version
+
 # class KeySettingMessage(DigitalSettingsMessage, AnalogSettingsMessage, EncoderSettingsMessage, AnalogCalibrationMessage, AnalogReadMessage):
 #     """Composite class of all settings types"""
 #     pass
 
-AnyMessage = TypeVar("AnyMessage", DigitalSettingsMessage, AnalogSettingsMessage, EncoderSettingsMessage, AnalogCalibrationMessage, AnalogReadMessage, RGBSettingsMessage, Union[DigitalSettingsMessage, AnalogSettingsMessage, EncoderSettingsMessage, AnalogCalibrationMessage, AnalogReadMessage, RGBSettingsMessage])
+AnyMessage = TypeVar("AnyMessage", DigitalSettingsMessage, AnalogSettingsMessage, EncoderSettingsMessage, AnalogCalibrationMessage, AnalogReadMessage, RGBSettingsMessage, VersionReadMessage, Union[DigitalSettingsMessage, AnalogSettingsMessage, EncoderSettingsMessage, AnalogCalibrationMessage, AnalogReadMessage, RGBSettingsMessage])
 
 
 class Fluxpad:
@@ -603,6 +617,11 @@ class Fluxpad:
 
         message.command = CommandType.READ
         return self._send_request(message)
+    
+    def get_version(self) -> int:
+        message = VersionReadMessage()
+        message.command = CommandType.VERSION
+        return self._send_request(message).version
 
 
 class FluxpadListener():
@@ -736,6 +755,9 @@ class FluxpadSettings:
         for key_settings in self.key_settings_list:
             key_settings.key_id = key_id
             key_id += 1
+
+    def get_version(self, fluxpad: Fluxpad):
+        return fluxpad.get_version()
 
     def load_from_keypad(self, fluxpad: Fluxpad):
         """Load all settings from the given connected fluxpad"""

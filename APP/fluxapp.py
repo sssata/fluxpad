@@ -1534,6 +1534,17 @@ class Application(ttk.Frame):
         else:
             messagebox.showinfo("Saved settings", "Saved settings to FLUXPAD")
 
+
+def is_windows_11():
+    version_info = platform.uname()
+    if version_info.system == 'Windows' and version_info.release == '10':
+        # Check for Windows 11 specific version number (10.0.22000 and above)
+        windows_version = version_info.version.split('.')
+        if len(windows_version) >= 3 and int(windows_version[2]) >= 22000:
+            return True
+    return False
+
+
 if __name__ == "__main__":
 
     logging.basicConfig(level=logging.DEBUG)
@@ -1555,7 +1566,8 @@ if __name__ == "__main__":
         use_sv_ttk.set_theme("light")
 
     WIDTH = 500
-    if platform.system() == "Windows" and platform.release() == "11":
+    if is_windows_11():
+        # For some reason windows 11 windows are bigger
         HEIGHT = 660
     else:
         HEIGHT = 620
