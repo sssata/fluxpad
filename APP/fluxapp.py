@@ -785,6 +785,9 @@ class LightingFrame(ttk.Frame):
         self.key_select_frame.btn_list[3].bind("<Button-1>", lambda event: self.on_select_key(event, 3))
         self.key_select_frame.btn_list[4].bind("<Button-1>", lambda event: self.on_select_key(event, 4))
 
+        self.key_select_frame.chk_per_key_digital.bind("<Button-1>", self.on_select_per_key_digital)
+        self.key_select_frame.chk_per_key_analog.bind("<Button-1>", self.on_select_per_key_analog)
+
         self.label_wip = ttk.Label(self, text="Lighting Settings Coming Soon")
         self.label_wip.grid(row=2, column=1)
         self.lighting_panel_list = [
@@ -799,6 +802,20 @@ class LightingFrame(ttk.Frame):
         self.selected_settings_panel = -1
         self.on_select_key(None, 2)
 
+    def on_select_per_key_digital(self, event:tk.Event):
+        logging.debug("Selected per key digital")
+
+        # Switch back to analog key 1 if currently on analog key 2
+        if self.key_select_frame.is_per_key_digital.get() and self.selected_settings_panel == 1:
+            self.on_select_key(tk.Event(), 0)
+    
+
+    def on_select_per_key_analog(self, event:tk.Event):
+        logging.debug("Selected per key analog")
+
+        # Switch back to digital key 1 if currently on digital key 2
+        if self.key_select_frame.is_per_key_analog.get() and self.selected_settings_panel in (3,4):
+            self.on_select_key(tk.Event(), 2)
 
     def on_select_key(self, event: tk.Event, key_id: int):
         """Callback for key selected"""
@@ -966,15 +983,6 @@ class RGBFrame(ttk.Frame):
             ColorPicker(self, text="LED 2 Color", led_number=1),
             ColorPicker(self, text="LED 3 Color", led_number=2),
         ]
-
-        # self.c1_label = ttk.Label(self, text="LED 1 Color")
-        # self.c1_label.grid(row=5, column=1, sticky="W", padx=PADDING, pady=PADDING)
-        # self.c1_chooser = ttk.Button(self, text="Choose Color", command=lambda: self.on_select_color_picker(1))
-        # self.c1_chooser.grid(row=6, column=1, sticky="W", padx=PADDING, pady=PADDING)
-        # self.c1_chooser.bind()
-        # self.c1
-        # self.c2_chooser = ttk.Button(self, text="Choose Color")
-        # self.c3_chooser = ttk.Button(self, text="Choose Color")
 
 
         # Set default settings
@@ -1579,7 +1587,7 @@ if __name__ == "__main__":
         
     root.geometry(f"{WIDTH}x{HEIGHT}+{x}+{y}")
     root.resizable(width=False, height=False)
-    root.title("FLUXAPP")
+    root.title("FLUXAPP v2.1.0")
     root.iconbitmap((IMAGE_DIR / "FluxappIcon.ico").resolve())
     app = Application(master=root)
     app.pack(expand=True, fill="both", side="top")
